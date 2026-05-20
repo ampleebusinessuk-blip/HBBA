@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" role="img" aria-label="HBBA Global">
+  <title>HBBA Global</title>
+  <!-- Mark: stacked blocks forming HB motif -->
+  <g transform="translate(8 14)">
+    <!-- Top row -->
+    <rect x="0"  y="0"  width="22" height="22" fill="#16294f"/>
+    <rect x="26" y="0"  width="22" height="22" fill="#16294f"/>
+    <rect x="52" y="0"  width="22" height="22" fill="#b8a072"/>
+    <!-- Middle row -->
+    <rect x="0"  y="26" width="22" height="22" fill="#16294f"/>
+    <rect x="26" y="26" width="22" height="22" fill="#b8a072"/>
+    <rect x="52" y="26" width="22" height="22" fill="#16294f"/>
+    <!-- Bottom row -->
+    <rect x="0"  y="52" width="22" height="22" fill="#16294f"/>
+    <rect x="26" y="52" width="22" height="22" fill="#16294f"/>
+    <rect x="52" y="52" width="22" height="22" fill="#b8a072"/>
+  </g>
+  <!-- Wordmark -->
+  <g fill="#16294f" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="800">
+    <text x="100" y="52" font-size="38" letter-spacing="1">HBBA</text>
+    <text x="100" y="92" font-size="32" letter-spacing="1" fill="#b8a072">GLOBAL</text>
+  </g>
+</svg>

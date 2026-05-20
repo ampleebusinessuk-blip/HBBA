@@ -7,16 +7,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body data-theme="light">
     <section class="auth-screen" id="authScreen">
       <div class="auth-brand">
-        <div class="brand-mark">HB</div>
-        <div>
-          <strong>HBBA Global</strong>
-          <span>UK BUSINESS NETWORK</span>
-        </div>
+        <img class="brand-logo" src="logo.svg" alt="HBBA Global" />
+        <span class="brand-tag">UK BUSINESS NETWORK</span>
       </div>
 
       <div class="auth-hero">
@@ -69,11 +67,7 @@
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="brand">
-          <div class="brand-mark">HB</div>
-          <div>
-            <strong>HBBA Global</strong>
-            <span>UK BUSINESS NETWORK</span>
-          </div>
+          <img class="brand-logo" src="logo.svg" alt="HBBA Global" />
         </div>
 
         <nav class="nav" aria-label="Main navigation">
@@ -122,14 +116,20 @@
             <kbd>Ctrl K</kbd>
           </label>
           <div class="top-actions">
-            <button class="icon-button" type="button" aria-label="Theme"><span data-icon="settings"></span></button>
-            <button class="icon-button" type="button" aria-label="Help"><span data-icon="message"></span></button>
-            <button class="icon-button has-badge" type="button" aria-label="Notifications"><span data-icon="bell"></span><i>5</i></button>
-            <button class="profile" type="button">
-              <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=96&q=80" alt="John Doe" />
-              <span><strong>John Doe</strong><small>HBBA Admin</small></span>
-              <span data-icon="chevron"></span>
-            </button>
+            <button class="icon-button" id="themeToggle" type="button" aria-label="Theme"><span data-icon="sun"></span></button>
+            <button class="icon-button" id="commandOpen" type="button" aria-label="Command palette"><span data-icon="command"></span></button>
+            <div class="dropdown-wrap">
+              <button class="icon-button has-badge" id="notifToggle" type="button" aria-label="Notifications" aria-expanded="false"><span data-icon="bell"></span><i>5</i></button>
+              <div class="dropdown notif-panel" id="notifPanel" hidden></div>
+            </div>
+            <div class="dropdown-wrap">
+              <button class="profile" id="profileToggle" type="button" aria-expanded="false">
+                <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=96&q=80" alt="John Doe" />
+                <span><strong>John Doe</strong><small>HBBA Admin</small></span>
+                <span data-icon="chevron"></span>
+              </button>
+              <div class="dropdown profile-menu" id="profileMenu" hidden></div>
+            </div>
           </div>
         </header>
 
@@ -143,7 +143,7 @@
             <div class="head-actions">
               <button class="control" type="button"><span data-icon="calendar"></span>May 16 - May 23, 2024<span data-icon="chevron"></span></button>
               <button class="control" type="button"><span data-icon="filter"></span>Export</button>
-              <button class="primary-action" type="button"><span data-icon="plus"></span>New Event</button>
+              <button class="primary-action" type="button" data-modal="new-event"><span data-icon="plus"></span>New Event</button>
             </div>
           </div>
 
@@ -152,7 +152,47 @@
       </main>
     </div>
 
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <nav class="bottom-nav" id="bottomNav" aria-label="Mobile navigation"></nav>
+
+    <div class="toast-stack" id="toastStack" role="status" aria-live="polite"></div>
+
+    <div class="overlay" id="modalOverlay" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <header class="modal-head"><h2 id="modalTitle">Modal</h2><button class="icon-button" id="modalClose" type="button" aria-label="Close"><span data-icon="close"></span></button></header>
+        <div class="modal-body" id="modalBody"></div>
+        <footer class="modal-foot" id="modalFoot"></footer>
+      </div>
+    </div>
+
+    <div class="overlay drawer-overlay" id="drawerOverlay" hidden>
+      <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+        <header class="drawer-head"><h2 id="drawerTitle">Detail</h2><button class="icon-button" id="drawerClose" type="button" aria-label="Close"><span data-icon="close"></span></button></header>
+        <div class="drawer-body" id="drawerBody"></div>
+      </aside>
+    </div>
+
+    <div class="overlay command-overlay" id="commandOverlay" hidden>
+      <div class="command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <header class="command-head">
+          <span data-icon="search"></span>
+          <input type="search" id="commandInput" placeholder="Type a command or search…" autocomplete="off" />
+          <kbd>Esc</kbd>
+        </header>
+        <div class="command-results" id="commandResults"></div>
+      </div>
+    </div>
+
+    <div class="overlay confirm-overlay" id="confirmOverlay" hidden>
+      <div class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+        <span class="confirm-icon" data-icon="alert"></span>
+        <h2 id="confirmTitle">Are you sure?</h2>
+        <p id="confirmBody">This action cannot be undone.</p>
+        <div class="confirm-actions">
+          <button class="control" id="confirmCancel" type="button">Cancel</button>
+          <button class="primary-action danger" id="confirmOk" type="button">Confirm</button>
+        </div>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
