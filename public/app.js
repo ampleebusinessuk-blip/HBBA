@@ -878,9 +878,24 @@ function settingsBody(tab) {
 
 /* ===================== ROUTING ===================== */
 
-/* ===================== ROLES (mocked multi-portal) ===================== */
+/* ===================== ROLES (multi-portal) ===================== */
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 let currentRole = 'admin';
+let currentUser = null;
+
+/* Thin API wrapper. Cookies are same-origin httpOnly; credentials:'include' keeps
+   them flowing. Returns { ok, status, data }. */
+async function api(path, { method = 'GET', body } = {}) {
+  const res = await fetch(path, {
+    method,
+    credentials: 'include',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  let data = null;
+  try { data = await res.json(); } catch { /* no body */ }
+  return { ok: res.ok, status: res.status, data };
+}
 
 const ROLES = {
   admin: {
@@ -1350,9 +1365,11 @@ function renderNotifPanel() {
 /* ===================== PROFILE MENU ===================== */
 function renderProfileMenu() {
   const p = ROLES[currentRole].profile;
+  const name = currentUser?.full_name || p.name;
+  const email = currentUser?.email || p.email;
   const settingsItem = currentRole === 'admin' ? `<button class="menu-item" type="button" data-page-link="settings"><span data-icon="settings"></span>Settings</button>` : '';
   document.getElementById('profileMenu').innerHTML = `
-    <div style="padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><strong>${p.name}</strong><br /><small class="muted">${p.email}</small></div>
+    <div style="padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><strong>${name}</strong><br /><small class="muted">${email}</small></div>
     ${settingsItem}
     <button class="menu-item" type="button" data-toast="Profile opened"><span data-icon="users"></span>Profile</button>
     <button class="menu-item" type="button" data-toast="Help center opened"><span data-icon="message"></span>Help</button>
@@ -1425,8 +1442,9 @@ function toggleTheme() {
 }
 
 /* ===================== SIGN OUT ===================== */
-function signOut() {
-  localStorage.removeItem('hbba-role');
+async function signOut() {
+  await api('/api/auth/logout', { method: 'POST' });
+  currentUser = null;
   currentRole = 'admin';
   showAuth('login');
   showToast('Signed out', 'info');
@@ -1542,18 +1560,19 @@ function installDelegate() {
 }
 
 /* ===================== APP SHELL ===================== */
-function setRole(role) {
-  currentRole = ROLES[role] ? role : 'admin';
-  localStorage.setItem('hbba-role', currentRole);
+/* Set the active session from a server user record (from /signup, /login, /me). */
+function setSession(user) {
+  currentUser = user;
+  currentRole = ROLES[user.role] ? user.role : 'member';
 }
 
 function applyRoleIdentity(role) {
   const p = ROLES[role].profile;
   const img = document.querySelector('#profileToggle img');
-  if (img) { img.src = p.avatar; img.alt = p.name; }
+  if (img) { img.src = p.avatar; img.alt = (currentUser?.full_name || p.name); }
   const strong = document.querySelector('#profileToggle strong');
   const small = document.querySelector('#profileToggle small');
-  if (strong) strong.textContent = p.name;
+  if (strong) strong.textContent = currentUser?.full_name || p.name;
   if (small) small.textContent = p.role;
 }
 
@@ -1594,19 +1613,52 @@ function renderBottomNav(role = currentRole) {
 
 /* ===================== GLOBAL WIRING ===================== */
 document.querySelectorAll('[data-auth-tab]').forEach((b) => b.addEventListener('click', () => showAuth(b.dataset.authTab)));
-document.querySelectorAll('.auth-form').forEach((f) => f.addEventListener('submit', (e) => {
-  e.preventDefault();
-  // simple validation gate
-  const invalid = f.querySelector('label.has-error');
-  if (invalid) { showToast('Please fix the highlighted fields', 'error'); return; }
-  const email = f.querySelector('input[type="email"]')?.value || '';
-  setRole(roleFromEmail(email));
+
+function enterApp(user, message) {
+  setSession(user);
   showApp(ROLES[currentRole].landing);
-  showToast(f.id === 'signupForm' ? 'Account created' : `Logged in as ${ROLES[currentRole].label}`, 'success');
-}));
+  showToast(message, 'success');
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.currentTarget;
+  if (f.querySelector('label.has-error')) { showToast('Please fix the highlighted fields', 'error'); return; }
+  const email = f.querySelector('input[type="email"]').value;
+  const password = f.querySelector('input[type="password"]').value;
+  const submit = f.querySelector('.auth-submit');
+  submit.disabled = true;
+  const { ok, data } = await api('/api/auth/login', { method: 'POST', body: { email, password } });
+  submit.disabled = false;
+  if (!ok) { showToast(data?.error || 'Login failed', 'error'); return; }
+  enterApp(data.user, `Logged in as ${ROLES[data.user.role].label}`);
+});
+
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.currentTarget;
+  if (f.querySelector('label.has-error')) { showToast('Please fix the highlighted fields', 'error'); return; }
+  const get = (sel) => f.querySelector(sel)?.value || '';
+  const body = {
+    full_name: get('input[autocomplete="name"]'),
+    email: get('input[type="email"]'),
+    password: get('input[type="password"]'),
+    org: get('[data-field="org"]'),
+    role: get('[data-field="role"]')
+  };
+  const submit = f.querySelector('.auth-submit');
+  submit.disabled = true;
+  const { ok, data } = await api('/api/auth/signup', { method: 'POST', body });
+  submit.disabled = false;
+  if (!ok) { showToast(data?.error || 'Signup failed', 'error'); return; }
+  enterApp(data.user, 'Account created');
+});
+
 document.querySelectorAll('[data-demo]').forEach((b) => b.addEventListener('click', () => {
-  const emailInput = document.querySelector('#loginForm input[type="email"]');
-  if (emailInput) { emailInput.value = b.dataset.demo; emailInput.dispatchEvent(new Event('blur')); }
+  const form = document.getElementById('loginForm');
+  form.querySelector('input[type="email"]').value = b.dataset.demo;
+  form.querySelector('input[type="password"]').value = 'hbbaglobal';
+  form.querySelectorAll('input').forEach((i) => i.dispatchEvent(new Event('blur')));
 }));
 document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('is-open'));
 document.getElementById('globalSearch').addEventListener('keydown', (e) => {
@@ -1675,8 +1727,17 @@ initIcons();
 installDelegate();
 attachAuthValidation();
 document.querySelector('.app-shell').classList.add('is-hidden');
-currentRole = localStorage.getItem('hbba-role') || 'admin';
-if (!ROLES[currentRole]) currentRole = 'admin';
-const initialRoute = location.hash.replace('#', '');
-if (initialRoute && initialRoute !== 'login' && initialRoute !== 'signup' && pageRendererFor(currentRole, initialRoute)) showApp(initialRoute);
-else showAuth(initialRoute === 'signup' ? 'signup' : 'login');
+document.getElementById('authScreen').classList.add('is-hidden');
+
+(async function boot() {
+  // Restore session from the server (httpOnly cookie). No client-side role guessing.
+  const { ok, data } = await api('/api/auth/me');
+  if (ok && data?.user) {
+    setSession(data.user);
+    const route = location.hash.replace('#', '');
+    showApp(route && pageRendererFor(currentRole, route) ? route : ROLES[currentRole].landing);
+  } else {
+    const route = location.hash.replace('#', '');
+    showAuth(route === 'signup' ? 'signup' : 'login');
+  }
+})();
