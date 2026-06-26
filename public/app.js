@@ -77,7 +77,7 @@ const pageMeta = {
 };
 
 /* ---------- Data ---------- */
-const metrics = [
+let metrics = [
   ['Total Members', '1,250', '12.5%', 'users', '#5b35f5'],
   ['Events', '24', '8.3%', 'calendar', '#2563eb'],
   ['Ticket Sales', '342', '18.7%', 'ticket', '#0f9f6e'],
@@ -100,7 +100,7 @@ const activities = [
   ['Sponsor onboarded', 'Global Bank Ltd. - Gold Sponsor', '3 hours ago', 'purple']
 ];
 
-const contacts = [
+let contacts = [
   { name: 'Sarah Johnson', email: 'sarah@globalbank.co.uk', company: 'Global Bank Ltd.', city: 'London', status: 'Active', tier: 'Gold', avatar: avatars[0], presence: 'online', phone: '+44 20 7946 0991', deals: 3, last: '2h ago' },
   { name: 'Lukas Meyer', email: 'l.meyer@techvision.de', company: 'TechVision Ltd.', city: 'Berlin', status: 'Warm', tier: 'Silver', avatar: avatars[1], presence: 'away', phone: '+49 30 1234 5678', deals: 1, last: '1d ago' },
   { name: 'Amina Hassan', email: 'amina@emiratesch.ae', company: 'Emirates Chamber', city: 'Dubai', status: 'Active', tier: 'Gold', avatar: avatars[2], presence: 'online', phone: '+971 4 200 3000', deals: 2, last: '3h ago' },
@@ -163,7 +163,7 @@ const ticketRecords = [
   { id: 'T-9817', event: 'Sponsor Strategy Workshop', buyer: 'Elena Rossi', tier: 'Standard', price: '£90', status: 'Refunded', checkin: '—' }
 ];
 
-const sponsorList = [
+let sponsorList = [
   { name: 'Global Bank Ltd.', tier: 'Gold', amount: '£15,000', renewal: 'Jun 2025', contact: 'Sarah Johnson', status: 'Active' },
   { name: 'Tech Solutions Inc.', tier: 'Silver', amount: '£10,000', renewal: 'Jul 2024', contact: 'Lukas Meyer', status: 'Renewal' },
   { name: 'Business World', tier: 'Bronze', amount: '£5,000', renewal: 'Sep 2024', contact: 'Peter Novak', status: 'Active' },
@@ -218,7 +218,7 @@ const supportThreads = [
   ]}
 ];
 
-const invoices = [
+let invoices = [
   { id: 'INV-3021', client: 'Global Bank Ltd.', amount: '£15,000', issued: '01 May', due: '31 May', status: 'paid' },
   { id: 'INV-3020', client: 'Tech Solutions Inc.', amount: '£10,000', issued: '01 May', due: '31 May', status: 'paid' },
   { id: 'INV-3019', client: 'Emirates Chamber', amount: '£18,000', issued: '03 May', due: '02 Jun', status: 'due' },
@@ -969,6 +969,41 @@ async function bookEvent(code) {
   render('myEvents');
 }
 
+const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB');
+
+async function loadAdminData() {
+  const [st, mem, spo, inv, ev] = await Promise.all([
+    api('/api/admin/stats'),
+    api('/api/admin/members'),
+    api('/api/admin/sponsors'),
+    api('/api/admin/invoices'),
+    api('/api/events')
+  ]);
+  if (st.ok && st.data?.stats) {
+    const s = st.data.stats;
+    metrics = [
+      ['Total Members', String(s.members), '12.5%', 'users', '#5b35f5'],
+      ['Sponsors', String(s.sponsors), '8.3%', 'star', '#f2aa00'],
+      ['Events', String(s.events), '6.1%', 'calendar', '#2563eb'],
+      ['Bookings', String(s.bookings), '18.7%', 'ticket', '#0f9f6e'],
+      ['Revenue', fmtMoney(s.revenue_cents), '22.1%', 'chart', '#5b35f5']
+    ];
+  }
+  if (mem.ok && mem.data?.members) contacts = mem.data.members;
+  if (spo.ok && spo.data?.sponsors) sponsorList = spo.data.sponsors;
+  if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
+  if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
+}
+
+async function createEvent(fields) {
+  const { ok, data } = await api('/api/admin/events', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not create event', 'error'); return false; }
+  showToast(`Event "${data.event.title}" created`, 'success');
+  await loadAdminData();
+  render('events');
+  return true;
+}
+
 /* ---------- Sponsor data (hydrated from the API in loadSponsorData) ---------- */
 let sponsorProfile = {
   name: 'Acme Corp', tier: 'Gold', value: '£15,000 / year', renews: 'Jun 2027', since: 'Jun 2023',
@@ -1293,7 +1328,8 @@ const modalForms = {
   'new-contact': () => openModal('Add contact',
     `<div class="form-row"><label>Full name<input type="text" placeholder="Jane Smith" required /></label><label>Email<input type="email" placeholder="jane@example.com" /></label><label>Company<input type="text" /></label><label>City<input type="text" /></label><label>Tier<select><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Status<select><option>Active</option><option>Warm</option><option>New</option></select></label></div>`),
   'new-event': () => openModal('Create event',
-    `<label>Event title<input type="text" placeholder="Networking Dinner" /></label><div class="form-row"><label>Date<input type="date" /></label><label>Time<input type="time" /></label><label>City<input type="text" /></label><label>Venue<input type="text" /></label><label>Capacity<input type="number" placeholder="120" /></label><label>Ticket tiers<select><option>Standard + VIP</option><option>Standard only</option><option>VIP only</option></select></label></div><label>Description<textarea placeholder="Brief overview…"></textarea></label>`),
+    `<label>Event title<input type="text" data-field="title" placeholder="Networking Dinner" /></label><div class="form-row"><label>Date<input type="text" data-field="date_label" placeholder="Aug 12" /></label><label>Time<input type="text" data-field="time_label" placeholder="6 PM" /></label><label>City<input type="text" data-field="city" placeholder="London, UK" /></label><label>Capacity<input type="number" data-field="capacity" placeholder="120" /></label></div><label>Description<textarea placeholder="Brief overview…"></textarea></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-event>Create event</button>`),
   'new-ticket': () => openModal('Issue ticket',
     `<div class="form-row"><label>Event<select>${eventsCatalog.map((e) => `<option>${e.title}</option>`).join('')}</select></label><label>Buyer<input type="text" /></label><label>Tier<select><option>VIP</option><option>Standard</option></select></label><label>Price<input type="number" placeholder="250" /></label></div>`),
   'new-sponsor': () => openModal('New sponsor',
@@ -1528,6 +1564,15 @@ function installDelegate() {
     const bookBtn = find('[data-book]');
     if (bookBtn) { ev.stopPropagation(); bookEvent(bookBtn.dataset.book); return; }
 
+    if (find('[data-create-event]')) {
+      ev.stopPropagation();
+      const m = document.getElementById('modalBody');
+      const get = (f) => m.querySelector(`[data-field="${f}"]`)?.value || '';
+      createEvent({ title: get('title'), date_label: get('date_label'), time_label: get('time_label'), city: get('city'), capacity: get('capacity') })
+        .then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
     const modalBtn = find('[data-modal]');
     if (modalBtn) { ev.stopPropagation(); modalForms[modalBtn.dataset.modal]?.(); return; }
 
@@ -1627,6 +1672,7 @@ async function showApp(page) {
   try {
     if (currentRole === 'member') await loadMemberData();
     else if (currentRole === 'sponsor') await loadSponsorData();
+    else if (currentRole === 'admin') await loadAdminData();
   } catch { showToast('Could not load your data', 'error'); }
   render(page || ROLES[currentRole].landing);
 }

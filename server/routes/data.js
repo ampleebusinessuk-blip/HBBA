@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { requireAuth } from '../auth.js';
+import { requireAuth, requireRole } from '../auth.js';
+
+const STOCK_AVATAR = 'https://i.pravatar.cc/96?img=12';
 
 export const dataRouter = Router();
 
@@ -159,5 +161,77 @@ dataRouter.get('/sponsor/events', async (req, res, next) => {
       id: r.code, title: r.title, date: r.date_label, city: r.city,
       status: r.status, img: r.img, booth: r.booth, reach: r.reach
     })) });
+  } catch (err) { next(err); }
+});
+
+// --- Admin portal (admin only) ---
+const adminOnly = requireRole('admin');
+
+// Org-wide metrics for the admin dashboard.
+dataRouter.get('/admin/stats', adminOnly, async (_req, res, next) => {
+  try {
+    const r = await query(`SELECT
+      (SELECT count(*) FROM users WHERE role='member')  AS members,
+      (SELECT count(*) FROM users WHERE role='sponsor') AS sponsors,
+      (SELECT count(*) FROM events)                     AS events,
+      (SELECT count(*) FROM event_bookings)             AS bookings,
+      (SELECT coalesce(sum(amount_cents),0) FROM invoices WHERE status='paid') AS revenue_cents`);
+    res.json({ stats: r.rows[0] });
+  } catch (err) { next(err); }
+});
+
+// All members (real signed-up users) in the CRM contact shape.
+dataRouter.get('/admin/members', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query(`SELECT full_name, email, org, status, created_at FROM users WHERE role='member' ORDER BY created_at DESC`);
+    res.json({ members: rows.map((u) => ({
+      name: u.full_name, email: u.email, company: u.org || '—', city: '—',
+      status: u.status === 'active' ? 'Active' : 'New', tier: 'Member', avatar: STOCK_AVATAR,
+      presence: 'online', phone: '—', deals: 0, last: new Date(u.created_at).toLocaleDateString('en-GB')
+    })) });
+  } catch (err) { next(err); }
+});
+
+// All sponsors (users + their sponsorship row).
+dataRouter.get('/admin/sponsors', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query(`
+      SELECT u.full_name, u.org, s.tier, s.value_cents, s.renews
+        FROM users u LEFT JOIN sponsorships s ON s.user_id = u.id
+       WHERE u.role='sponsor' ORDER BY u.created_at DESC`);
+    res.json({ sponsors: rows.map((r) => ({
+      name: r.org || r.full_name, tier: r.tier || 'Gold',
+      amount: r.value_cents ? money(r.value_cents) : '—', renewal: r.renews || '—',
+      contact: r.full_name, status: 'Active'
+    })) });
+  } catch (err) { next(err); }
+});
+
+// All invoices org-wide, with the client name.
+dataRouter.get('/admin/invoices', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query(`
+      SELECT i.number, i.description, i.amount_cents, i.currency, i.issued_on, i.status, u.full_name
+        FROM invoices i LEFT JOIN users u ON u.id = i.user_id
+       ORDER BY i.created_at DESC`);
+    res.json({ invoices: rows.map((r) => ({
+      id: r.number, client: r.full_name || '—', amount: money(r.amount_cents, r.currency),
+      issued: r.issued_on, due: '—', status: r.status
+    })) });
+  } catch (err) { next(err); }
+});
+
+// Create an event.
+dataRouter.post('/admin/events', adminOnly, async (req, res, next) => {
+  try {
+    const { title, date_label, time_label, city, capacity } = req.body || {};
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Title required' });
+    const code = 'E' + Date.now().toString().slice(-6);
+    const { rows } = await query(
+      `INSERT INTO events (code, title, date_label, time_label, city, capacity, status)
+       VALUES ($1,$2,$3,$4,$5,$6,'Draft') RETURNING code, title`,
+      [code, String(title).trim(), date_label || 'TBC', time_label || 'TBC', city || 'TBC', Number(capacity) || 100]
+    );
+    res.status(201).json({ event: rows[0] });
   } catch (err) { next(err); }
 });
