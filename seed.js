@@ -78,6 +78,51 @@ async function seed() {
     );
   }
   console.log(`seeded ${invoices.length} invoices`);
+
+  // --- Sponsor data (for sponsor@hbbaglobal.co.uk) ---
+  const sp = await pool.query('SELECT id FROM users WHERE email=$1', ['sponsor@hbbaglobal.co.uk']);
+  const sponsorId = sp.rows[0]?.id;
+  if (sponsorId) {
+    await pool.query(
+      `INSERT INTO sponsorships (user_id, tier, value_cents, renews, since, impressions, placements, leads_count, meetings, inclusions)
+       VALUES ($1,'Gold',1500000,'Jun 2027','Jun 2023',184200,46,128,23,$2)
+       ON CONFLICT (user_id) DO UPDATE SET
+         tier=EXCLUDED.tier, value_cents=EXCLUDED.value_cents, renews=EXCLUDED.renews, since=EXCLUDED.since,
+         impressions=EXCLUDED.impressions, placements=EXCLUDED.placements, leads_count=EXCLUDED.leads_count,
+         meetings=EXCLUDED.meetings, inclusions=EXCLUDED.inclusions`,
+      [sponsorId, JSON.stringify([
+        'Logo on all events', 'Keynote slot at flagship event', 'Dedicated booth at 6 events',
+        'Member directory feature', 'Quarterly leads report'
+      ])]
+    );
+
+    const leads = [
+      ['Sarah Johnson', 'Global Bank Ltd.', 'Treasury services', '2d ago'],
+      ['Lukas Meyer', 'TechVision Ltd.', 'Cloud migration', '3d ago'],
+      ['Amina Hassan', 'Emirates Chamber', 'Trade finance', '5d ago'],
+      ['Olivia Watson', 'City Finance', 'Advisory retainer', '1w ago']
+    ];
+    await pool.query('DELETE FROM sponsor_leads WHERE user_id=$1', [sponsorId]);
+    for (const [name, company, interest, when] of leads) {
+      await pool.query(
+        'INSERT INTO sponsor_leads (user_id, name, company, interest, when_label) VALUES ($1,$2,$3,$4,$5)',
+        [sponsorId, name, company, interest, when]
+      );
+    }
+
+    const sponsored = [['E001', 'Booth A1', '120 reach'], ['E002', 'Main stage', '250 reach'], ['E005', 'Booth B3', '60 reach']];
+    for (const [code, booth, reach] of sponsored) {
+      const e = await pool.query('SELECT id FROM events WHERE code=$1', [code]);
+      if (!e.rows[0]) continue;
+      await pool.query(
+        `INSERT INTO sponsored_events (user_id, event_id, booth, reach) VALUES ($1,$2,$3,$4)
+         ON CONFLICT (user_id, event_id) DO UPDATE SET booth=EXCLUDED.booth, reach=EXCLUDED.reach`,
+        [sponsorId, e.rows[0].id, booth, reach]
+      );
+    }
+    console.log(`seeded sponsorship + ${leads.length} leads + ${sponsored.length} sponsored events`);
+  }
+
   console.log(`demo password: ${DEMO_PASSWORD}`);
 }
 

@@ -969,27 +969,41 @@ async function bookEvent(code) {
   render('myEvents');
 }
 
-/* ---------- Sponsor demo data ---------- */
-const sponsorProfile = {
+/* ---------- Sponsor data (hydrated from the API in loadSponsorData) ---------- */
+let sponsorProfile = {
   name: 'Acme Corp', tier: 'Gold', value: '£15,000 / year', renews: 'Jun 2027', since: 'Jun 2023',
   inclusions: ['Logo on all events', 'Keynote slot at flagship event', 'Dedicated booth at 6 events', 'Member directory feature', 'Quarterly leads report']
 };
-const sponsorStats = [['Impressions', '184,200'], ['Logo placements', '46'], ['Leads generated', '128'], ['Meetings booked', '23']];
-const sponsorLeads = [
+let sponsorStats = [['Impressions', '184,200'], ['Logo placements', '46'], ['Leads generated', '128'], ['Meetings booked', '23']];
+let sponsorLeads = [
   { name: 'Sarah Johnson', company: 'Global Bank Ltd.', interest: 'Treasury services', when: '2d ago' },
   { name: 'Lukas Meyer', company: 'TechVision Ltd.', interest: 'Cloud migration', when: '3d ago' },
   { name: 'Amina Hassan', company: 'Emirates Chamber', interest: 'Trade finance', when: '5d ago' },
   { name: 'Olivia Watson', company: 'City Finance', interest: 'Advisory retainer', when: '1w ago' }
 ];
-const sponsoredEventsData = [
+let sponsoredEventsData = [
   { ...eventsCatalog[0], booth: 'Booth A1', reach: '120 reach' },
   { ...eventsCatalog[1], booth: 'Main stage', reach: '250 reach' },
   { ...eventsCatalog[4], booth: 'Booth B3', reach: '60 reach' }
 ];
-const sponsorInvoices = [
+let sponsorInvoices = [
   { id: 'INV-SP-2026-014', desc: 'Gold sponsorship — annual', amount: '£15,000', issued: '01 Jun', status: 'paid' },
   { id: 'INV-SP-2026-022', desc: 'Additional booth — Trade Conference', amount: '£2,400', issued: '10 May', status: 'due' }
 ];
+
+async function loadSponsorData() {
+  const [ov, ld, ev, inv] = await Promise.all([
+    api('/api/sponsor/overview'),
+    api('/api/sponsor/leads'),
+    api('/api/sponsor/events'),
+    api('/api/me/invoices')
+  ]);
+  if (ov.ok && ov.data?.overview) sponsorProfile = { ...sponsorProfile, ...ov.data.overview };
+  if (ov.ok && Array.isArray(ov.data?.stats) && ov.data.stats.length) sponsorStats = ov.data.stats;
+  if (ld.ok && ld.data?.leads) sponsorLeads = ld.data.leads;
+  if (ev.ok && ev.data?.events) sponsoredEventsData = ev.data.events;
+  if (inv.ok && inv.data?.invoices) sponsorInvoices = inv.data.invoices;
+}
 
 /* ---------- Member pages ---------- */
 function memberDashboardPage() {
@@ -1610,9 +1624,10 @@ async function showApp(page) {
   applyRoleIdentity(currentRole);
   renderSidebarNav(currentRole);
   renderBottomNav(currentRole);
-  if (currentRole === 'member') {
-    try { await loadMemberData(); } catch { showToast('Could not load your data', 'error'); }
-  }
+  try {
+    if (currentRole === 'member') await loadMemberData();
+    else if (currentRole === 'sponsor') await loadSponsorData();
+  } catch { showToast('Could not load your data', 'error'); }
   render(page || ROLES[currentRole].landing);
 }
 function showAuth(mode = 'login') {

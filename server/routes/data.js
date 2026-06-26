@@ -107,3 +107,57 @@ dataRouter.get('/me/invoices', async (req, res, next) => {
 dataRouter.get('/me/membership', (req, res) => {
   res.json({ membership: MEMBERSHIP.member });
 });
+
+// --- Sponsor portal ---
+
+// Sponsorship package + brand stats for the current sponsor.
+dataRouter.get('/sponsor/overview', async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT * FROM sponsorships WHERE user_id = $1', [req.auth.sub]);
+    const s = rows[0];
+    if (!s) return res.json({ overview: null, stats: [] });
+    res.json({
+      overview: {
+        tier: s.tier,
+        value: `${money(s.value_cents)} / year`,
+        renews: s.renews,
+        since: s.since,
+        inclusions: s.inclusions
+      },
+      stats: [
+        ['Impressions', Number(s.impressions).toLocaleString('en-GB')],
+        ['Logo placements', String(s.placements)],
+        ['Leads generated', String(s.leads_count)],
+        ['Meetings booked', String(s.meetings)]
+      ]
+    });
+  } catch (err) { next(err); }
+});
+
+// Leads attributed to the current sponsor.
+dataRouter.get('/sponsor/leads', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'SELECT name, company, interest, when_label FROM sponsor_leads WHERE user_id = $1 ORDER BY created_at',
+      [req.auth.sub]
+    );
+    res.json({ leads: rows.map((r) => ({ name: r.name, company: r.company, interest: r.interest, when: r.when_label })) });
+  } catch (err) { next(err); }
+});
+
+// Events the current sponsor sponsors, with booth + reach.
+dataRouter.get('/sponsor/events', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT e.code, e.title, e.date_label, e.city, e.status, e.img, se.booth, se.reach
+         FROM sponsored_events se JOIN events e ON e.id = se.event_id
+        WHERE se.user_id = $1
+        ORDER BY e.created_at`,
+      [req.auth.sub]
+    );
+    res.json({ events: rows.map((r) => ({
+      id: r.code, title: r.title, date: r.date_label, city: r.city,
+      status: r.status, img: r.img, booth: r.booth, reach: r.reach
+    })) });
+  } catch (err) { next(err); }
+});
