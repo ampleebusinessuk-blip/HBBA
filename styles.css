@@ -2055,3 +2055,31 @@ body[data-theme="dark"] .brand-logo {
   border-radius: 8px;
   padding: 4px 8px;
 }
+
+/* ===================== Role portals ===================== */
+body[data-role="member"] .head-actions,
+body[data-role="sponsor"] .head-actions { display: none; }
+
+.demo-hint {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.demo-hint > span { display: block; margin-bottom: 8px; }
+.demo-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.demo-chips button {
+  flex: 1;
+  min-width: 80px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.demo-chips button:hover { border-color: var(--brand, #5b35f5); background: #5b35f510; }

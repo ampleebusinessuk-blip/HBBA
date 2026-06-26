@@ -47,6 +47,14 @@
           </div>
           <button class="auth-submit" type="submit">Login</button>
           <button class="auth-secondary" type="button">Continue with Google</button>
+          <div class="demo-hint">
+            <span>Demo logins — click to fill, then Login:</span>
+            <div class="demo-chips">
+              <button type="button" data-demo="john.doe@hbbaglobal.co.uk">Admin</button>
+              <button type="button" data-demo="member@hbbaglobal.co.uk">Member</button>
+              <button type="button" data-demo="sponsor@hbbaglobal.co.uk">Sponsor</button>
+            </div>
+          </div>
         </form>
 
         <form class="auth-form" id="signupForm">
@@ -70,21 +78,7 @@
           <img class="brand-logo" src="logo.svg" alt="HBBA Global" />
         </div>
 
-        <nav class="nav" aria-label="Main navigation">
-          <button class="nav-item is-active" data-page="dashboard"><span data-icon="home"></span>Dashboard</button>
-          <button class="nav-item" data-page="crm"><span data-icon="users"></span>CRM</button>
-          <button class="nav-item" data-page="memberships"><span data-icon="crown"></span>Memberships</button>
-          <button class="nav-item" data-page="events"><span data-icon="calendar"></span>Events</button>
-          <button class="nav-item" data-page="tickets"><span data-icon="ticket"></span>Tickets</button>
-          <button class="nav-item" data-page="sponsors"><span data-icon="star"></span>Sponsors</button>
-          <button class="nav-item" data-page="networking"><span data-icon="network"></span>Networking</button>
-          <button class="nav-item" data-page="tasks"><span data-icon="check"></span>Tasks & Activities</button>
-          <button class="nav-item" data-page="email"><span data-icon="mail"></span>Email Marketing</button>
-          <button class="nav-item" data-page="support"><span data-icon="headset"></span>Support Tickets</button>
-          <button class="nav-item" data-page="invoices"><span data-icon="file"></span>Invoices & Payments</button>
-          <button class="nav-item" data-page="reports"><span data-icon="chart"></span>Reports & Analytics</button>
-          <button class="nav-item" data-page="settings"><span data-icon="settings"></span>Settings</button>
-        </nav>
+        <nav class="nav" id="sidebarNav" aria-label="Main navigation"></nav>
 
         <div class="sidebar-card upgrade">
           <span data-icon="gem"></span>
