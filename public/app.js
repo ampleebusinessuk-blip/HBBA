@@ -146,7 +146,7 @@ const renewals = [
   { name: 'TechVision Ltd.', tier: 'Silver', days: 28 }
 ];
 
-const eventsCatalog = [
+let eventsCatalog = [
   { id: 'E001', title: 'Global Business Networking Dinner', date: 'May 25', time: '6 PM', city: 'London, UK', attendees: 120, capacity: 150, status: 'Confirmed', img: photos[0] },
   { id: 'E002', title: 'International Trade Conference 2024', date: 'Jun 02', time: '9 AM', city: 'Budapest, Hungary', attendees: 250, capacity: 320, status: 'Selling', img: photos[1] },
   { id: 'E003', title: 'Embassy Business Forum', date: 'Jun 15', time: '2 PM', city: 'Dubai, UAE', attendees: 80, capacity: 100, status: 'Confirmed', img: photos[2] },
@@ -940,20 +940,34 @@ function roleFromEmail(email) {
   return 'admin';
 }
 
-/* ---------- Member demo data ---------- */
-const memberProfile = {
+/* ---------- Member data (hydrated from the API in loadMemberData) ---------- */
+let memberProfile = {
   tier: 'Premium', price: '£480 / year', renews: '12 Jan 2027', since: 'Jan 2024',
   benefits: ['All member events', 'Priority event booking', 'Member directory access', 'Quarterly business briefings', '2 guest passes per year']
 };
-const memberTickets = [
-  { event: 'Global Business Networking Dinner', date: 'May 25', tier: 'VIP', status: 'Confirmed' },
-  { event: 'Member-Only Summer Mixer', date: 'Jul 22', tier: 'Standard', status: 'Confirmed' }
-];
-const memberInvoices = [
-  { id: 'INV-2026-00002', desc: 'Premium membership — annual', amount: '£480', issued: '12 Jan', status: 'paid', pdf: 'INV-2026-00002.pdf' },
-  { id: 'INV-2026-00017', desc: 'Trade Conference VIP ticket', amount: '£250', issued: '02 May', status: 'paid' },
-  { id: 'INV-2026-00031', desc: 'Summer Mixer guest pass', amount: '£60', issued: '10 Jun', status: 'due' }
-];
+let memberTickets = [];
+let memberInvoices = [];
+
+async function loadMemberData() {
+  const [ev, tk, inv, mem] = await Promise.all([
+    api('/api/events'),
+    api('/api/me/bookings'),
+    api('/api/me/invoices'),
+    api('/api/me/membership')
+  ]);
+  if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
+  if (tk.ok && tk.data?.tickets) memberTickets = tk.data.tickets;
+  if (inv.ok && inv.data?.invoices) memberInvoices = inv.data.invoices;
+  if (mem.ok && mem.data?.membership) memberProfile = mem.data.membership;
+}
+
+async function bookEvent(code) {
+  const { ok, data } = await api(`/api/events/${code}/book`, { method: 'POST', body: { tier: 'Standard' } });
+  if (!ok) { showToast(data?.error || 'Booking failed', 'error'); return; }
+  showToast(`Ticket booked for ${data.event}`, 'success');
+  await loadMemberData();
+  render('myEvents');
+}
 
 /* ---------- Sponsor demo data ---------- */
 const sponsorProfile = {
@@ -1032,7 +1046,7 @@ function myEventsPage() {
           <div class="body">
             <h3>${e.title}</h3>
             <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
-            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip">Booked</span>` : `<button class="primary-action" type="button" data-toast="Ticket booked for ${e.title}" data-toast-variant="success" onclick="event.stopPropagation()">Book</button>`}</footer>
+            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip">Booked</span>` : `<button class="primary-action" type="button" data-book="${e.id}" onclick="event.stopPropagation()">Book</button>`}</footer>
           </div>
         </article>`;
       }).join('')}
@@ -1497,6 +1511,9 @@ function installDelegate() {
     const pageLink = find('[data-page-link]');
     if (pageLink) { render(pageLink.dataset.pageLink); document.querySelectorAll('.dropdown').forEach((d) => d.hidden = true); return; }
 
+    const bookBtn = find('[data-book]');
+    if (bookBtn) { ev.stopPropagation(); bookEvent(bookBtn.dataset.book); return; }
+
     const modalBtn = find('[data-modal]');
     if (modalBtn) { ev.stopPropagation(); modalForms[modalBtn.dataset.modal]?.(); return; }
 
@@ -1586,13 +1603,16 @@ function renderSidebarNav(role) {
   }));
 }
 
-function showApp(page) {
+async function showApp(page) {
   document.getElementById('authScreen').classList.add('is-hidden');
   document.querySelector('.app-shell').classList.remove('is-hidden');
   document.body.dataset.role = currentRole;
   applyRoleIdentity(currentRole);
   renderSidebarNav(currentRole);
   renderBottomNav(currentRole);
+  if (currentRole === 'member') {
+    try { await loadMemberData(); } catch { showToast('Could not load your data', 'error'); }
+  }
   render(page || ROLES[currentRole].landing);
 }
 function showAuth(mode = 'login') {

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { attachUser } from './auth.js';
 import { authRouter } from './routes/auth.js';
+import { dataRouter } from './routes/data.js';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -13,9 +14,10 @@ export function createApp() {
   app.use(cookieParser());
   app.use(attachUser);
 
-  app.use('/api/auth', authRouter);
-
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+  app.use('/api/auth', authRouter);
+  app.use('/api', dataRouter);
 
   // Unknown API routes should 404 as JSON, not fall through to the SPA.
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
