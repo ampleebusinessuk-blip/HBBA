@@ -878,6 +878,303 @@ function settingsBody(tab) {
 
 /* ===================== ROUTING ===================== */
 
+/* ===================== ROLES (mocked multi-portal) ===================== */
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+let currentRole = 'admin';
+
+const ROLES = {
+  admin: {
+    label: 'HBBA Admin',
+    landing: 'dashboard',
+    profile: { name: 'John Doe', role: 'HBBA Admin', email: 'john.doe@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=96&q=80' },
+    nav: [
+      ['dashboard', 'home', 'Dashboard'], ['crm', 'users', 'CRM'], ['memberships', 'crown', 'Memberships'],
+      ['events', 'calendar', 'Events'], ['tickets', 'ticket', 'Tickets'], ['sponsors', 'star', 'Sponsors'],
+      ['networking', 'network', 'Networking'], ['tasks', 'check', 'Tasks & Activities'], ['email', 'mail', 'Email Marketing'],
+      ['support', 'headset', 'Support Tickets'], ['invoices', 'file', 'Invoices & Payments'], ['reports', 'chart', 'Reports & Analytics'],
+      ['settings', 'settings', 'Settings']
+    ],
+    bottomNav: [['dashboard', 'home', 'Home'], ['crm', 'users', 'CRM'], ['events', 'calendar', 'Events'], ['tasks', 'check', 'Tasks'], ['settings', 'settings', 'More']]
+  },
+  member: {
+    label: 'Premium Member',
+    landing: 'dashboard',
+    profile: { name: 'Jane Cole', role: 'Premium Member', email: 'member@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=96&q=80' },
+    nav: [
+      ['dashboard', 'home', 'Dashboard'], ['myMembership', 'crown', 'My Membership'], ['myEvents', 'calendar', 'Events & Tickets'],
+      ['networking', 'network', 'Networking'], ['myInvoices', 'file', 'My Invoices'], ['support', 'headset', 'Support']
+    ],
+    bottomNav: [['dashboard', 'home', 'Home'], ['myEvents', 'calendar', 'Events'], ['networking', 'network', 'Network'], ['myInvoices', 'file', 'Invoices'], ['support', 'headset', 'Help']]
+  },
+  sponsor: {
+    label: 'Gold Sponsor',
+    landing: 'dashboard',
+    profile: { name: 'Acme Corp', role: 'Gold Sponsor', email: 'sponsor@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&w=96&q=80' },
+    nav: [
+      ['dashboard', 'home', 'Dashboard'], ['sponsorOverview', 'star', 'Sponsorship'], ['brandVisibility', 'chart', 'Brand & Leads'],
+      ['sponsoredEvents', 'calendar', 'Sponsored Events'], ['myInvoices', 'file', 'My Invoices'], ['support', 'headset', 'Support']
+    ],
+    bottomNav: [['dashboard', 'home', 'Home'], ['sponsorOverview', 'star', 'Package'], ['brandVisibility', 'chart', 'Leads'], ['sponsoredEvents', 'calendar', 'Events'], ['support', 'headset', 'Help']]
+  }
+};
+
+function roleFromEmail(email) {
+  const e = (email || '').toLowerCase();
+  if (e.includes('sponsor')) return 'sponsor';
+  if (e.includes('member')) return 'member';
+  return 'admin';
+}
+
+/* ---------- Member demo data ---------- */
+const memberProfile = {
+  tier: 'Premium', price: '£480 / year', renews: '12 Jan 2027', since: 'Jan 2024',
+  benefits: ['All member events', 'Priority event booking', 'Member directory access', 'Quarterly business briefings', '2 guest passes per year']
+};
+const memberTickets = [
+  { event: 'Global Business Networking Dinner', date: 'May 25', tier: 'VIP', status: 'Confirmed' },
+  { event: 'Member-Only Summer Mixer', date: 'Jul 22', tier: 'Standard', status: 'Confirmed' }
+];
+const memberInvoices = [
+  { id: 'INV-2026-00002', desc: 'Premium membership — annual', amount: '£480', issued: '12 Jan', status: 'paid', pdf: 'INV-2026-00002.pdf' },
+  { id: 'INV-2026-00017', desc: 'Trade Conference VIP ticket', amount: '£250', issued: '02 May', status: 'paid' },
+  { id: 'INV-2026-00031', desc: 'Summer Mixer guest pass', amount: '£60', issued: '10 Jun', status: 'due' }
+];
+
+/* ---------- Sponsor demo data ---------- */
+const sponsorProfile = {
+  name: 'Acme Corp', tier: 'Gold', value: '£15,000 / year', renews: 'Jun 2027', since: 'Jun 2023',
+  inclusions: ['Logo on all events', 'Keynote slot at flagship event', 'Dedicated booth at 6 events', 'Member directory feature', 'Quarterly leads report']
+};
+const sponsorStats = [['Impressions', '184,200'], ['Logo placements', '46'], ['Leads generated', '128'], ['Meetings booked', '23']];
+const sponsorLeads = [
+  { name: 'Sarah Johnson', company: 'Global Bank Ltd.', interest: 'Treasury services', when: '2d ago' },
+  { name: 'Lukas Meyer', company: 'TechVision Ltd.', interest: 'Cloud migration', when: '3d ago' },
+  { name: 'Amina Hassan', company: 'Emirates Chamber', interest: 'Trade finance', when: '5d ago' },
+  { name: 'Olivia Watson', company: 'City Finance', interest: 'Advisory retainer', when: '1w ago' }
+];
+const sponsoredEventsData = [
+  { ...eventsCatalog[0], booth: 'Booth A1', reach: '120 reach' },
+  { ...eventsCatalog[1], booth: 'Main stage', reach: '250 reach' },
+  { ...eventsCatalog[4], booth: 'Booth B3', reach: '60 reach' }
+];
+const sponsorInvoices = [
+  { id: 'INV-SP-2026-014', desc: 'Gold sponsorship — annual', amount: '£15,000', issued: '01 Jun', status: 'paid' },
+  { id: 'INV-SP-2026-022', desc: 'Additional booth — Trade Conference', amount: '£2,400', issued: '10 May', status: 'due' }
+];
+
+/* ---------- Member pages ---------- */
+function memberDashboardPage() {
+  return `
+    <div class="cards-grid">
+      ${[['Membership', 'Premium'], ['Renews', '12 Jan 2027'], ['Events booked', memberTickets.length], ['Member since', 'Jan 2024']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+    </div>
+    <div class="dashboard-grid">
+      <section class="card">
+        <div class="card-title"><h2>Upcoming events</h2><button class="link-button" data-page-link="myEvents">View all</button></div>
+        ${eventsCatalog.slice(0, 4).map((e) => `<button class="event-row" type="button" data-event-id="${e.id}"><span class="date-tile">${e.date.split(' ')[0].toUpperCase()}<strong>${e.date.split(' ')[1]}</strong></span><img src="${e.img}" alt="" /><span><h3>${e.title}</h3><span class="event-meta">${e.time}<br />${e.city}</span><span class="chip">${e.attendees}/${e.capacity}</span></span></button>`).join('')}
+      </section>
+      <section class="card">
+        <div class="card-title"><h2>My membership</h2><button class="link-button" data-page-link="myMembership">Manage</button></div>
+        <div class="tier-card gold" style="margin:0"><span class="chip">${memberProfile.tier}</span><h3>${memberProfile.tier} Member</h3><div class="price">${memberProfile.price}</div><ul>${memberProfile.benefits.slice(0, 4).map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-toast="Upgrade options opened">Upgrade plan</button></div>
+      </section>
+      <section class="card">
+        <div class="card-title"><h2>My tickets</h2><button class="link-button" data-page-link="myEvents">View</button></div>
+        ${memberTickets.map((t) => `<div class="sponsor-row"><span class="sponsor-mark">${t.event[0]}</span><div><h3>${t.event}</h3><span class="muted">${t.date} · ${t.tier}</span></div><span class="chip">${t.status}</span></div>`).join('')}
+      </section>
+    </div>`;
+}
+
+function myMembershipPage() {
+  const p = memberProfile;
+  return `
+    <div class="cards-grid">
+      ${[['Current tier', p.tier], ['Annual fee', p.price], ['Renews', p.renews]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+    </div>
+    <div class="tier-grid">
+      <div class="tier-card gold"><span class="chip">Current</span><h3>Premium</h3><div class="price">£480/yr</div><ul>${p.benefits.map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-toast="You're already on Premium">Current plan</button></div>
+      <div class="tier-card silver"><span class="chip">Upgrade</span><h3>Executive</h3><div class="price">£960/yr</div><ul><li>✓ Everything in Premium</li><li>✓ VIP event access</li><li>✓ 6 guest passes per year</li><li>✓ 1:1 intro concierge</li></ul><button class="secondary-action" type="button" data-toast="Upgrade to Executive requested" data-toast-variant="success">Upgrade</button></div>
+      <div class="tier-card bronze"><span class="chip">Downgrade</span><h3>Associate</h3><div class="price">£180/yr</div><ul><li>✓ Core events</li><li>✓ Member directory</li></ul><button class="secondary-action" type="button" data-toast="Downgrade requested">Switch</button></div>
+    </div>
+    <section class="card">
+      <div class="card-title"><h2>Membership details</h2><button class="link-button" data-page-link="myInvoices">Billing history</button></div>
+      <table class="table"><tbody>
+        <tr><td><strong>Member since</strong></td><td>${p.since}</td></tr>
+        <tr><td><strong>Next renewal</strong></td><td>${p.renews}</td></tr>
+        <tr><td><strong>Status</strong></td><td>${statusPill('Active')}</td></tr>
+      </tbody></table>
+    </section>`;
+}
+
+function myEventsPage() {
+  return `
+    ${filterBar('Search events…', [{ label: 'All', count: eventsCatalog.length }, { label: 'Booked', count: memberTickets.length }, { label: 'This month' }])}
+    <div class="event-grid">
+      ${eventsCatalog.map((e) => {
+        const booked = memberTickets.some((t) => t.event === e.title);
+        return `
+        <article class="event-card" data-event-id="${e.id}">
+          <img src="${e.img}" alt="" />
+          <div class="body">
+            <h3>${e.title}</h3>
+            <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
+            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip">Booked</span>` : `<button class="primary-action" type="button" data-toast="Ticket booked for ${e.title}" data-toast-variant="success" onclick="event.stopPropagation()">Book</button>`}</footer>
+          </div>
+        </article>`;
+      }).join('')}
+    </div>`;
+}
+
+function memberInvoicesPage() {
+  return `
+    <div class="cards-grid">
+      ${[['Paid', '£730'], ['Outstanding', '£60'], ['Invoices', memberInvoices.length]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+    </div>
+    <section class="card">
+      <div class="card-title"><h2>My invoices</h2><span class="chip">${memberProfile.tier} member</span></div>
+      <table class="table">
+        <thead><tr><th>Invoice</th><th>Description</th><th>Amount</th><th>Issued</th><th>Status</th><th></th></tr></thead>
+        <tbody>${memberInvoices.map((inv) => `<tr><td><strong>${inv.id}</strong></td><td>${inv.desc}</td><td><strong>${inv.amount}</strong></td><td>${inv.issued}</td><td><span class="invoice-status ${inv.status}">${cap(inv.status)}</span></td><td>${inv.pdf ? `<a class="link-button" href="${inv.pdf}" target="_blank" rel="noopener">PDF</a>` : `<button class="link-button" data-toast="PDF downloaded">PDF</button>`}</td></tr>`).join('')}</tbody>
+      </table>
+    </section>`;
+}
+
+/* ---------- Sponsor pages ---------- */
+function sponsorDashboardPage() {
+  return `
+    <div class="cards-grid">
+      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#f2aa00')}</button>`).join('')}
+    </div>
+    <div class="dashboard-grid">
+      <section class="card">
+        <div class="card-title"><h2>Sponsorship package</h2><button class="link-button" data-page-link="sponsorOverview">Details</button></div>
+        <div class="tier-card gold" style="margin:0"><span class="chip">${sponsorProfile.tier} tier</span><h3>${sponsorProfile.value}</h3><ul>${sponsorProfile.inclusions.slice(0, 4).map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-toast="Package details opened">View package</button></div>
+      </section>
+      <section class="card">
+        <div class="card-title"><h2>Recent leads</h2><button class="link-button" data-page-link="brandVisibility">View all</button></div>
+        ${sponsorLeads.slice(0, 4).map((l) => `<div class="sponsor-row"><span class="sponsor-mark">${l.name[0]}</span><div><h3>${l.name}</h3><span class="muted">${l.company} · ${l.interest}</span></div><small class="muted">${l.when}</small></div>`).join('')}
+      </section>
+      <section class="card">
+        <div class="card-title"><h2>Sponsored events</h2><button class="link-button" data-page-link="sponsoredEvents">View all</button></div>
+        ${sponsoredEventsData.map((e) => `<button class="event-row" type="button" data-event-id="${e.id}"><span class="date-tile">${e.date.split(' ')[0].toUpperCase()}<strong>${e.date.split(' ')[1]}</strong></span><img src="${e.img}" alt="" /><span><h3>${e.title}</h3><span class="event-meta">${e.booth}<br />${e.city}</span><span class="chip">${e.reach}</span></span></button>`).join('')}
+      </section>
+    </div>`;
+}
+
+function sponsorOverviewPage() {
+  const p = sponsorProfile;
+  return `
+    <div class="cards-grid">
+      ${[['Tier', p.tier], ['Contract value', p.value], ['Renews', p.renews]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+    </div>
+    <div class="page-grid">
+      <section class="card">
+        <div class="card-title"><h2>What's included</h2><span class="chip">${p.tier} tier</span></div>
+        <ul style="list-style:none;padding:0;margin:0;display:grid;gap:12px">${p.inclusions.map((b) => `<li style="display:flex;gap:10px;align-items:center"><span class="sponsor-mark" style="background:var(--green)">✓</span><strong>${b}</strong></li>`).join('')}</ul>
+      </section>
+      <aside class="card">
+        <div class="card-title"><h2>Contract</h2></div>
+        <table class="table"><tbody>
+          <tr><td><strong>Sponsor since</strong></td><td>${p.since}</td></tr>
+          <tr><td><strong>Renewal</strong></td><td>${p.renews}</td></tr>
+          <tr><td><strong>Annual value</strong></td><td>${p.value}</td></tr>
+          <tr><td><strong>Status</strong></td><td>${statusPill('Active')}</td></tr>
+        </tbody></table>
+        <button class="primary-action" type="button" data-toast="Renewal enquiry sent" data-toast-variant="success" style="width:100%;margin-top:12px">Discuss renewal</button>
+      </aside>
+    </div>`;
+}
+
+function brandVisibilityPage() {
+  return `
+    <div class="cards-grid">
+      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#5b35f5')}</button>`).join('')}
+    </div>
+    <div class="reports-grid">
+      <section class="card full">
+        <div class="card-title"><h2>Impressions — last 12 months</h2><button class="link-button"><span data-icon="download"></span> Export</button></div>
+        ${lineChart('#f2aa00', [8, 12, 10, 16, 14, 19, 17, 22, 20, 26, 24, 31])}
+      </section>
+      <section class="card">
+        <div class="card-title"><h2>Logo placements</h2><button class="link-button">Details</button></div>
+        <div class="bar-chart">${[58, 42, 54, 38, 31, 46].map((v) => `<span class="bar" style="--sold:${v}%"></span>`).join('')}</div>
+        <div class="bar-labels"><span>Web</span><span>Email</span><span>Events</span><span>Print</span><span>Social</span><span>App</span></div>
+      </section>
+    </div>
+    <section class="card">
+      <div class="card-title"><h2>Leads generated</h2><span class="chip">${sponsorLeads.length} this quarter</span></div>
+      <table class="table">
+        <thead><tr><th>Contact</th><th>Company</th><th>Interest</th><th>When</th><th></th></tr></thead>
+        <tbody>${sponsorLeads.map((l) => `<tr><td><strong>${l.name}</strong></td><td>${l.company}</td><td>${l.interest}</td><td>${l.when}</td><td><button class="link-button" data-toast="Intro requested with ${l.name}" data-toast-variant="success">Request intro</button></td></tr>`).join('')}</tbody>
+      </table>
+    </section>`;
+}
+
+function sponsoredEventsPage() {
+  return `
+    <div class="cards-grid">
+      ${[['Sponsored', sponsoredEventsData.length], ['Total reach', '430'], ['Booths', '6']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+    </div>
+    <div class="event-grid">
+      ${sponsoredEventsData.map((e) => `
+        <article class="event-card" data-event-id="${e.id}">
+          <img src="${e.img}" alt="" />
+          <div class="body">
+            <h3>${e.title}</h3>
+            <div class="meta">${e.date} · ${e.city}</div>
+            <footer><span>${e.booth} · ${e.reach}</span><span class="chip">${e.status}</span></footer>
+          </div>
+        </article>`).join('')}
+    </div>`;
+}
+
+function sponsorInvoicesPage() {
+  return `
+    <div class="cards-grid">
+      ${[['Paid', '£15,000'], ['Outstanding', '£2,400'], ['Invoices', sponsorInvoices.length]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+    </div>
+    <section class="card">
+      <div class="card-title"><h2>Sponsorship invoices</h2><span class="chip">${sponsorProfile.tier} sponsor</span></div>
+      <table class="table">
+        <thead><tr><th>Invoice</th><th>Description</th><th>Amount</th><th>Issued</th><th>Status</th><th></th></tr></thead>
+        <tbody>${sponsorInvoices.map((inv) => `<tr><td><strong>${inv.id}</strong></td><td>${inv.desc}</td><td><strong>${inv.amount}</strong></td><td>${inv.issued}</td><td><span class="invoice-status ${inv.status}">${cap(inv.status)}</span></td><td><button class="link-button" data-toast="PDF downloaded">PDF</button></td></tr>`).join('')}</tbody>
+      </table>
+    </section>`;
+}
+
+/* ---------- Per-role page maps + meta ---------- */
+const roleRenderers = {
+  member: { dashboard: memberDashboardPage, myMembership: myMembershipPage, myEvents: myEventsPage, networking: networkingPage, myInvoices: memberInvoicesPage, support: supportPage },
+  sponsor: { dashboard: sponsorDashboardPage, sponsorOverview: sponsorOverviewPage, brandVisibility: brandVisibilityPage, sponsoredEvents: sponsoredEventsPage, myInvoices: sponsorInvoicesPage, support: supportPage }
+};
+
+const roleMeta = {
+  member: {
+    dashboard: ['Welcome back, Jane! <span class="wave">👋</span>', "Here's your HBBA membership at a glance."],
+    myMembership: ['My Membership', 'Your plan, renewal and benefits.'],
+    myEvents: ['Events & Tickets', 'Browse events and manage your tickets.'],
+    networking: ['Networking', 'Connect with other HBBA members.'],
+    myInvoices: ['My Invoices', 'Your payments and receipts.'],
+    support: ['Support', 'Get help from the HBBA team.']
+  },
+  sponsor: {
+    dashboard: ['Welcome, Acme Corp <span class="wave">👋</span>', "Here's your sponsorship performance."],
+    sponsorOverview: ['Sponsorship', 'Your package, value and renewal.'],
+    brandVisibility: ['Brand & Leads', 'Impressions, placements and leads generated.'],
+    sponsoredEvents: ['Sponsored Events', 'Events you sponsor and your reach.'],
+    myInvoices: ['My Invoices', 'Your sponsorship invoices.'],
+    support: ['Support', 'Get help from the HBBA team.']
+  }
+};
+
+function pageRendererFor(role, page) {
+  if (roleRenderers[role] && roleRenderers[role][page]) return roleRenderers[role][page];
+  if (role === 'admin' && pageRenderers[page]) return pageRenderers[page];
+  return null;
+}
+function metaFor(role, page) {
+  return (roleMeta[role] && roleMeta[role][page]) || pageMeta[page] || pageMeta.dashboard;
+}
+
 const pageRenderers = {
   dashboard: dashboardPage,
   crm: crmPage,
@@ -901,9 +1198,15 @@ function showSkeleton() {
   `;
 }
 
-function render(page = 'dashboard') {
-  const [title, subtitle] = pageMeta[page] || pageMeta.dashboard;
-  document.querySelector('.eyebrow').textContent = page === 'dashboard' ? 'Dashboard' : (pageMeta[page]?.[0] || 'HBBA Global');
+function render(page) {
+  if (!page) page = ROLES[currentRole].landing;
+  let fn = pageRendererFor(currentRole, page);
+  if (!fn) { page = ROLES[currentRole].landing; fn = pageRendererFor(currentRole, page); }
+
+  const [title, subtitle] = metaFor(currentRole, page);
+  document.querySelector('.eyebrow').textContent = currentRole === 'admin'
+    ? (page === 'dashboard' ? 'Dashboard' : (pageMeta[page]?.[0] || 'HBBA Global'))
+    : ROLES[currentRole].label;
   document.getElementById('pageTitle').innerHTML = title;
   document.getElementById('pageSubtitle').textContent = subtitle;
   showSkeleton();
@@ -911,7 +1214,6 @@ function render(page = 'dashboard') {
   document.querySelectorAll('#bottomNav button').forEach((item) => item.classList.toggle('is-active', item.dataset.page === page));
 
   setTimeout(() => {
-    const fn = pageRenderers[page] || dashboardPage;
     document.getElementById('pageRoot').innerHTML = fn();
     initIcons(document.getElementById('pageRoot'));
     attachActions();
@@ -1047,9 +1349,11 @@ function renderNotifPanel() {
 
 /* ===================== PROFILE MENU ===================== */
 function renderProfileMenu() {
+  const p = ROLES[currentRole].profile;
+  const settingsItem = currentRole === 'admin' ? `<button class="menu-item" type="button" data-page-link="settings"><span data-icon="settings"></span>Settings</button>` : '';
   document.getElementById('profileMenu').innerHTML = `
-    <div style="padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><strong>John Doe</strong><br /><small class="muted">john.doe@hbbaglobal.co.uk</small></div>
-    <button class="menu-item" type="button" data-page-link="settings"><span data-icon="settings"></span>Settings</button>
+    <div style="padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><strong>${p.name}</strong><br /><small class="muted">${p.email}</small></div>
+    ${settingsItem}
     <button class="menu-item" type="button" data-toast="Profile opened"><span data-icon="users"></span>Profile</button>
     <button class="menu-item" type="button" data-toast="Help center opened"><span data-icon="message"></span>Help</button>
     <button class="menu-item" type="button" data-toggle-theme><span data-icon="moon"></span>Toggle theme</button>
@@ -1072,16 +1376,19 @@ function closeCommand() { document.getElementById('commandOverlay').hidden = tru
 
 function renderCommandResults(q) {
   const ql = q.toLowerCase();
-  const navItems = Object.entries(pageMeta).map(([key, [title]]) => ({ group: 'Navigate', label: title.replace(/<[^>]+>/g, ''), key, kbd: '↵' }));
-  const actions = [
+  const navItems = ROLES[currentRole].nav.map(([key, , label]) => ({ group: 'Navigate', label, key, kbd: '↵' }));
+  const actions = currentRole === 'admin' ? [
     { group: 'Actions', label: 'New event', mod: 'new-event' },
     { group: 'Actions', label: 'New contact', mod: 'new-contact' },
     { group: 'Actions', label: 'New invoice', mod: 'new-invoice' },
     { group: 'Actions', label: 'New campaign', mod: 'new-campaign' },
     { group: 'Actions', label: 'Toggle theme', theme: true },
     { group: 'Actions', label: 'Sign out', logout: true }
+  ] : [
+    { group: 'Actions', label: 'Toggle theme', theme: true },
+    { group: 'Actions', label: 'Sign out', logout: true }
   ];
-  const contactRes = contacts.map((c, i) => ({ group: 'Contacts', label: c.name, contact: i, kbd: c.company }));
+  const contactRes = currentRole === 'admin' ? contacts.map((c, i) => ({ group: 'Contacts', label: c.name, contact: i, kbd: c.company })) : [];
   const all = [...navItems, ...actions, ...contactRes];
   const filtered = ql ? all.filter((x) => x.label.toLowerCase().includes(ql) || (x.kbd && String(x.kbd).toLowerCase().includes(ql))) : all.slice(0, 15);
   const grouped = filtered.reduce((acc, x) => { (acc[x.group] = acc[x.group] || []).push(x); return acc; }, {});
@@ -1119,8 +1426,9 @@ function toggleTheme() {
 
 /* ===================== SIGN OUT ===================== */
 function signOut() {
-  document.getElementById('authScreen').classList.remove('is-hidden');
-  document.querySelector('.app-shell').classList.add('is-hidden');
+  localStorage.removeItem('hbba-role');
+  currentRole = 'admin';
+  showAuth('login');
   showToast('Signed out', 'info');
 }
 
@@ -1234,10 +1542,39 @@ function installDelegate() {
 }
 
 /* ===================== APP SHELL ===================== */
-function showApp(page = 'dashboard') {
+function setRole(role) {
+  currentRole = ROLES[role] ? role : 'admin';
+  localStorage.setItem('hbba-role', currentRole);
+}
+
+function applyRoleIdentity(role) {
+  const p = ROLES[role].profile;
+  const img = document.querySelector('#profileToggle img');
+  if (img) { img.src = p.avatar; img.alt = p.name; }
+  const strong = document.querySelector('#profileToggle strong');
+  const small = document.querySelector('#profileToggle small');
+  if (strong) strong.textContent = p.name;
+  if (small) small.textContent = p.role;
+}
+
+function renderSidebarNav(role) {
+  const nav = document.getElementById('sidebarNav');
+  nav.innerHTML = ROLES[role].nav.map(([page, icon, label]) => `<button class="nav-item" data-page="${page}"><span data-icon="${icon}"></span>${label}</button>`).join('');
+  initIcons(nav);
+  nav.querySelectorAll('.nav-item').forEach((b) => b.addEventListener('click', () => {
+    render(b.dataset.page);
+    document.getElementById('sidebar').classList.remove('is-open');
+  }));
+}
+
+function showApp(page) {
   document.getElementById('authScreen').classList.add('is-hidden');
   document.querySelector('.app-shell').classList.remove('is-hidden');
-  render(page);
+  document.body.dataset.role = currentRole;
+  applyRoleIdentity(currentRole);
+  renderSidebarNav(currentRole);
+  renderBottomNav(currentRole);
+  render(page || ROLES[currentRole].landing);
 }
 function showAuth(mode = 'login') {
   document.getElementById('authScreen').classList.remove('is-hidden');
@@ -1248,15 +1585,9 @@ function showAuth(mode = 'login') {
 }
 
 /* ===================== BOTTOM NAV ===================== */
-function renderBottomNav() {
-  const items = [
-    { key: 'dashboard', icon: 'home', label: 'Home' },
-    { key: 'crm', icon: 'users', label: 'CRM' },
-    { key: 'events', icon: 'calendar', label: 'Events' },
-    { key: 'tasks', icon: 'check', label: 'Tasks' },
-    { key: 'settings', icon: 'settings', label: 'More' }
-  ];
-  document.getElementById('bottomNav').innerHTML = items.map((i) => `<button type="button" data-page="${i.key}"><span data-icon="${i.icon}"></span>${i.label}</button>`).join('');
+function renderBottomNav(role = currentRole) {
+  const items = ROLES[role].bottomNav;
+  document.getElementById('bottomNav').innerHTML = items.map(([key, icon, label]) => `<button type="button" data-page="${key}"><span data-icon="${icon}"></span>${label}</button>`).join('');
   initIcons(document.getElementById('bottomNav'));
   document.querySelectorAll('#bottomNav button').forEach((b) => b.addEventListener('click', () => render(b.dataset.page)));
 }
@@ -1268,12 +1599,14 @@ document.querySelectorAll('.auth-form').forEach((f) => f.addEventListener('submi
   // simple validation gate
   const invalid = f.querySelector('label.has-error');
   if (invalid) { showToast('Please fix the highlighted fields', 'error'); return; }
-  showApp('dashboard');
-  showToast(f.id === 'signupForm' ? 'Account created' : 'Logged in', 'success');
+  const email = f.querySelector('input[type="email"]')?.value || '';
+  setRole(roleFromEmail(email));
+  showApp(ROLES[currentRole].landing);
+  showToast(f.id === 'signupForm' ? 'Account created' : `Logged in as ${ROLES[currentRole].label}`, 'success');
 }));
-document.querySelectorAll('.nav-item').forEach((b) => b.addEventListener('click', () => {
-  render(b.dataset.page);
-  document.getElementById('sidebar').classList.remove('is-open');
+document.querySelectorAll('[data-demo]').forEach((b) => b.addEventListener('click', () => {
+  const emailInput = document.querySelector('#loginForm input[type="email"]');
+  if (emailInput) { emailInput.value = b.dataset.demo; emailInput.dispatchEvent(new Event('blur')); }
 }));
 document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('is-open'));
 document.getElementById('globalSearch').addEventListener('keydown', (e) => {
@@ -1340,9 +1673,10 @@ document.getElementById('confirmOk').addEventListener('click', () => {
 /* boot */
 initIcons();
 installDelegate();
-renderBottomNav();
 attachAuthValidation();
 document.querySelector('.app-shell').classList.add('is-hidden');
+currentRole = localStorage.getItem('hbba-role') || 'admin';
+if (!ROLES[currentRole]) currentRole = 'admin';
 const initialRoute = location.hash.replace('#', '');
-if (initialRoute && pageRenderers[initialRoute]) showApp(initialRoute);
+if (initialRoute && initialRoute !== 'login' && initialRoute !== 'signup' && pageRendererFor(currentRole, initialRoute)) showApp(initialRoute);
 else showAuth(initialRoute === 'signup' ? 'signup' : 'login');
