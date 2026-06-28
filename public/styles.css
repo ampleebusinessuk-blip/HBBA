@@ -2083,3 +2083,52 @@ body[data-role="sponsor"] .head-actions { display: none; }
   transition: border-color .15s, background .15s;
 }
 .demo-chips button:hover { border-color: var(--brand, #5b35f5); background: #5b35f510; }
+
+/* ===================== Motion + live feel ===================== */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes popIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { 0% { background-position: -468px 0; } 100% { background-position: 468px 0; } }
+
+#pageRoot.page-enter > * { animation: fadeInUp .42s cubic-bezier(.22,.61,.36,1) both; }
+#pageRoot.page-enter > *:nth-child(2) { animation-delay: .05s; }
+#pageRoot.page-enter > *:nth-child(3) { animation-delay: .1s; }
+#pageRoot.page-enter > *:nth-child(4) { animation-delay: .15s; }
+#pageRoot.page-enter > *:nth-child(5) { animation-delay: .2s; }
+
+/* Cards lift + respond */
+.metric-card, .compact-card, .event-card, .tier-card, .card {
+  transition: transform .18s cubic-bezier(.22,.61,.36,1), box-shadow .18s, border-color .18s;
+}
+.metric-card:hover, .compact-card:hover, .event-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px -12px rgba(20, 20, 60, .28);
+}
+.primary-action, .secondary-action, .control, .nav-item, .auth-submit, .link-button { transition: transform .12s, background .15s, box-shadow .15s, color .15s; }
+.primary-action:active, .secondary-action:active, .control:active, .auth-submit:active { transform: translateY(1px) scale(.985); }
+.nav-item:hover { transform: translateX(2px); }
+
+/* Animated number roll */
+.count-anim { font-variant-numeric: tabular-nums; }
+
+/* Empty states — add entrance + dashed frame on top of existing base styling */
+.empty-state { animation: popIn .4s both; border: 1px dashed var(--line); border-radius: 14px; padding: 30px 18px; }
+
+/* Toast entrance */
+.toast { animation: popIn .25s cubic-bezier(.22,.61,.36,1) both; }
+
+/* Skeleton shimmer (used during data load) */
+.skeleton, .skel-block {
+  background: linear-gradient(90deg, var(--line) 25%, rgba(255,255,255,.55) 37%, var(--line) 63%);
+  background-size: 938px 100%;
+  animation: shimmer 1.3s linear infinite;
+  border-radius: 12px;
+}
+body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
+  background: linear-gradient(90deg, #20243a 25%, #2a2f4a 37%, #20243a 63%);
+  background-size: 938px 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pageRoot.page-enter > *, .empty-state, .toast { animation: none; }
+  .metric-card, .compact-card, .event-card, .nav-item, .primary-action { transition: none; }
+}

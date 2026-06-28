@@ -80,6 +80,16 @@ dataRouter.post('/events/:code/book', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Cancel the current user's booking for an event.
+dataRouter.delete('/events/:code/book', async (req, res, next) => {
+  try {
+    const ev = await query('SELECT id FROM events WHERE code = $1', [req.params.code]);
+    if (!ev.rows[0]) return res.status(404).json({ error: 'Event not found' });
+    await query('DELETE FROM event_bookings WHERE user_id = $1 AND event_id = $2', [req.auth.sub, ev.rows[0].id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // Current user's bookings ("my tickets").
 dataRouter.get('/me/bookings', async (req, res, next) => {
   try {
@@ -218,6 +228,29 @@ dataRouter.get('/admin/invoices', adminOnly, async (_req, res, next) => {
       id: r.number, client: r.full_name || '—', amount: money(r.amount_cents, r.currency),
       issued: r.issued_on, due: '—', status: r.status
     })) });
+  } catch (err) { next(err); }
+});
+
+// Mark an invoice paid (or set any valid status).
+dataRouter.patch('/admin/invoices/:number', adminOnly, async (req, res, next) => {
+  try {
+    const status = ['paid', 'due', 'overdue', 'draft'].includes(req.body?.status) ? req.body.status : 'paid';
+    const { rowCount } = await query('UPDATE invoices SET status = $1 WHERE number = $2', [status, req.params.number]);
+    if (!rowCount) return res.status(404).json({ error: 'Invoice not found' });
+    res.json({ ok: true, status });
+  } catch (err) { next(err); }
+});
+
+// Suspend / reactivate a member or sponsor account.
+dataRouter.patch('/admin/users/:email/status', adminOnly, async (req, res, next) => {
+  try {
+    const status = ['active', 'suspended'].includes(req.body?.status) ? req.body.status : 'suspended';
+    const { rowCount } = await query(
+      `UPDATE users SET status = $1 WHERE lower(email) = lower($2) AND role <> 'admin'`,
+      [status, req.params.email]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'User not found' });
+    res.json({ ok: true, status });
   } catch (err) { next(err); }
 });
 

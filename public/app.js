@@ -755,7 +755,7 @@ function invoicesPage() {
               <td>${inv.issued}</td>
               <td>${inv.due}</td>
               <td><span class="invoice-status ${inv.status}">${inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}</span></td>
-              <td><button class="link-button" data-toast="Reminder sent" data-toast-variant="info" onclick="event.stopPropagation()">Remind</button></td>
+              <td>${inv.status !== 'paid' ? `<button class="link-button" data-pay="${inv.id}" onclick="event.stopPropagation()">Mark paid</button>` : `<button class="link-button" data-toast="Receipt sent" data-toast-variant="info" onclick="event.stopPropagation()">Receipt</button>`}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -969,7 +969,46 @@ async function bookEvent(code) {
   render('myEvents');
 }
 
+async function cancelBooking(code) {
+  const { ok, data } = await api(`/api/events/${code}/book`, { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Could not cancel', 'error'); return; }
+  showToast('Booking cancelled', 'info');
+  await loadMemberData();
+  render('myEvents');
+}
+
+async function payInvoice(number) {
+  const { ok, data } = await api(`/api/admin/invoices/${number}`, { method: 'PATCH', body: { status: 'paid' } });
+  if (!ok) { showToast(data?.error || 'Failed', 'error'); return; }
+  showToast(`${number} marked paid`, 'success');
+  await loadAdminData();
+  render('invoices');
+}
+
 const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB');
+
+/* Roll numbers up from 0 on the dashboard/stat cards for a live feel. */
+function animateNumbers(root) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  const els = root.querySelectorAll('.metric-card h3, .compact-card h2');
+  els.forEach((el) => {
+    const raw = el.textContent.trim();
+    const m = raw.match(/^([£$]?)([\d,]+)(%?)$/);
+    if (!m) return;
+    const target = Number(m[2].replace(/,/g, ''));
+    if (!Number.isFinite(target) || target === 0) return;
+    const [pre, , post] = [m[1], m[2], m[3]];
+    el.classList.add('count-anim');
+    const dur = 750, start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = pre + Math.round(target * eased).toLocaleString('en-GB') + post;
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
 
 async function loadAdminData() {
   const [st, mem, spo, inv, ev] = await Promise.all([
@@ -1057,7 +1096,7 @@ function memberDashboardPage() {
       </section>
       <section class="card">
         <div class="card-title"><h2>My tickets</h2><button class="link-button" data-page-link="myEvents">View</button></div>
-        ${memberTickets.map((t) => `<div class="sponsor-row"><span class="sponsor-mark">${t.event[0]}</span><div><h3>${t.event}</h3><span class="muted">${t.date} · ${t.tier}</span></div><span class="chip">${t.status}</span></div>`).join('')}
+        ${memberTickets.length ? memberTickets.map((t) => `<div class="sponsor-row"><span class="sponsor-mark">${t.event[0]}</span><div><h3>${t.event}</h3><span class="muted">${t.date} · ${t.tier}</span></div><span class="chip">${t.status}</span></div>`).join('') : emptyState('No tickets yet', 'Book an event and it shows up here.')}
       </section>
     </div>`;
 }
@@ -1095,7 +1134,7 @@ function myEventsPage() {
           <div class="body">
             <h3>${e.title}</h3>
             <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
-            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip">Booked</span>` : `<button class="primary-action" type="button" data-book="${e.id}" onclick="event.stopPropagation()">Book</button>`}</footer>
+            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip" style="margin-right:8px">Booked</span><button class="control" type="button" data-cancel="${e.id}" onclick="event.stopPropagation()">Cancel</button>` : `<button class="primary-action" type="button" data-book="${e.id}" onclick="event.stopPropagation()">Book</button>`}</footer>
           </div>
         </article>`;
       }).join('')}
@@ -1292,9 +1331,14 @@ function render(page) {
   document.querySelectorAll('#bottomNav button').forEach((item) => item.classList.toggle('is-active', item.dataset.page === page));
 
   setTimeout(() => {
-    document.getElementById('pageRoot').innerHTML = fn();
-    initIcons(document.getElementById('pageRoot'));
+    const root = document.getElementById('pageRoot');
+    root.innerHTML = fn();
+    initIcons(root);
     attachActions();
+    root.classList.remove('page-enter');
+    void root.offsetWidth; // restart entrance animation
+    root.classList.add('page-enter');
+    animateNumbers(root);
   }, 180);
   history.replaceState(null, '', `#${page}`);
 }
@@ -1564,6 +1608,12 @@ function installDelegate() {
     const bookBtn = find('[data-book]');
     if (bookBtn) { ev.stopPropagation(); bookEvent(bookBtn.dataset.book); return; }
 
+    const cancelBtn = find('[data-cancel]');
+    if (cancelBtn) { ev.stopPropagation(); cancelBooking(cancelBtn.dataset.cancel); return; }
+
+    const payBtn = find('[data-pay]');
+    if (payBtn) { ev.stopPropagation(); payInvoice(payBtn.dataset.pay); return; }
+
     if (find('[data-create-event]')) {
       ev.stopPropagation();
       const m = document.getElementById('modalBody');
@@ -1669,6 +1719,7 @@ async function showApp(page) {
   applyRoleIdentity(currentRole);
   renderSidebarNav(currentRole);
   renderBottomNav(currentRole);
+  showSkeleton();
   try {
     if (currentRole === 'member') await loadMemberData();
     else if (currentRole === 'sponsor') await loadSponsorData();
