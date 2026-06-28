@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { getRuntimeConfig } from './config.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-change-me';
+const { jwtSecret, isProduction } = getRuntimeConfig();
 const TOKEN_TTL = '7d';
 export const COOKIE_NAME = 'hbba_token';
 
@@ -14,12 +15,12 @@ export function verifyPassword(plain, hash) {
 }
 
 export function signToken(user) {
-  return jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+  return jwt.sign({ sub: user.id, role: user.role }, jwtSecret, { expiresIn: TOKEN_TTL });
 }
 
 export function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, jwtSecret);
   } catch {
     return null;
   }
@@ -29,7 +30,7 @@ export function setAuthCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
