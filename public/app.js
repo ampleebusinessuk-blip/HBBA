@@ -999,6 +999,8 @@ let adminCharts = null;
 function exportCSV() {
   const page = (location.hash.replace('#', '') || 'dashboard');
   const sets = {
+    dashboard: [['Metric', 'Value', 'Change'], metrics.map((m) => [m[0], m[1], m[2]])],
+    reports: [['Metric', 'Value', 'Change'], metrics.map((m) => [m[0], m[1], m[2]])],
     invoices: [['Invoice', 'Client', 'Amount', 'Issued', 'Due', 'Status'], invoices.map((i) => [i.id, i.client || '', i.amount, i.issued || '', i.due || '', i.status])],
     events: [['Event', 'Date', 'City', 'Attendees', 'Capacity', 'Status'], eventsCatalog.map((e) => [e.title, e.date, e.city, e.attendees, e.capacity, e.status])],
     crm: [['Name', 'Email', 'Company', 'Status'], contacts.map((c) => [c.name, c.email, c.company, c.status])],
