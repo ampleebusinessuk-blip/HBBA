@@ -178,7 +178,7 @@ const introRequests = [
   { from: 'Peter Novak', to: 'Daniel Park', reason: 'Joint manufacturing scoping call.', status: 'matched', avatar: avatars[3] }
 ];
 
-const tasksData = {
+let tasksData = {
   todo: [
     { title: 'Follow up with TechVision lead', assignee: avatars[1], due: 'Today', priority: 'high' },
     { title: 'Draft sponsor renewal email', assignee: avatars[0], due: 'Tomorrow', priority: 'med' },
@@ -653,10 +653,10 @@ function tasksPage() {
         <div class="kanban-col" data-col="${c.key}">
           <div class="kanban-col-head"><strong>${c.name}</strong><span class="count">${tasksData[c.key].length}</span></div>
           ${tasksData[c.key].map((t) => `
-            <div class="kanban-card" draggable="true">
+            <div class="kanban-card" draggable="true" data-task-id="${t.id || ''}">
               <h5>${t.title}</h5>
               <span class="chip" style="background:${t.priority === 'high' ? '#ffe7ec' : t.priority === 'med' ? '#fff5df' : '#e9efff'};color:${t.priority === 'high' ? 'var(--red)' : t.priority === 'med' ? '#b45309' : 'var(--blue)'}">${t.priority}</span>
-              <div class="footer"><img class="avatar" src="${t.assignee}" alt="" style="width:24px;height:24px;border-radius:50%" /><span>Due ${t.due}</span></div>
+              <div class="footer"><span class="sponsor-mark" style="width:24px;height:24px;font-size:11px">${(t.assignee || '?').charAt(0)}</span><span>${t.assignee || ''} · Due ${t.due || '—'}</span></div>
             </div>
           `).join('')}
           <button class="link-button" data-modal="new-task" style="width:100%;text-align:left;padding:6px"><span data-icon="plus" style="vertical-align:middle"></span> Add task</button>
@@ -807,13 +807,12 @@ function settingsBody(tab) {
   if (tab === 'profile') {
     return `<div class="settings-grid">
       <section class="card full">
-        <div class="card-title"><h2>Workspace profile</h2><button class="link-button" data-toast="Saved" data-toast-variant="success">Save changes</button></div>
+        <div class="card-title"><h2>Your profile</h2><button class="primary-action" type="button" data-save-profile>Save changes</button></div>
         <div class="form-row">
-          <label>Workspace name<input type="text" value="HBBA Global" /></label>
-          <label>Public URL<input type="text" value="hbba.global" /></label>
-          <label>Country<input type="text" value="United Kingdom" /></label>
-          <label>VAT number<input type="text" value="GB 123 4567 89" /></label>
-          <label class="full" style="grid-column:1/-1">Description<textarea>HBBA Global is the UK business network connecting members, sponsors and embassies.</textarea></label>
+          <label>Full name<input type="text" data-pf="full_name" value="${currentUser?.full_name || ''}" /></label>
+          <label>Organisation<input type="text" data-pf="org" value="${currentUser?.org || ''}" /></label>
+          <label>Email<input type="email" value="${currentUser?.email || ''}" disabled /></label>
+          <label>Account type<input type="text" value="${ROLES[currentRole].label}" disabled /></label>
         </div>
       </section>
     </div>`;
@@ -1041,8 +1040,26 @@ async function loadAdminData() {
   if (spo.ok && spo.data?.sponsors) sponsorList = spo.data.sponsors;
   if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
   if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
-  const ch = await api('/api/admin/charts');
+  const [ch, tk] = await Promise.all([api('/api/admin/charts'), api('/api/admin/tasks')]);
   if (ch.ok && ch.data) adminCharts = ch.data;
+  if (tk.ok && tk.data?.board) tasksData = tk.data.board;
+}
+
+async function createTask(fields) {
+  const { ok, data } = await api('/api/admin/tasks', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not create task', 'error'); return false; }
+  showToast('Task added', 'success');
+  await loadAdminData();
+  render('tasks');
+  return true;
+}
+
+async function saveProfile(fields) {
+  const { ok, data } = await api('/api/me/profile', { method: 'PATCH', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not save', 'error'); return; }
+  currentUser = data.user;
+  applyRoleIdentity(currentRole);
+  showToast('Profile saved', 'success');
 }
 
 async function createInvoice(fields) {
@@ -1407,7 +1424,8 @@ const modalForms = {
   'new-sponsor': () => openModal('New sponsor',
     `<label>Sponsor name<input type="text" /></label><div class="form-row"><label>Tier<select><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Amount<input type="number" /></label><label>Renewal date<input type="date" /></label><label>Primary contact<input type="text" /></label></div>`),
   'new-task': () => openModal('New task',
-    `<label>Task<input type="text" placeholder="What needs doing?" /></label><div class="form-row"><label>Assignee<select>${contacts.slice(0,5).map((c) => `<option>${c.name}</option>`).join('')}</select></label><label>Due<input type="date" /></label><label>Priority<select><option>High</option><option>Medium</option><option>Low</option></select></label><label>Status<select><option>To do</option><option>In progress</option><option>Done</option></select></label></div>`),
+    `<label>Task<input type="text" data-field="title" placeholder="What needs doing?" /></label><div class="form-row"><label>Assignee<select data-field="assignee">${contacts.slice(0,5).map((c) => `<option>${c.name}</option>`).join('')}</select></label><label>Due<input type="text" data-field="due" placeholder="Fri" /></label><label>Priority<select data-field="priority"><option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option></select></label></div>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-task>Add task</button>`),
   'new-campaign': () => openModal('New campaign',
     `<label>Campaign name<input type="text" /></label><label>Subject line<input type="text" /></label><div class="form-row"><label>Audience<select><option>All members</option><option>Gold tier</option><option>Expiring soon</option></select></label><label>Send time<input type="datetime-local" /></label></div>`),
   'new-invoice': () => openModal('New invoice',
@@ -1621,7 +1639,16 @@ function attachActions() {
     col.addEventListener('drop', (e) => {
       e.preventDefault();
       const card = root.querySelector('.kanban-card.dragging');
-      if (card) { col.insertBefore(card, col.querySelector('.link-button')); showToast('Task moved', 'success'); }
+      if (!card) return;
+      col.insertBefore(card, col.querySelector('.link-button'));
+      const id = card.dataset.taskId;
+      const status = col.dataset.col;
+      if (id) {
+        api(`/api/admin/tasks/${id}`, { method: 'PATCH', body: { status } })
+          .then((r) => showToast(r.ok ? 'Task moved' : 'Could not save move', r.ok ? 'success' : 'error'));
+      } else {
+        showToast('Task moved', 'success');
+      }
     });
   });
 }
@@ -1663,6 +1690,23 @@ function installDelegate() {
 
     const introBtn = find('[data-intro]');
     if (introBtn) { ev.stopPropagation(); requestIntro(introBtn.dataset.intro); return; }
+
+    if (find('[data-create-task]')) {
+      ev.stopPropagation();
+      const m = document.getElementById('modalBody');
+      const get = (f) => m.querySelector(`[data-field="${f}"]`)?.value || '';
+      createTask({ title: get('title'), assignee: get('assignee'), due: get('due'), priority: get('priority') })
+        .then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    if (find('[data-save-profile]')) {
+      ev.stopPropagation();
+      const root = document.getElementById('pageRoot');
+      const get = (f) => root.querySelector(`[data-pf="${f}"]`)?.value || '';
+      saveProfile({ full_name: get('full_name'), org: get('org') });
+      return;
+    }
 
     const modalBtn = find('[data-modal]');
     if (modalBtn) { ev.stopPropagation(); modalForms[modalBtn.dataset.modal]?.(); return; }

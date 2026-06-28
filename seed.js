@@ -123,6 +123,27 @@ async function seed() {
     console.log(`seeded sponsorship + ${leads.length} leads + ${sponsored.length} sponsored events`);
   }
 
+  // --- Tasks (admin board) ---
+  const taskCount = await pool.query('SELECT count(*)::int AS n FROM tasks');
+  if (taskCount.rows[0].n === 0) {
+    const tasks = [
+      ['Follow up with TechVision lead', 'Lukas Meyer', 'high', 'todo', 'Today'],
+      ['Draft sponsor renewal email', 'Sarah Johnson', 'med', 'todo', 'Tomorrow'],
+      ['Prepare board pack section 3', 'Amina Hassan', 'high', 'todo', 'Fri'],
+      ['Onboard Global Bank Gold sponsor', 'Sarah Johnson', 'high', 'doing', 'Wed'],
+      ['Update CRM tagging rules', 'Elena Rossi', 'low', 'doing', 'Wed'],
+      ['Send May newsletter', 'Peter Novak', 'med', 'done', 'Mon'],
+      ['Reconcile April invoices', 'Olivia Watson', 'med', 'done', 'Mon']
+    ];
+    for (const [title, assignee, priority, status, due] of tasks) {
+      await pool.query(
+        'INSERT INTO tasks (title, assignee, priority, status, due) VALUES ($1,$2,$3,$4,$5)',
+        [title, assignee, priority, status, due]
+      );
+    }
+    console.log(`seeded ${tasks.length} tasks`);
+  }
+
   console.log(`demo password: ${DEMO_PASSWORD}`);
 }
 

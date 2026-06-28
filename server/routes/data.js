@@ -120,6 +120,20 @@ dataRouter.get('/me/membership', (req, res) => {
   res.json({ membership: MEMBERSHIP.member });
 });
 
+// Update the current user's own profile (name / org).
+dataRouter.patch('/me/profile', async (req, res, next) => {
+  try {
+    const { full_name, org } = req.body || {};
+    if (!full_name || !String(full_name).trim()) return res.status(400).json({ error: 'Name required' });
+    const { rows } = await query(
+      `UPDATE users SET full_name = $1, org = $2 WHERE id = $3
+       RETURNING id, email, role, full_name, org, status`,
+      [String(full_name).trim(), org ? String(org).trim() : null, req.auth.sub]
+    );
+    res.json({ user: rows[0] });
+  } catch (err) { next(err); }
+});
+
 // --- Sponsor portal ---
 
 // Sponsorship package + brand stats for the current sponsor.
@@ -301,6 +315,39 @@ dataRouter.post('/admin/invoices', adminOnly, async (req, res, next) => {
       [number, userId, String(description).trim(), cents, issued || 'today', st]
     );
     res.status(201).json({ number });
+  } catch (err) { next(err); }
+});
+
+// Tasks board (admin) — grouped by column.
+dataRouter.get('/admin/tasks', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query('SELECT id, title, assignee, priority, status, due FROM tasks ORDER BY created_at');
+    const board = { todo: [], doing: [], done: [] };
+    for (const t of rows) (board[t.status] || board.todo).push(t);
+    res.json({ board });
+  } catch (err) { next(err); }
+});
+
+dataRouter.post('/admin/tasks', adminOnly, async (req, res, next) => {
+  try {
+    const { title, assignee, priority, due } = req.body || {};
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Task title required' });
+    const p = ['high', 'med', 'low'].includes(priority) ? priority : 'med';
+    const { rows } = await query(
+      `INSERT INTO tasks (title, assignee, priority, status, due) VALUES ($1,$2,$3,'todo',$4) RETURNING id`,
+      [String(title).trim(), assignee || null, p, due || null]
+    );
+    res.status(201).json({ id: rows[0].id });
+  } catch (err) { next(err); }
+});
+
+dataRouter.patch('/admin/tasks/:id', adminOnly, async (req, res, next) => {
+  try {
+    const status = ['todo', 'doing', 'done'].includes(req.body?.status) ? req.body.status : null;
+    if (!status) return res.status(400).json({ error: 'Valid status required' });
+    const { rowCount } = await query('UPDATE tasks SET status = $1 WHERE id = $2', [status, req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'Task not found' });
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
