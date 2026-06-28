@@ -345,9 +345,9 @@ function briefingCard() {
         <p><i></i> Follow up with new leads before Friday to protect conversion momentum.</p>
       </div>
       <div class="briefing-tags">
-        <span>Send sponsor follow-ups to top-3 open conversations today.</span>
-        <span>Prepare London dinner guest list for board review.</span>
-        <span>Check renewals due before the end of the month.</span>
+        <button type="button" data-quick-task="Send sponsor follow-ups to top-3 open conversations">Send sponsor follow-ups to top-3 open conversations today.</button>
+        <button type="button" data-quick-task="Prepare London dinner guest list for board review">Prepare London dinner guest list for board review.</button>
+        <button type="button" data-quick-task="Check renewals due before the end of the month">Check renewals due before the end of the month.</button>
       </div>
     </div>
     <button class="refresh-button" type="button" data-toast="Briefing refreshed" data-toast-variant="info">↻</button>
@@ -1918,10 +1918,32 @@ function installDelegate() {
 
     if (find('[data-export]')) { ev.stopPropagation(); exportCSV(); return; }
 
+    const quickTask = find('[data-quick-task]');
+    if (quickTask) {
+      ev.stopPropagation();
+      quickTask.disabled = true;
+      api('/api/admin/tasks', { method: 'POST', body: { title: quickTask.dataset.quickTask, priority: 'med' } })
+        .then((r) => {
+          showToast(r.ok ? 'Added to your tasks board' : 'Could not add task', r.ok ? 'success' : 'error');
+          if (r.ok) quickTask.textContent = '✓ ' + quickTask.textContent;
+        });
+      return;
+    }
+
+    const rangeBtn = find('[data-range]');
+    if (rangeBtn) {
+      ev.stopPropagation();
+      const lbl = document.getElementById('rangeLabel');
+      if (lbl) lbl.textContent = rangeBtn.dataset.range;
+      document.querySelectorAll('.dropdown').forEach((d) => d.hidden = true);
+      showToast(`Showing: ${rangeBtn.dataset.range}`, 'info');
+      return;
+    }
+
     // Catch-all: any action button that reached here has no wired behaviour yet —
     // give honest feedback instead of a silent dead click. Skip modal/close/submit
     // controls and links, which are handled elsewhere.
-    const dead = find('.control, .tenant-switch, .auth-secondary, .secondary-action');
+    const dead = find('.control, .auth-secondary, .secondary-action');
     if (dead && !dead.closest('.modal-foot') && !dead.hasAttribute('data-modal-close') && !dead.hasAttribute('data-page-link')) {
       ev.stopPropagation();
       showToast('Not available yet', 'info');
@@ -2061,6 +2083,10 @@ document.getElementById('notifToggle').addEventListener('click', (e) => {
   e.stopPropagation();
   renderNotifPanel();
   toggleDropdown(e.currentTarget, document.getElementById('notifPanel'));
+});
+document.getElementById('rangeToggle')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleDropdown(e.currentTarget, document.getElementById('rangePanel'));
 });
 document.getElementById('profileToggle').addEventListener('click', (e) => {
   e.stopPropagation();

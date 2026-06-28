@@ -100,11 +100,10 @@
       <main class="main">
         <header class="topbar">
           <button class="icon-button menu-toggle" id="menuToggle" type="button" aria-label="Toggle menu"><span data-icon="menu"></span></button>
-          <button class="tenant-switch" type="button">
+          <div class="tenant-switch" aria-label="Workspace">
             <span class="tenant-avatar">H</span>
             <span><strong>HBBA Global</strong><small>London, United Kingdom</small></span>
-            <span data-icon="chevron"></span>
-          </button>
+          </div>
           <label class="search">
             <span data-icon="search"></span>
             <input id="globalSearch" type="search" placeholder="Search anything..." />
@@ -136,7 +135,16 @@
               <p id="pageSubtitle">Here's what's happening with your organization today.</p>
             </div>
             <div class="head-actions">
-              <button class="control" type="button"><span data-icon="calendar"></span>May 16 - May 23, 2024<span data-icon="chevron"></span></button>
+              <div class="dropdown-wrap">
+                <button class="control" id="rangeToggle" type="button"><span data-icon="calendar"></span><span id="rangeLabel">This month</span><span data-icon="chevron"></span></button>
+                <div class="dropdown" id="rangePanel" hidden>
+                  <button class="menu-item" type="button" data-range="Today">Today</button>
+                  <button class="menu-item" type="button" data-range="This week">This week</button>
+                  <button class="menu-item" type="button" data-range="This month">This month</button>
+                  <button class="menu-item" type="button" data-range="This quarter">This quarter</button>
+                  <button class="menu-item" type="button" data-range="This year">This year</button>
+                </div>
+              </div>
               <button class="control" type="button" data-export><span data-icon="filter"></span>Export</button>
               <button class="primary-action" type="button" data-modal="new-event"><span data-icon="plus"></span>New Event</button>
             </div>

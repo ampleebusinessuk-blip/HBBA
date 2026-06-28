@@ -725,14 +725,22 @@ h1 {
   margin-top: 14px;
 }
 
-.briefing-tags span {
+.briefing-tags span,
+.briefing-tags button {
+  border: 0;
   border-radius: 999px;
-  color: #5146f2;
+  color: var(--purple);
   background: rgba(31, 58, 115, 0.12);
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s, transform .12s;
 }
+.briefing-tags button:hover { background: rgba(31, 58, 115, 0.2); }
+.briefing-tags button:active { transform: translateY(1px); }
+.briefing-tags button:disabled { opacity: .7; cursor: default; }
 
 .refresh-button {
   position: absolute;
