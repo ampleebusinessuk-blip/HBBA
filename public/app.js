@@ -1,5 +1,5 @@
 /* ============================================================
-   HBBA Global Prototype — UI Only (no backend)
+   HBBA Global - Member, Sponsor, and Admin Portals
    ============================================================ */
 
 /* ---------- Icons ---------- */
