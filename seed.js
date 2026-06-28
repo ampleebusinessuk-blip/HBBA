@@ -144,6 +144,20 @@ async function seed() {
     console.log(`seeded ${tasks.length} tasks`);
   }
 
+  // --- One demo support ticket from the member ---
+  const memU = await pool.query('SELECT id, full_name FROM users WHERE email=$1', ['member@hbbaglobal.co.uk']);
+  if (memU.rows[0]) {
+    const existing = await pool.query('SELECT count(*)::int AS n FROM support_tickets');
+    if (existing.rows[0].n === 0) {
+      const t = await pool.query('INSERT INTO support_tickets (user_id, subject) VALUES ($1,$2) RETURNING id', [memU.rows[0].id, 'VAT receipt request']);
+      await pool.query(
+        'INSERT INTO support_messages (ticket_id, author_id, author_name, author_role, body) VALUES ($1,$2,$3,$4,$5)',
+        [t.rows[0].id, memU.rows[0].id, memU.rows[0].full_name, 'member', 'Hi, could you resend a VAT receipt for my last invoice?']
+      );
+      console.log('seeded 1 support ticket');
+    }
+  }
+
   console.log(`demo password: ${DEMO_PASSWORD}`);
 }
 

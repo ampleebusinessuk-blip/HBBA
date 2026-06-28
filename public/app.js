@@ -202,21 +202,8 @@ const campaigns = [
   { name: 'Sponsor Update Q2', segment: 'Partners', sent: '52', open: '49%', click: '18%', status: 'Scheduled' }
 ];
 
-const supportThreads = [
-  { id: 'SUP-1042', subject: 'Payment receipt request', from: 'Sarah Johnson', status: 'Open', last: '12 min ago', messages: [
-    { who: 'Sarah Johnson', avatar: avatars[0], time: '09:42', text: 'Hi, I need a VAT receipt for invoice INV-3021 — can you resend?' },
-    { who: 'You', me: true, avatar: avatars[2], time: '09:55', text: 'Sending now. PDF will land in your inbox shortly with VAT line itemised.' }
-  ]},
-  { id: 'SUP-1041', subject: 'Event access question', from: 'Marcus Chen', status: 'Pending', last: '1 h ago', messages: [
-    { who: 'Marcus Chen', avatar: avatars[5], time: 'Yesterday', text: 'Are guest passes transferable for the VIP roundtable?' }
-  ]},
-  { id: 'SUP-1038', subject: 'Membership upgrade', from: 'Peter Novak', status: 'Open', last: '3 h ago', messages: [
-    { who: 'Peter Novak', avatar: avatars[3], time: 'Mon', text: 'I would like to move from Bronze to Silver mid-cycle.' }
-  ]},
-  { id: 'SUP-1034', subject: 'Invoice correction', from: 'Elena Rossi', status: 'Resolved', last: 'Mon', messages: [
-    { who: 'Elena Rossi', avatar: avatars[4], time: 'Mon', text: 'Resolved — corrected line on INV-3018, thank you.' }
-  ]}
-];
+let supportThreads = [];
+let activeTicket = null;
 
 let invoices = [
   { id: 'INV-3021', client: 'Global Bank Ltd.', amount: '£15,000', issued: '01 May', due: '31 May', status: 'paid' },
@@ -701,44 +688,109 @@ function emailPage() {
 
 /* --- Support --- */
 function supportPage() {
-  const active = supportThreads[0];
+  const isAdmin = currentRole === 'admin';
+  const count = (s) => supportThreads.filter((t) => t.status === s).length;
+  const sChip = (s) => `<span class="chip" style="background:${s === 'resolved' ? '#0f9f6e18' : s === 'pending' ? '#f2aa0018' : '#e5486318'};color:${s === 'resolved' ? 'var(--green)' : s === 'pending' ? '#b45309' : 'var(--red)'}">${cap(s)}</span>`;
+
+  const queue = supportThreads.length ? supportThreads.map((t) => `
+    <div class="support-item ${activeTicket && activeTicket.id === t.id ? 'is-active' : ''}" data-thread="${t.id}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h4 style="margin:0">${t.subject}</h4>${sChip(t.status)}</div>
+      <p>${isAdmin ? t.from + ' · ' : ''}${t.messages} message${t.messages === 1 ? '' : 's'} · ${t.last}</p>
+    </div>`).join('') : emptyState('No tickets yet', isAdmin ? 'Member and sponsor tickets land here.' : 'Raise a ticket and our team will reply.');
+
+  const thread = activeTicket ? `
+    <div>
+      <div class="card-title"><h2>${activeTicket.subject}</h2>${sChip(activeTicket.status)}</div>
+      <p class="muted" style="font-size:13px;margin:0">${activeTicket.from}</p>
+      ${isAdmin ? `<div style="display:flex;gap:8px;margin-top:8px">
+        <button class="control" type="button" data-ticket-status="${activeTicket.id}:pending">Mark pending</button>
+        <button class="control" type="button" data-ticket-status="${activeTicket.id}:resolved">Mark resolved</button>
+        <button class="control" type="button" data-ticket-status="${activeTicket.id}:open">Reopen</button>
+      </div>` : ''}
+    </div>
+    <div style="margin:14px 0;overflow-y:auto;max-height:340px">
+      ${activeTicket.messages.map((m) => `
+        <div class="thread-msg ${m.role === currentRole ? 'me' : ''}">
+          <span class="sponsor-mark" style="width:32px;height:32px;font-size:12px">${(m.who || '?').charAt(0)}</span>
+          <div><strong style="font-size:13px">${m.who}</strong> <small class="muted">${m.role} · ${m.time}</small><div class="bubble">${m.text}</div></div>
+        </div>`).join('')}
+    </div>
+    <div class="thread-reply">
+      <input type="text" id="replyInput" placeholder="Type a reply…" onkeydown="if(event.key==='Enter')sendReply()" />
+      <button class="primary-action" type="button" data-send-reply><span data-icon="send"></span>Send</button>
+    </div>` : emptyState('Select a ticket', 'Pick a conversation on the left to read and reply.');
+
   return `
+    <div class="page-head" style="padding:0;margin-bottom:14px"><div></div><div class="head-actions">${!isAdmin ? '<button class="primary-action" type="button" data-new-ticket><span data-icon="plus"></span>New ticket</button>' : ''}</div></div>
     <div class="cards-grid">
-      ${[['Open tickets', '19'], ['Avg response', '2h'], ['Resolved', '147']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#e54863')}</button>`).join('')}
+      ${[['Open', count('open')], ['Pending', count('pending')], ['Resolved', count('resolved')]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2>${v}</h2>${spark('#e54863')}</button>`).join('')}
     </div>
     <div class="support-grid">
       <section class="card">
-        <div class="card-title"><h2>Queue</h2><span class="chip">${supportThreads.filter((t) => t.status === 'Open').length} open</span></div>
-        <div class="support-queue">
-          ${supportThreads.map((t, i) => `
-            <div class="support-item ${i === 0 ? 'is-active' : ''}" data-thread="${t.id}">
-              <div style="display:flex;justify-content:space-between;align-items:center"><h4>${t.id}</h4>${statusPill(t.status)}</div>
-              <p><strong style="color:var(--text)">${t.subject}</strong></p>
-              <p>${t.from} · ${t.last}</p>
-            </div>
-          `).join('')}
-        </div>
+        <div class="card-title"><h2>${isAdmin ? 'All tickets' : 'My tickets'}</h2><span class="chip">${count('open')} open</span></div>
+        <div class="support-queue">${queue}</div>
       </section>
-      <section class="card support-thread" id="threadView">
-        <div>
-          <div class="card-title"><h2>${active.subject}</h2>${statusPill(active.status)}</div>
-          <p class="muted" style="font-size:13px;margin:0">${active.id} · ${active.from}</p>
-        </div>
-        <div style="margin:14px 0;overflow-y:auto;max-height:340px">
-          ${active.messages.map((m) => `
-            <div class="thread-msg ${m.me ? 'me' : ''}">
-              <img class="avatar" src="${m.avatar}" alt="" style="width:32px;height:32px;border-radius:50%" />
-              <div><strong style="font-size:13px">${m.who}</strong> <small class="muted">${m.time}</small><div class="bubble">${m.text}</div></div>
-            </div>
-          `).join('')}
-        </div>
-        <div class="thread-reply">
-          <input type="text" placeholder="Type a reply…" />
-          <button class="primary-action" type="button" data-toast="Reply sent" data-toast-variant="success"><span data-icon="send"></span>Send</button>
-        </div>
-      </section>
-    </div>
-  `;
+      <section class="card support-thread" id="threadView">${thread}</section>
+    </div>`;
+}
+
+async function loadSupport() {
+  const { ok, data } = await api('/api/support/tickets');
+  if (ok && data.tickets) supportThreads = data.tickets;
+  if (activeTicket) {
+    const d = await api(`/api/support/tickets/${activeTicket.id}`);
+    if (d.ok) activeTicket = d.data.ticket; else activeTicket = null;
+  }
+  if ((location.hash.replace('#', '') || 'dashboard') === 'support') {
+    const root = document.getElementById('pageRoot');
+    root.innerHTML = supportPage();
+    initIcons(root);
+  }
+}
+
+async function openTicket(id) {
+  const { ok, data } = await api(`/api/support/tickets/${id}`);
+  if (!ok) { showToast(data?.error || 'Could not open ticket', 'error'); return; }
+  activeTicket = data.ticket;
+  const root = document.getElementById('pageRoot');
+  root.innerHTML = supportPage();
+  initIcons(root);
+}
+
+async function sendReply() {
+  if (!activeTicket) return;
+  const input = document.getElementById('replyInput');
+  const body = input?.value.trim();
+  if (!body) return;
+  const { ok, data } = await api(`/api/support/tickets/${activeTicket.id}/messages`, { method: 'POST', body: { body } });
+  if (!ok) { showToast(data?.error || 'Could not send', 'error'); return; }
+  await openTicket(activeTicket.id);
+}
+
+function openNewTicket() {
+  openModal('New support ticket',
+    `<label>Subject<input type="text" data-nt="subject" placeholder="What do you need help with?" /></label><label>Message<textarea data-nt="message" placeholder="Describe your question…"></textarea></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-submit-ticket>Send ticket</button>`);
+}
+
+async function submitTicket() {
+  const m = document.getElementById('modalBody');
+  const subject = m.querySelector('[data-nt="subject"]').value;
+  const message = m.querySelector('[data-nt="message"]').value;
+  const { ok, data } = await api('/api/support/tickets', { method: 'POST', body: { subject, message } });
+  if (!ok) { showToast(data?.error || 'Could not create ticket', 'error'); return; }
+  closeModal();
+  showToast('Ticket raised', 'success');
+  activeTicket = { id: data.id };
+  await loadSupport();
+}
+
+async function setTicketStatus(spec) {
+  const [id, status] = spec.split(':');
+  const { ok, data } = await api(`/api/support/tickets/${id}`, { method: 'PATCH', body: { status } });
+  if (!ok) { showToast(data?.error || 'Failed', 'error'); return; }
+  showToast(`Ticket ${status}`, 'success');
+  await loadSupport();
 }
 
 /* --- Invoices --- */
@@ -1526,6 +1578,7 @@ function render(page) {
     void root.offsetWidth; // restart entrance animation
     root.classList.add('page-enter');
     animateNumbers(root);
+    if (page === 'support') loadSupport();
   }, 180);
   history.replaceState(null, '', `#${page}`);
 }
@@ -1880,12 +1933,12 @@ function installDelegate() {
     if (evtEl) { eventDrawer(evtEl.dataset.eventId); return; }
 
     const sup = find('.support-item');
-    if (sup) {
-      document.querySelectorAll('.support-item').forEach((x) => x.classList.remove('is-active'));
-      sup.classList.add('is-active');
-      showToast('Thread opened', 'info');
-      return;
-    }
+    if (sup) { openTicket(sup.dataset.thread); return; }
+    if (find('[data-send-reply]')) { ev.stopPropagation(); sendReply(); return; }
+    if (find('[data-new-ticket]')) { ev.stopPropagation(); openNewTicket(); return; }
+    if (find('[data-submit-ticket]')) { ev.stopPropagation(); submitTicket(); return; }
+    const tkStatus = find('[data-ticket-status]');
+    if (tkStatus) { ev.stopPropagation(); setTicketStatus(tkStatus.dataset.ticketStatus); return; }
 
     const tab = find('[data-settings-tab]');
     if (tab) {
