@@ -11,10 +11,12 @@ const money = (cents, currency = 'GBP') =>
   (currency === 'GBP' ? '£' : currency === 'USD' ? '$' : '') + (Number(cents) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const dateISO = (v) => (v ? new Date(v).toISOString().slice(0, 10) : null);
 
 // Display status: auto-flag overdue when past due and still unpaid.
 function effectiveStatus(row) {
-  if ((row.status === 'due' || row.status === 'sent') && row.due_on && row.due_on < todayISO()) return 'overdue';
+  const due = dateISO(row.due_on);
+  if ((row.status === 'due' || row.status === 'sent') && due && due < todayISO()) return 'overdue';
   return row.status;
 }
 
@@ -53,7 +55,7 @@ function invoiceDTO(row, { full = false } = {}) {
   const base = {
     id: row.number, number: row.number, client: row.client_name || null,
     amount: money(row.amount_cents, row.currency), amount_cents: row.amount_cents,
-    issued: row.issued_on, due: row.due_on || null, status,
+    issued: row.issued_on, due: dateISO(row.due_on), status,
     vat_rate: Number(row.vat_rate) || 0, pdf: row.pdf_url || null
   };
   if (!full) return base;
