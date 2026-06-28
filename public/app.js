@@ -155,7 +155,7 @@ let eventsCatalog = [
   { id: 'E006', title: 'Member-Only Summer Mixer', date: 'Jul 22', time: '7 PM', city: 'Manchester, UK', attendees: 90, capacity: 110, status: 'Confirmed', img: photos[5] }
 ];
 
-const ticketRecords = [
+let ticketRecords = [
   { id: 'T-9821', event: 'Global Business Networking Dinner', buyer: 'Sarah Johnson', tier: 'VIP', price: '£250', status: 'Paid', checkin: 'In' },
   { id: 'T-9820', event: 'International Trade Conference', buyer: 'Lukas Meyer', tier: 'Standard', price: '£120', status: 'Paid', checkin: 'Pending' },
   { id: 'T-9819', event: 'Embassy Business Forum', buyer: 'Amina Hassan', tier: 'VIP', price: '£300', status: 'Paid', checkin: 'In' },
@@ -529,37 +529,28 @@ function eventsPage() {
 
 /* --- Tickets --- */
 function ticketsPage() {
+  const inCount = ticketRecords.filter((t) => t.checked_in).length;
   return `
     <div class="cards-grid">
-      ${[['Sold', '342'], ['Available', '618'], ['Revenue', '£24,600']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
+      ${[['Bookings', String(ticketRecords.length)], ['Checked in', String(inCount)], ['To arrive', String(ticketRecords.length - inCount)]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
     </div>
-    <div class="checkin-grid">
-      <section class="card">
-        <div class="card-title"><h2>Ticket orders</h2><button class="primary-action" type="button" data-modal="new-ticket"><span data-icon="plus"></span>Issue ticket</button></div>
-        <table class="table">
-          <thead><tr><th>Ticket</th><th>Event</th><th>Buyer</th><th>Tier</th><th>Price</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            ${ticketRecords.map((t) => `
-              <tr>
-                <td><strong>${t.id}</strong></td>
-                <td>${t.event}</td>
-                <td>${t.buyer}</td>
-                <td><span class="chip">${t.tier}</span></td>
-                <td>${t.price}</td>
-                <td>${statusPill(t.status)}</td>
-                <td><button class="link-button" data-confirm="refund" data-id="${t.id}">Refund</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </section>
-      <aside class="card">
-        <div class="card-title"><h2>Check-in</h2><span class="chip">Scanner ready</span></div>
-        <div class="qr-placeholder" aria-label="QR scanner placeholder"><div><strong style="display:block;font-size:28px">⌐■_■</strong>Scan QR to check in</div></div>
-        <p class="muted" style="margin-top:10px;font-size:13px">Last scanned: <strong style="color:var(--text)">T-9821 · Sarah Johnson</strong></p>
-        <button class="primary-action" type="button" data-toast="Check-in recorded" data-toast-variant="success" style="width:100%;margin-top:10px"><span data-icon="check"></span>Confirm check-in</button>
-      </aside>
-    </div>
+    <section class="card">
+      <div class="card-title"><h2>Ticket desk — check-in</h2><span class="chip">${inCount}/${ticketRecords.length} in</span></div>
+      ${ticketRecords.length ? `<table class="table">
+        <thead><tr><th>Event</th><th>Attendee</th><th>Tier</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${ticketRecords.map((t) => `
+            <tr>
+              <td><strong>${t.event}</strong></td>
+              <td>${t.buyer}</td>
+              <td><span class="chip">${t.tier}</span></td>
+              <td>${t.checked_in ? '<span class="invoice-status paid">Checked in</span>' : '<span class="invoice-status due">Booked</span>'}</td>
+              <td><button class="${t.checked_in ? 'control' : 'primary-action'}" type="button" data-checkin="${t.id}:${t.checked_in ? '0' : '1'}"><span data-icon="check"></span>${t.checked_in ? 'Undo' : 'Check in'}</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>` : emptyState('No bookings yet', 'Member event bookings show up here for check-in.')}
+    </section>
   `;
 }
 
@@ -1125,10 +1116,20 @@ async function loadAdminData() {
   if (spo.ok && spo.data?.sponsors) sponsorList = spo.data.sponsors;
   if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
   if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
-  const [ch, tk, dl] = await Promise.all([api('/api/admin/charts'), api('/api/admin/tasks'), api('/api/admin/deals')]);
+  const [ch, tk, dl, tix] = await Promise.all([api('/api/admin/charts'), api('/api/admin/tasks'), api('/api/admin/deals'), api('/api/admin/tickets')]);
   if (ch.ok && ch.data) adminCharts = ch.data;
   if (tk.ok && tk.data?.board) tasksData = tk.data.board;
   if (dl.ok && dl.data?.stages) dealStages = dl.data.stages;
+  if (tix.ok && tix.data?.tickets) ticketRecords = tix.data.tickets;
+}
+
+async function checkInTicket(spec) {
+  const [id, on] = spec.split(':');
+  const { ok, data } = await api(`/api/admin/tickets/${id}/checkin`, { method: 'PATCH', body: { checked_in: on === '1' } });
+  if (!ok) { showToast(data?.error || 'Failed', 'error'); return; }
+  showToast(on === '1' ? 'Checked in' : 'Check-in undone', on === '1' ? 'success' : 'info');
+  await loadAdminData();
+  render('tickets');
 }
 
 async function createDeal(fields) {
@@ -1936,6 +1937,9 @@ function installDelegate() {
 
     const introBtn = find('[data-intro]');
     if (introBtn) { ev.stopPropagation(); requestIntro(introBtn.dataset.intro); return; }
+
+    const checkinBtn = find('[data-checkin]');
+    if (checkinBtn) { ev.stopPropagation(); checkInTicket(checkinBtn.dataset.checkin); return; }
 
     if (find('[data-eb-sync]')) { ev.stopPropagation(); syncEventbrite(); return; }
 

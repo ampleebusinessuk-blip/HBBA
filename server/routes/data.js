@@ -275,6 +275,31 @@ dataRouter.get('/admin/charts', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Ticket desk (admin): every event booking with check-in state.
+dataRouter.get('/admin/tickets', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT b.id, e.title AS event, u.full_name AS buyer, b.tier, b.status, b.checked_in
+         FROM event_bookings b JOIN events e ON e.id = b.event_id JOIN users u ON u.id = b.user_id
+        ORDER BY b.created_at DESC`);
+    res.json({ tickets: rows.map((r) => ({
+      id: r.id, event: r.event, buyer: r.buyer, tier: r.tier,
+      status: r.status, checked_in: r.checked_in
+    })) });
+  } catch (err) { next(err); }
+});
+
+dataRouter.patch('/admin/tickets/:id/checkin', adminOnly, async (req, res, next) => {
+  try {
+    const checked = req.body?.checked_in !== false;
+    const { rowCount } = await query(
+      'UPDATE event_bookings SET checked_in = $1, checked_in_at = CASE WHEN $1 THEN now() ELSE NULL END WHERE id = $2',
+      [checked, req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'Ticket not found' });
+    res.json({ ok: true, checked_in: checked });
+  } catch (err) { next(err); }
+});
+
 // CRM deals pipeline (admin), grouped into stage columns.
 const DEAL_STAGES = [['lead', 'Lead'], ['qualified', 'Qualified'], ['proposal', 'Proposal'], ['won', 'Won']];
 dataRouter.get('/admin/deals', adminOnly, async (_req, res, next) => {
