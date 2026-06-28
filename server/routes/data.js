@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { ebConfigured, listOrgEvents, eventAttendeeCount, createOrgEvent } from '../eventbrite.js';
 
 const STOCK_AVATAR = 'https://i.pravatar.cc/96?img=12';
 
@@ -12,6 +13,7 @@ function money(cents, currency = 'GBP') {
 }
 
 function eventDTO(row) {
+  const fromEb = row.source === 'eventbrite';
   return {
     id: row.code,
     title: row.title,
@@ -19,11 +21,13 @@ function eventDTO(row) {
     time: row.time_label,
     city: row.city,
     capacity: row.capacity,
-    attendees: Number(row.attendees) || 0,
+    attendees: fromEb ? (Number(row.eb_attendees) || 0) : (Number(row.attendees) || 0),
     status: row.status,
     img: row.img,
     booked: row.booked || false,
-    tier: row.booked_tier || null
+    tier: row.booked_tier || null,
+    source: row.source || 'local',
+    url: row.url || null
   };
 }
 
@@ -357,11 +361,57 @@ dataRouter.post('/admin/events', adminOnly, async (req, res, next) => {
     const { title, date_label, time_label, city, capacity } = req.body || {};
     if (!title || !String(title).trim()) return res.status(400).json({ error: 'Title required' });
     const code = 'E' + Date.now().toString().slice(-6);
+
+    // Two-way: push to Eventbrite if connected (best-effort; never blocks local create).
+    let ebId = null, url = null;
+    if (ebConfigured() && req.body?.push_eventbrite) {
+      try {
+        const start = req.body?.start_utc, end = req.body?.end_utc;
+        if (start && end) {
+          const r = await createOrgEvent({ title: String(title).trim(), startUtc: start, endUtc: end });
+          ebId = r.id; url = r.url;
+        }
+      } catch (err) {
+        return res.status(502).json({ error: `Created locally failed to push: ${err.message}` });
+      }
+    }
+
     const { rows } = await query(
-      `INSERT INTO events (code, title, date_label, time_label, city, capacity, status)
-       VALUES ($1,$2,$3,$4,$5,$6,'Draft') RETURNING code, title`,
-      [code, String(title).trim(), date_label || 'TBC', time_label || 'TBC', city || 'TBC', Number(capacity) || 100]
+      `INSERT INTO events (code, title, date_label, time_label, city, capacity, status, eventbrite_id, url, source)
+       VALUES ($1,$2,$3,$4,$5,$6,'Draft',$7,$8,$9) RETURNING code, title`,
+      [code, String(title).trim(), date_label || 'TBC', time_label || 'TBC', city || 'TBC',
+       Number(capacity) || 100, ebId, url, ebId ? 'eventbrite' : 'local']
     );
-    res.status(201).json({ event: rows[0] });
+    res.status(201).json({ event: rows[0], pushed: Boolean(ebId) });
+  } catch (err) { next(err); }
+});
+
+// Eventbrite connection status.
+dataRouter.get('/admin/eventbrite/status', adminOnly, (_req, res) => {
+  res.json({ configured: ebConfigured() });
+});
+
+// Pull org events from Eventbrite and upsert them (+ refresh attendee counts).
+dataRouter.post('/admin/eventbrite/sync', adminOnly, async (_req, res, next) => {
+  try {
+    if (!ebConfigured()) return res.status(400).json({ error: 'Eventbrite not connected. Add EVENTBRITE_TOKEN and EVENTBRITE_ORG_ID.' });
+    const events = await listOrgEvents();
+    let imported = 0;
+    for (const e of events) {
+      let count = 0;
+      try { count = await eventAttendeeCount(e.eventbrite_id); } catch { /* ignore per-event count failure */ }
+      const code = 'EB-' + e.eventbrite_id;
+      await query(
+        `INSERT INTO events (code, title, date_label, time_label, city, capacity, img, status, eventbrite_id, url, source, eb_attendees)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'eventbrite',$11)
+         ON CONFLICT (eventbrite_id) DO UPDATE SET
+           title=EXCLUDED.title, date_label=EXCLUDED.date_label, time_label=EXCLUDED.time_label,
+           city=EXCLUDED.city, capacity=EXCLUDED.capacity, img=EXCLUDED.img, status=EXCLUDED.status,
+           url=EXCLUDED.url, eb_attendees=EXCLUDED.eb_attendees`,
+        [code, e.title, e.date_label, e.time_label, e.city, e.capacity, e.img, e.status, e.eventbrite_id, e.url, count]
+      );
+      imported++;
+    }
+    res.json({ ok: true, imported });
   } catch (err) { next(err); }
 });

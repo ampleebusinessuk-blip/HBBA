@@ -513,19 +513,26 @@ function calendarGrid() {
 /* --- Events --- */
 function eventsPage() {
   return `
+    <div class="page-head" style="padding:0;margin-bottom:14px">
+      <div></div>
+      <div class="head-actions">
+        <button class="control" type="button" data-eb-sync><span data-icon="download"></span>Sync from Eventbrite</button>
+        <button class="primary-action" type="button" data-modal="new-event"><span data-icon="plus"></span>New Event</button>
+      </div>
+    </div>
     <div class="cards-grid">
-      ${[['Upcoming', '24'], ['Attendees', '1,430'], ['Venues', '12']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
+      ${[['Upcoming', String(eventsCatalog.length)], ['On Eventbrite', String(eventsCatalog.filter((e) => e.source === 'eventbrite').length)], ['Venues', '12']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
     </div>
     ${filterBar('Search events…', [{ label: 'All', count: eventsCatalog.length }, { label: 'Confirmed' }, { label: 'Selling' }, { label: 'Draft' }])}
     <div class="event-grid">
       ${eventsCatalog.map((e) => `
         <article class="event-card" data-event-id="${e.id}">
-          <img src="${e.img}" alt="" />
+          ${e.img ? `<img src="${e.img}" alt="" />` : '<div class="placeholder" style="height:120px"></div>'}
           <div class="body">
-            <h3>${e.title}</h3>
+            <h3>${e.title} ${e.source === 'eventbrite' ? '<span class="chip" style="background:#f6562210;color:#f05537">Eventbrite</span>' : ''}</h3>
             <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
-            <div class="progress" style="margin-bottom:10px"><i style="--value:${Math.round(e.attendees / e.capacity * 100)}%"></i></div>
-            <footer><span>${e.attendees}/${e.capacity} attendees</span>${statusPill(e.status)}</footer>
+            <div class="progress" style="margin-bottom:10px"><i style="--value:${Math.round(e.attendees / Math.max(1, e.capacity) * 100)}%"></i></div>
+            <footer><span>${e.attendees}/${e.capacity} attendees</span>${e.url ? `<a class="link-button" href="${e.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View ↗</a>` : statusPill(e.status)}</footer>
           </div>
         </article>
       `).join('')}
@@ -1054,6 +1061,15 @@ async function createTask(fields) {
   return true;
 }
 
+async function syncEventbrite() {
+  showToast('Syncing from Eventbrite…', 'info');
+  const { ok, data } = await api('/api/admin/eventbrite/sync', { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Sync failed', 'error'); return; }
+  showToast(`Synced ${data.imported} event(s) from Eventbrite`, 'success');
+  await loadAdminData();
+  render('events');
+}
+
 async function saveProfile(fields) {
   const { ok, data } = await api('/api/me/profile', { method: 'PATCH', body: fields });
   if (!ok) { showToast(data?.error || 'Could not save', 'error'); return; }
@@ -1179,7 +1195,7 @@ function myEventsPage() {
           <div class="body">
             <h3>${e.title}</h3>
             <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
-            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip" style="margin-right:8px">Booked</span><button class="control" type="button" data-cancel="${e.id}" onclick="event.stopPropagation()">Cancel</button>` : `<button class="primary-action" type="button" data-book="${e.id}" onclick="event.stopPropagation()">Book</button>`}</footer>
+            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip" style="margin-right:8px">Booked</span><button class="control" type="button" data-cancel="${e.id}" onclick="event.stopPropagation()">Cancel</button>` : (e.source === 'eventbrite' && e.url) ? `<a class="primary-action" href="${e.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Book on Eventbrite ↗</a>` : `<button class="primary-action" type="button" data-book="${e.id}" onclick="event.stopPropagation()">Book</button>`}</footer>
           </div>
         </article>`;
       }).join('')}
@@ -1690,6 +1706,8 @@ function installDelegate() {
 
     const introBtn = find('[data-intro]');
     if (introBtn) { ev.stopPropagation(); requestIntro(introBtn.dataset.intro); return; }
+
+    if (find('[data-eb-sync]')) { ev.stopPropagation(); syncEventbrite(); return; }
 
     if (find('[data-create-task]')) {
       ev.stopPropagation();
