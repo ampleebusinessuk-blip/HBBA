@@ -276,7 +276,7 @@ function filterBar(searchPlaceholder, chips) {
     <input class="search-input" type="search" placeholder="${searchPlaceholder}" />
     ${chips.map((c, i) => `<button class="filter-chip ${i === 0 ? 'is-active' : ''}" type="button">${c.label}${c.count != null ? ` <i>${c.count}</i>` : ''}</button>`).join('')}
     <button class="control" type="button"><span data-icon="filter"></span>Filter</button>
-    <button class="control" type="button"><span data-icon="download"></span>Export</button>
+    <button class="control" type="button" data-export><span data-icon="download"></span>Export</button>
   </div>`;
 }
 
@@ -321,9 +321,9 @@ function donut() {
 
 function noticeBar() {
   return `<div class="notice-bar">
-    <strong>Verify your HBBA admin email.</strong>
-    <span>A verification link is needed for john.doe@hbbaglobal.co.uk.</span>
-    <button type="button" data-toast="Verification email resent" data-toast-variant="success">Resend</button>
+    <strong>Verify your email.</strong>
+    <span>A verification link will be sent to ${currentUser?.email || 'your email'} once email is connected.</span>
+    <button type="button" data-toast="Verification email queued — sends when email is connected" data-toast-variant="info">Resend</button>
   </div>`;
 }
 
@@ -994,6 +994,28 @@ async function payInvoice(number) {
 const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB');
 
 let adminCharts = null;
+
+/* CSV export of whatever the active page is showing. */
+function exportCSV() {
+  const page = (location.hash.replace('#', '') || 'dashboard');
+  const sets = {
+    invoices: [['Invoice', 'Client', 'Amount', 'Issued', 'Due', 'Status'], invoices.map((i) => [i.id, i.client || '', i.amount, i.issued || '', i.due || '', i.status])],
+    events: [['Event', 'Date', 'City', 'Attendees', 'Capacity', 'Status'], eventsCatalog.map((e) => [e.title, e.date, e.city, e.attendees, e.capacity, e.status])],
+    crm: [['Name', 'Email', 'Company', 'Status'], contacts.map((c) => [c.name, c.email, c.company, c.status])],
+    sponsors: [['Sponsor', 'Tier', 'Amount', 'Renewal', 'Contact'], sponsorList.map((s) => [s.name, s.tier, s.amount, s.renewal, s.contact])],
+    myInvoices: [['Invoice', 'Description', 'Amount', 'Issued', 'Status'], (currentRole === 'sponsor' ? sponsorInvoices : memberInvoices).map((i) => [i.id, i.desc, i.amount, i.issued, i.status])]
+  };
+  const set = sets[page];
+  if (!set) { showToast('Nothing to export on this page', 'info'); return; }
+  const [head, rows] = set;
+  const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const csv = [head, ...rows].map((r) => r.map(esc).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `hbba-${page}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  showToast(`Exported ${rows.length} row(s)`, 'success');
+}
 
 /* Data-driven bar chart from [{label,value}] (real numbers, scaled to the max). */
 function realBars(items, color = '#1f3a73') {
@@ -1891,6 +1913,18 @@ function installDelegate() {
 
     const toastBtn = find('[data-toast]');
     if (toastBtn) { ev.stopPropagation(); showToast(toastBtn.dataset.toast, toastBtn.dataset.toastVariant || 'info'); return; }
+
+    if (find('[data-export]')) { ev.stopPropagation(); exportCSV(); return; }
+
+    // Catch-all: any action button that reached here has no wired behaviour yet —
+    // give honest feedback instead of a silent dead click. Skip modal/close/submit
+    // controls and links, which are handled elsewhere.
+    const dead = find('.control, .tenant-switch, .auth-secondary, .secondary-action');
+    if (dead && !dead.closest('.modal-foot') && !dead.hasAttribute('data-modal-close') && !dead.hasAttribute('data-page-link')) {
+      ev.stopPropagation();
+      showToast('Not available yet', 'info');
+      return;
+    }
   });
 
   document.body.addEventListener('change', (ev) => {
