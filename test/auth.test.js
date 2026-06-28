@@ -6,8 +6,16 @@ import { pool, closePool } from '../server/db.js';
 
 let server;
 let base;
+let dbReady = false;
 
 before(async () => {
+  try {
+    await pool.query('SELECT 1');
+    dbReady = true;
+  } catch (err) {
+    throw new Error(`Test database is not reachable. Start it with "docker compose up -d" and run "npm run migrate". Original error: ${err.message}`);
+  }
+
   await new Promise((resolve) => {
     server = createApp().listen(0, '127.0.0.1', resolve);
   });
@@ -15,8 +23,8 @@ before(async () => {
 });
 
 after(async () => {
-  await pool.query("DELETE FROM users WHERE email LIKE 'test+%@example.com'");
-  await new Promise((r) => server.close(r));
+  if (dbReady) await pool.query("DELETE FROM users WHERE email LIKE 'test+%@example.com'");
+  if (server) await new Promise((r) => server.close(r));
   await closePool();
 });
 
@@ -101,4 +109,18 @@ test('logout clears the cookie', async () => {
   const cleared = cookieOf(out);
   // cleared cookie has empty value
   assert.ok(/hbba_token=;?/.test(cleared) || cleared === 'hbba_token=', 'cookie cleared');
+});
+
+test('member cannot access admin stats', async () => {
+  const email = newEmail();
+  const signup = await req('/api/auth/signup', { method: 'POST', body: { email, password: 'password123', full_name: 'Member User', role: 'member' } });
+  const cookie = cookieOf(signup);
+
+  const res = await req('/api/admin/stats', { cookie });
+  assert.equal(res.status, 403);
+});
+
+test('unauthenticated admin stats returns 401', async () => {
+  const res = await req('/api/admin/stats');
+  assert.equal(res.status, 401);
 });
