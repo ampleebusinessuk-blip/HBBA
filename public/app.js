@@ -871,58 +871,52 @@ function settingsBody(tab) {
   }
   if (tab === 'team') {
     return `<section class="card">
-      <div class="card-title"><h2>Team members</h2><button class="primary-action" type="button" data-modal="new-user"><span data-icon="plus"></span>Invite user</button></div>
-      ${contacts.slice(0, 5).map((c) => `
+      <div class="card-title"><h2>Team & members</h2><button class="primary-action" type="button" data-modal="new-user"><span data-icon="plus"></span>Invite user</button></div>
+      ${adminUsers.length ? adminUsers.map((u) => `
         <div class="role-row">
-          <div style="display:flex;align-items:center;gap:10px"><img class="avatar" src="${c.avatar}" alt="" style="width:36px;height:36px;border-radius:50%" /><div><strong>${c.name}</strong><br /><small class="muted">${c.email}</small></div></div>
-          <span class="chip">Admin</span>
-          ${statusPill(c.status)}
-          <button class="link-button" data-confirm="remove-user" data-id="${c.name}"><span data-icon="trash" style="vertical-align:middle"></span></button>
+          <div style="display:flex;align-items:center;gap:10px"><span class="sponsor-mark">${(u.name || '?').charAt(0)}</span><div><strong>${u.name}</strong><br /><small class="muted">${u.email}</small></div></div>
+          <span class="chip">${ROLES[u.role]?.label || cap(u.role)}</span>
+          <span class="invoice-status ${u.status === 'active' ? 'paid' : 'due'}">${cap(u.status)}</span>
         </div>
-      `).join('')}
+      `).join('') : emptyState('No users yet', 'Invite your first user.')}
     </section>`;
   }
   if (tab === 'roles') {
-    return `<section class="card">
-      <div class="card-title"><h2>Roles & permissions</h2><button class="link-button" data-toast="Saved" data-toast-variant="success">Save</button></div>
-      <table class="table">
-        <thead><tr><th>Permission</th><th>Admin</th><th>Ops</th><th>Finance</th><th>Viewer</th></tr></thead>
-        <tbody>
-          ${['Manage members', 'Manage events', 'Send emails', 'View reports', 'Manage billing'].map((p) => `<tr><td><strong>${p}</strong></td>${['admin','ops','finance','viewer'].map((r) => `<td><label class="toggle"><input type="checkbox" ${r === 'admin' || (r === 'ops' && p !== 'Manage billing') || (r === 'finance' && p === 'Manage billing') ? 'checked' : ''} /><span class="slider"></span></label></td>`).join('')}</tr>`).join('')}
-        </tbody>
-      </table>
-    </section>`;
+    const byRole = (r) => adminUsers.filter((u) => u.role === r).length;
+    const roleDefs = [
+      ['admin', 'Full access — manage members, events, sponsors, invoicing, settings.'],
+      ['member', 'Member portal — membership, event booking, own invoices, support.'],
+      ['sponsor', 'Sponsor portal — package, leads, sponsored events, own invoices, support.']
+    ];
+    return `<div class="tier-grid">
+      ${roleDefs.map(([r, desc]) => `<div class="tier-card ${r === 'admin' ? 'gold' : r === 'member' ? 'silver' : 'bronze'}"><span class="chip">${byRole(r)} user${byRole(r) === 1 ? '' : 's'}</span><h3>${ROLES[r].label}</h3><ul><li>${desc}</li></ul></div>`).join('')}
+    </div>`;
   }
   if (tab === 'billing') {
+    const paid = invoices.filter((i) => i.status === 'paid').length;
     return `<div class="settings-grid">
       <section class="card">
-        <div class="card-title"><h2>Plan</h2><button class="link-button" data-toast="Upgrade flow opened">Change plan</button></div>
-        <h3 style="font-size:24px">Business · £1,200/mo</h3>
-        <p class="muted">Next charge 01 Jun · Visa •••• 4242</p>
-        <ul style="padding:0;list-style:none;margin:14px 0 0;font-size:13px">
-          <li>✓ Unlimited members</li>
-          <li>✓ Unlimited events</li>
-          <li>✓ Priority support</li>
-        </ul>
+        <div class="card-title"><h2>Billing summary</h2></div>
+        <h3 style="font-size:24px">${invoices.length} invoice${invoices.length === 1 ? '' : 's'}</h3>
+        <p class="muted">${paid} paid · ${invoices.length - paid} outstanding</p>
+        <button class="primary-action" type="button" data-page-link="invoices" style="margin-top:12px">Open invoicing</button>
       </section>
       <section class="card">
-        <div class="card-title"><h2>Recent invoices</h2><button class="link-button"><span data-icon="download"></span> Statements</button></div>
-        ${invoices.slice(0, 4).map((i) => `<div class="role-row"><strong>${i.id}</strong><span>${i.amount}</span><span>${i.issued}</span><span class="invoice-status ${i.status}">${i.status}</span></div>`).join('')}
+        <div class="card-title"><h2>Recent invoices</h2><button class="control" type="button" data-export><span data-icon="download"></span> Export</button></div>
+        ${invoices.slice(0, 5).map((i) => `<div class="role-row"><strong>${i.id}</strong><span>${i.amount}</span><span>${i.issued || ''}</span><span class="invoice-status ${i.status === 'void' ? 'draft' : i.status === 'sent' ? 'due' : i.status}">${cap(i.status)}</span></div>`).join('') || emptyState('No invoices', 'Create one from the Invoices page.')}
       </section>
     </div>`;
   }
-  // integrations
+  // integrations — live connection status
   const apps = [
-    { name: 'Google Calendar', desc: 'Sync events to team calendars', on: true },
-    { name: 'Stripe', desc: 'Process ticket and sponsor payments', on: true },
-    { name: 'Mailchimp', desc: 'Send marketing campaigns', on: false },
-    { name: 'Zapier', desc: 'Automate workflows', on: true },
-    { name: 'Slack', desc: 'Push notifications to channels', on: false },
-    { name: 'HubSpot', desc: 'Sync CRM contacts', on: false }
+    { key: 'eventbrite', name: 'Eventbrite', desc: 'Sync events and ticketing', env: 'EVENTBRITE_TOKEN + EVENTBRITE_ORG_ID' },
+    { key: 'stripe', name: 'Stripe', desc: 'Card payments for invoices', env: 'STRIPE_SECRET_KEY' },
+    { key: 'email', name: 'Email (Resend)', desc: 'Send receipts, reminders, campaigns', env: 'RESEND_API_KEY' }
   ];
-  return `<div class="settings-grid">${apps.map((a) => `
-    <section class="card"><div class="card-title"><h2>${a.name}</h2><label class="toggle"><input type="checkbox" ${a.on ? 'checked' : ''} /><span class="slider"></span></label></div><p class="muted" style="font-size:13px">${a.desc}</p><button class="control" type="button" style="margin-top:10px" data-toast="${a.name} settings">Configure</button></section>
-  `).join('')}</div>`;
+  return `<div class="settings-grid">${apps.map((a) => {
+    const on = !!adminIntegrations[a.key];
+    return `<section class="card"><div class="card-title"><h2>${a.name}</h2><span class="invoice-status ${on ? 'paid' : 'draft'}">${on ? 'Connected' : 'Not connected'}</span></div><p class="muted" style="font-size:13px">${a.desc}</p><p class="muted" style="font-size:12px;margin-top:6px">Set <code>${a.env}</code> in your Vercel env to connect.</p></section>`;
+  }).join('')}</div>`;
 }
 
 /* ===================== ROUTING ===================== */
@@ -1037,6 +1031,8 @@ async function payInvoice(number) {
 const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB');
 
 let adminCharts = null;
+let adminUsers = [];
+let adminIntegrations = {};
 
 /* CSV export of whatever the active page is showing. */
 function exportCSV() {
@@ -1116,11 +1112,25 @@ async function loadAdminData() {
   if (spo.ok && spo.data?.sponsors) sponsorList = spo.data.sponsors;
   if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
   if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
-  const [ch, tk, dl, tix] = await Promise.all([api('/api/admin/charts'), api('/api/admin/tasks'), api('/api/admin/deals'), api('/api/admin/tickets')]);
+  const [ch, tk, dl, tix, us, intg] = await Promise.all([
+    api('/api/admin/charts'), api('/api/admin/tasks'), api('/api/admin/deals'),
+    api('/api/admin/tickets'), api('/api/admin/users'), api('/api/admin/integrations')
+  ]);
   if (ch.ok && ch.data) adminCharts = ch.data;
   if (tk.ok && tk.data?.board) tasksData = tk.data.board;
   if (dl.ok && dl.data?.stages) dealStages = dl.data.stages;
   if (tix.ok && tix.data?.tickets) ticketRecords = tix.data.tickets;
+  if (us.ok && us.data?.users) adminUsers = us.data.users;
+  if (intg.ok && intg.data) adminIntegrations = intg.data;
+}
+
+async function inviteUser(fields) {
+  const { ok, data } = await api('/api/admin/users', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not invite user', 'error'); return false; }
+  showToast('User invited', 'success');
+  await loadAdminData();
+  if ((location.hash.replace('#', '')) === 'settings') render('settings');
+  return true;
 }
 
 async function checkInTicket(spec) {
@@ -1639,7 +1649,8 @@ const modalForms = {
     `<label>Deal title<input type="text" data-df="title" placeholder="Acme sponsorship" /></label><div class="form-row"><label>Value (£)<input type="number" data-df="value" placeholder="10000" /></label><label>Owner<input type="text" data-df="owner" placeholder="Sarah Johnson" /></label><label>Tier<select data-df="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Stage<select data-df="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="won">Won</option></select></label></div>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-deal>Create deal</button>`),
   'new-user': () => openModal('Invite user',
-    `<label>Email<input type="email" /></label><label>Role<select><option>Admin</option><option>Ops</option><option>Finance</option><option>Viewer</option></select></label>`)
+    `<label>Full name<input type="text" data-iu="full_name" placeholder="Jane Cole" /></label><label>Email<input type="email" data-iu="email" placeholder="jane@company.com" /></label><label>Role<select data-iu="role"><option value="member">Member</option><option value="sponsor">Sponsor</option><option value="admin">Admin</option></select></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-invite-user>Send invite</button>`)
 };
 
 /* ===================== DRAWER ===================== */
@@ -1908,6 +1919,14 @@ function installDelegate() {
     }
 
     if (find('[data-create-invoice]')) { ev.stopPropagation(); createInvoice(); return; }
+    if (find('[data-invite-user]')) {
+      ev.stopPropagation();
+      const m = document.getElementById('modalBody');
+      const get = (f) => m.querySelector(`[data-iu="${f}"]`)?.value || '';
+      inviteUser({ full_name: get('full_name'), email: get('email'), role: get('role') })
+        .then((ok) => { if (ok) closeModal(); });
+      return;
+    }
     if (find('[data-create-deal]')) {
       ev.stopPropagation();
       const m = document.getElementById('modalBody');

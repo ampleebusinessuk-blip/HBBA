@@ -275,6 +275,48 @@ dataRouter.get('/admin/charts', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// All users (admin) for the team/roles settings tabs.
+dataRouter.get('/admin/users', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query('SELECT full_name, email, role, status, created_at FROM users ORDER BY created_at');
+    res.json({ users: rows.map((u) => ({ name: u.full_name, email: u.email, role: u.role, status: u.status })) });
+  } catch (err) { next(err); }
+});
+
+// Invite/create a user (admin). Real account, pending until they set a password (email phase).
+dataRouter.post('/admin/users', adminOnly, async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const name = String(req.body?.full_name || '').trim();
+    const role = ['admin', 'member', 'sponsor'].includes(req.body?.role) ? req.body.role : 'member';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Valid email required' });
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    const { randomBytes } = await import('node:crypto');
+    const temp = randomBytes(12).toString('hex');
+    const { hashPassword } = await import('../auth.js');
+    const hash = await hashPassword(temp);
+    try {
+      await query(`INSERT INTO users (email, password_hash, role, full_name, status) VALUES ($1,$2,$3,$4,'pending')`,
+        [email, hash, role, name]);
+    } catch (err) {
+      if (err.code === '23505') return res.status(409).json({ error: 'A user with that email already exists' });
+      throw err;
+    }
+    res.status(201).json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Live connection status of the third-party integrations.
+dataRouter.get('/admin/integrations', adminOnly, async (_req, res) => {
+  const { ebConfigured } = await import('../eventbrite.js');
+  const { paymentsConfigured } = await import('../payments.js');
+  res.json({
+    eventbrite: ebConfigured(),
+    stripe: paymentsConfigured(),
+    email: Boolean(process.env.RESEND_API_KEY)
+  });
+});
+
 // Ticket desk (admin): every event booking with check-in state.
 dataRouter.get('/admin/tickets', adminOnly, async (_req, res, next) => {
   try {
