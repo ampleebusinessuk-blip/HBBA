@@ -111,7 +111,7 @@ let contacts = [
   { name: 'Daniel Park', email: 'd.park@koreabiz.kr', company: 'Korea Biz Group', city: 'Seoul', status: 'New', tier: 'Bronze', avatar: avatars[7], presence: 'away', phone: '+82 2 555 1234', deals: 0, last: '6d ago' }
 ];
 
-const dealStages = [
+let dealStages = [
   { name: 'Lead', total: '£24k', cards: [
     { title: 'TechVision intro', value: '£8k', owner: 'Lukas Meyer', tier: 'Silver' },
     { title: 'City Finance pitch', value: '£6k', owner: 'Olivia Watson', tier: 'Silver' },
@@ -436,12 +436,12 @@ function crmPage() {
       ${pagination(contacts.length, 1, 8)}
     </section>
     <section class="card" style="margin-top:14px">
-      <div class="card-title"><h2>Deal Pipeline</h2><button class="link-button">Manage stages</button></div>
+      <div class="card-title"><h2>Deal Pipeline</h2><button class="primary-action" type="button" data-modal="new-deal"><span data-icon="plus"></span>New deal</button></div>
       <div class="pipeline">
         ${dealStages.map((s) => `
-          <div class="pipe-col">
+          <div class="pipe-col" data-stage="${s.key || ''}">
             <div class="pipe-col-head"><strong>${s.name}</strong><span>${s.cards.length} · ${s.total}</span></div>
-            ${s.cards.map((c) => `<div class="pipe-card" draggable="true"><h5>${c.title}</h5><small class="muted">${c.owner}</small><div class="meta"><span class="chip">${c.tier}</span><strong>${c.value}</strong></div></div>`).join('')}
+            ${s.cards.map((c) => `<div class="pipe-card" draggable="true" data-deal-id="${c.id || ''}"><h5>${c.title}</h5><small class="muted">${c.owner || ''}</small><div class="meta"><span class="chip">${c.tier || ''}</span><strong>${c.value}</strong></div></div>`).join('')}
           </div>
         `).join('')}
       </div>
@@ -1125,9 +1125,19 @@ async function loadAdminData() {
   if (spo.ok && spo.data?.sponsors) sponsorList = spo.data.sponsors;
   if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
   if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
-  const [ch, tk] = await Promise.all([api('/api/admin/charts'), api('/api/admin/tasks')]);
+  const [ch, tk, dl] = await Promise.all([api('/api/admin/charts'), api('/api/admin/tasks'), api('/api/admin/deals')]);
   if (ch.ok && ch.data) adminCharts = ch.data;
   if (tk.ok && tk.data?.board) tasksData = tk.data.board;
+  if (dl.ok && dl.data?.stages) dealStages = dl.data.stages;
+}
+
+async function createDeal(fields) {
+  const { ok, data } = await api('/api/admin/deals', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not create deal', 'error'); return false; }
+  showToast('Deal added to pipeline', 'success');
+  await loadAdminData();
+  render('crm');
+  return true;
 }
 
 async function createTask(fields) {
@@ -1624,6 +1634,9 @@ const modalForms = {
   'new-campaign': () => openModal('New campaign',
     `<label>Campaign name<input type="text" /></label><label>Subject line<input type="text" /></label><div class="form-row"><label>Audience<select><option>All members</option><option>Gold tier</option><option>Expiring soon</option></select></label><label>Send time<input type="datetime-local" /></label></div>`),
   'new-invoice': () => openInvoiceForm(),
+  'new-deal': () => openModal('New deal',
+    `<label>Deal title<input type="text" data-df="title" placeholder="Acme sponsorship" /></label><div class="form-row"><label>Value (£)<input type="number" data-df="value" placeholder="10000" /></label><label>Owner<input type="text" data-df="owner" placeholder="Sarah Johnson" /></label><label>Tier<select data-df="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Stage<select data-df="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="won">Won</option></select></label></div>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-deal>Create deal</button>`),
   'new-user': () => openModal('Invite user',
     `<label>Email<input type="email" /></label><label>Role<select><option>Admin</option><option>Ops</option><option>Finance</option><option>Viewer</option></select></label>`)
 };
@@ -1844,6 +1857,27 @@ function attachActions() {
       }
     });
   });
+
+  // CRM pipeline drag — persists the deal's stage.
+  root.querySelectorAll('.pipe-card').forEach((card) => {
+    card.addEventListener('dragstart', () => card.classList.add('dragging'));
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+  root.querySelectorAll('.pipe-col').forEach((col) => {
+    col.addEventListener('dragover', (e) => e.preventDefault());
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const card = root.querySelector('.pipe-card.dragging');
+      if (!card) return;
+      col.appendChild(card);
+      const id = card.dataset.dealId;
+      const stage = col.dataset.stage;
+      if (id && stage) {
+        api(`/api/admin/deals/${id}`, { method: 'PATCH', body: { stage } })
+          .then((r) => { showToast(r.ok ? 'Deal moved' : 'Could not save move', r.ok ? 'success' : 'error'); if (r.ok) loadAdminData().then(() => { if ((location.hash.replace('#', '')) === 'crm') { const rt = document.getElementById('pageRoot'); rt.innerHTML = crmPage(); initIcons(rt); attachActions(); } }); });
+      }
+    });
+  });
 }
 
 function installDelegate() {
@@ -1873,6 +1907,14 @@ function installDelegate() {
     }
 
     if (find('[data-create-invoice]')) { ev.stopPropagation(); createInvoice(); return; }
+    if (find('[data-create-deal]')) {
+      ev.stopPropagation();
+      const m = document.getElementById('modalBody');
+      const get = (f) => m.querySelector(`[data-df="${f}"]`)?.value || '';
+      createDeal({ title: get('title'), value: get('value'), owner: get('owner'), tier: get('tier'), stage: get('stage') })
+        .then((ok) => { if (ok) closeModal(); });
+      return;
+    }
     if (find('[data-add-item]')) {
       ev.stopPropagation();
       document.getElementById('invItems').insertAdjacentHTML('beforeend', invoiceItemRow());

@@ -144,6 +144,27 @@ async function seed() {
     console.log(`seeded ${tasks.length} tasks`);
   }
 
+  // --- CRM deals pipeline ---
+  const dealCount = await pool.query('SELECT count(*)::int AS n FROM deals');
+  if (dealCount.rows[0].n === 0) {
+    const deals = [
+      ['TechVision intro', 800000, 'Lukas Meyer', 'Silver', 'lead'],
+      ['City Finance pitch', 600000, 'Olivia Watson', 'Silver', 'lead'],
+      ['Korea Biz exploration', 1000000, 'Daniel Park', 'Bronze', 'lead'],
+      ['Global Bank renewal', 1500000, 'Sarah Johnson', 'Gold', 'qualified'],
+      ['Italtrade expansion', 1200000, 'Elena Rossi', 'Silver', 'qualified'],
+      ['Emirates partnership', 900000, 'Amina Hassan', 'Gold', 'qualified'],
+      ['Chen Holdings VIP', 1800000, 'Marcus Chen', 'Gold', 'proposal'],
+      ['Trade Partners sponsor', 1000000, 'Peter Novak', 'Bronze', 'proposal'],
+      ['Global Bank Sponsor 2024', 2500000, 'Sarah Johnson', 'Gold', 'won'],
+      ['Emirates Forum Sponsor', 1700000, 'Amina Hassan', 'Gold', 'won']
+    ];
+    for (const [title, cents, owner, tier, stage] of deals) {
+      await pool.query('INSERT INTO deals (title, value_cents, owner, tier, stage) VALUES ($1,$2,$3,$4,$5)', [title, cents, owner, tier, stage]);
+    }
+    console.log(`seeded ${deals.length} deals`);
+  }
+
   // --- One demo support ticket from the member ---
   const memU = await pool.query('SELECT id, full_name FROM users WHERE email=$1', ['member@hbbaglobal.co.uk']);
   if (memU.rows[0]) {

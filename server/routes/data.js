@@ -275,6 +275,45 @@ dataRouter.get('/admin/charts', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// CRM deals pipeline (admin), grouped into stage columns.
+const DEAL_STAGES = [['lead', 'Lead'], ['qualified', 'Qualified'], ['proposal', 'Proposal'], ['won', 'Won']];
+dataRouter.get('/admin/deals', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query('SELECT id, title, value_cents, owner, tier, stage FROM deals ORDER BY created_at');
+    const stages = DEAL_STAGES.map(([key, name]) => {
+      const cards = rows.filter((r) => r.stage === key);
+      const total = cards.reduce((s, c) => s + c.value_cents, 0);
+      return {
+        key, name, total: money(total),
+        cards: cards.map((c) => ({ id: c.id, title: c.title, value: money(c.value_cents), owner: c.owner, tier: c.tier }))
+      };
+    });
+    res.json({ stages });
+  } catch (err) { next(err); }
+});
+
+dataRouter.post('/admin/deals', adminOnly, async (req, res, next) => {
+  try {
+    const { title, value, owner, tier, stage } = req.body || {};
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Deal title required' });
+    const cents = Math.round(Number(String(value || 0).replace(/[£$,\s]/g, '')) * 100);
+    const st = ['lead', 'qualified', 'proposal', 'won', 'lost'].includes(stage) ? stage : 'lead';
+    const { rows } = await query('INSERT INTO deals (title, value_cents, owner, tier, stage) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+      [String(title).trim(), cents, owner || null, tier || 'Silver', st]);
+    res.status(201).json({ id: rows[0].id });
+  } catch (err) { next(err); }
+});
+
+dataRouter.patch('/admin/deals/:id', adminOnly, async (req, res, next) => {
+  try {
+    const stage = ['lead', 'qualified', 'proposal', 'won', 'lost'].includes(req.body?.stage) ? req.body.stage : null;
+    if (!stage) return res.status(400).json({ error: 'Valid stage required' });
+    const { rowCount } = await query('UPDATE deals SET stage = $1 WHERE id = $2', [stage, req.params.id]);
+    if (!rowCount) return res.status(404).json({ error: 'Deal not found' });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // Tasks board (admin) — grouped by column.
 dataRouter.get('/admin/tasks', adminOnly, async (_req, res, next) => {
   try {
