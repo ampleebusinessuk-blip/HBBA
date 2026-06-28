@@ -753,15 +753,17 @@ function invoicesPage() {
       <table class="table">
         <thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Issued</th><th>Due</th><th>Status</th><th></th></tr></thead>
         <tbody>
-          ${invoices.map((inv, i) => `
-            <tr data-invoice="${i}" style="cursor:pointer">
+          ${invoices.map((inv) => `
+            <tr data-view-invoice="${inv.id}" style="cursor:pointer">
               <td><strong>${inv.id}</strong></td>
-              <td>${inv.client}</td>
+              <td>${inv.client || '—'}</td>
               <td><strong>${inv.amount}</strong></td>
-              <td>${inv.issued}</td>
-              <td>${inv.due}</td>
-              <td><span class="invoice-status ${inv.status}">${inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}</span></td>
-              <td>${inv.status !== 'paid' ? `<button class="link-button" data-pay="${inv.id}" onclick="event.stopPropagation()">Mark paid</button>` : `<button class="link-button" data-toast="Receipt sent" data-toast-variant="info" onclick="event.stopPropagation()">Receipt</button>`}</td>
+              <td>${inv.issued || '—'}</td>
+              <td>${inv.due || '—'}</td>
+              <td><span class="invoice-status ${inv.status === 'void' ? 'draft' : inv.status === 'sent' ? 'due' : inv.status}">${cap(inv.status)}</span></td>
+              <td style="white-space:nowrap">
+                ${inv.status !== 'paid' && inv.status !== 'void' ? `<button class="link-button" data-pay="${inv.id}" onclick="event.stopPropagation()">Mark paid</button> · <button class="link-button" data-remind-invoice="${inv.id}" onclick="event.stopPropagation()">Remind</button> · <button class="link-button" data-void-invoice="${inv.id}" onclick="event.stopPropagation()">Void</button>` : `<button class="link-button" data-view-invoice="${inv.id}" onclick="event.stopPropagation()">View</button>`}
+              </td>
             </tr>
           `).join('')}
         </tbody>
@@ -1078,13 +1080,113 @@ async function saveProfile(fields) {
   showToast('Profile saved', 'success');
 }
 
-async function createInvoice(fields) {
-  const { ok, data } = await api('/api/admin/invoices', { method: 'POST', body: fields });
-  if (!ok) { showToast(data?.error || 'Could not create invoice', 'error'); return false; }
+/* ===================== INVOICING ===================== */
+function invoiceItemRow(desc = '', qty = 1, unit = '') {
+  return `<div class="inv-item" style="display:grid;grid-template-columns:1fr 64px 96px 28px;gap:8px;align-items:center;margin-bottom:8px">
+    <input type="text" data-iv="desc" placeholder="Description" value="${desc}" />
+    <input type="number" data-iv="qty" min="1" value="${qty}" />
+    <input type="number" data-iv="unit" step="0.01" placeholder="0.00" value="${unit}" />
+    <button type="button" class="icon-button" data-del-item aria-label="Remove"><span data-icon="trash"></span></button>
+  </div>`;
+}
+
+function recalcInvoice() {
+  const body = document.getElementById('modalBody');
+  if (!body) return;
+  let subtotal = 0;
+  body.querySelectorAll('.inv-item').forEach((row) => {
+    const qty = Number(row.querySelector('[data-iv="qty"]').value) || 0;
+    const unit = Number(row.querySelector('[data-iv="unit"]').value) || 0;
+    subtotal += qty * unit;
+  });
+  const vat = Number(body.querySelector('[data-iv="vat"]')?.value) || 0;
+  const tax = subtotal * vat / 100;
+  const el = body.querySelector('#invTotals');
+  if (el) el.innerHTML = `<span>Subtotal £${subtotal.toFixed(2)}</span><span>VAT (${vat}%) £${tax.toFixed(2)}</span><strong>Total £${(subtotal + tax).toFixed(2)}</strong>`;
+}
+
+function openInvoiceForm() {
+  openModal('New invoice',
+    `<div class="form-row"><label>Client email<input type="email" data-iv="client" placeholder="member@hbbaglobal.co.uk" /></label><label>Due date<input type="date" data-iv="due" /></label><label>VAT %<input type="number" data-iv="vat" value="20" oninput="recalcInvoice()" /></label><label>Status<select data-iv="status"><option value="due">Due</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option></select></label></div>
+     <div class="label" style="margin:8px 0 6px">Line items</div>
+     <div id="invItems">${invoiceItemRow('', 1, '')}</div>
+     <button type="button" class="link-button" data-add-item><span data-icon="plus" style="vertical-align:middle"></span> Add line</button>
+     <label style="margin-top:10px">Notes<textarea data-iv="notes" placeholder="Payment terms, PO number…"></textarea></label>
+     <div id="invTotals" style="display:flex;gap:16px;justify-content:flex-end;margin-top:12px;align-items:baseline"></div>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-invoice>Create invoice</button>`);
+  recalcInvoice();
+}
+
+async function createInvoice() {
+  const body = document.getElementById('modalBody');
+  const items = [...body.querySelectorAll('.inv-item')].map((row) => ({
+    description: row.querySelector('[data-iv="desc"]').value,
+    qty: row.querySelector('[data-iv="qty"]').value,
+    unit: row.querySelector('[data-iv="unit"]').value
+  })).filter((it) => it.description.trim() && Number(it.unit) > 0);
+  if (!items.length) { showToast('Add at least one line item', 'error'); return; }
+  const get = (k) => body.querySelector(`[data-iv="${k}"]`)?.value || '';
+  const { ok, data } = await api('/api/admin/invoices', { method: 'POST', body: {
+    client: get('client'), items, vat_rate: get('vat'), due_on: get('due') || null, status: get('status'), notes: get('notes')
+  } });
+  if (!ok) { showToast(data?.error || 'Could not create invoice', 'error'); return; }
   showToast(`Invoice ${data.number} created`, 'success');
+  closeModal();
   await loadAdminData();
   render('invoices');
-  return true;
+}
+
+const STATUS_PILL = (s) => `<span class="invoice-status ${s === 'void' ? 'draft' : s}">${cap(s)}</span>`;
+
+// Branded, printable invoice document.
+async function openInvoice(number) {
+  const { ok, data } = await api(`/api/invoices/${number}`);
+  if (!ok) { showToast(data?.error || 'Could not load invoice', 'error'); return; }
+  const inv = data.invoice;
+  const c = inv.client || {};
+  const rows = (inv.items || []).map((it) => `<tr><td>${it.description}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${it.unit}</td><td style="text-align:right">${it.line}</td></tr>`).join('');
+  openModal(`Invoice ${inv.number}`,
+    `<div class="invoice-doc">
+      <div class="inv-head">
+        <div><img src="logo.svg" alt="HBBA Global" style="height:34px" /><div class="muted" style="margin-top:6px">HBBA Global · UK Business Network</div></div>
+        <div style="text-align:right"><h2 style="margin:0">INVOICE</h2><div class="muted">${inv.number}</div>${STATUS_PILL(inv.status)}</div>
+      </div>
+      <div class="inv-meta">
+        <div><span class="label">Bill to</span><strong>${c.full_name || inv.client?.full_name || '—'}</strong><br /><span class="muted">${c.org || ''}</span><br /><span class="muted">${c.email || ''}</span></div>
+        <div style="text-align:right"><span class="label">Issued</span> ${inv.issued || '—'}<br /><span class="label">Due</span> ${inv.due || '—'}</div>
+      </div>
+      <table class="table inv-table"><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="inv-totals">
+        <div><span class="muted">Subtotal</span><span>${inv.subtotal}</span></div>
+        <div><span class="muted">VAT (${inv.vat_rate}%)</span><span>${inv.tax}</span></div>
+        <div class="grand"><strong>Total</strong><strong>${inv.total}</strong></div>
+      </div>
+      ${inv.notes ? `<div class="inv-notes"><span class="label">Notes</span><p>${inv.notes}</p></div>` : ''}
+    </div>`,
+    `<button class="control" type="button" data-modal-close>Close</button><button class="control" type="button" data-print-invoice><span data-icon="download"></span>Print / Save PDF</button>${inv.status !== 'paid' && inv.status !== 'void' ? `<button class="primary-action" type="button" data-pay-invoice="${inv.number}">Pay now</button>` : ''}`);
+}
+
+async function payInvoiceOnline(number) {
+  const { ok, status, data } = await api(`/api/invoices/${number}/pay`, { method: 'POST' });
+  if (status === 503) { showToast('Online card payments connect soon (Stripe)', 'info'); return; }
+  if (!ok) { showToast(data?.error || 'Payment failed', 'error'); return; }
+  if (data.url) window.location.href = data.url;
+}
+
+async function remindInvoice(number) {
+  const { ok, data } = await api(`/api/admin/invoices/${number}/remind`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Failed', 'error'); return; }
+  showToast(`Reminder logged for ${number}`, 'info');
+  await loadAdminData();
+  render('invoices');
+}
+
+async function voidInvoice(number) {
+  const { ok, data } = await api(`/api/admin/invoices/${number}`, { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Failed', 'error'); return; }
+  showToast(`${number} voided`, 'info');
+  await loadAdminData();
+  render('invoices');
 }
 
 async function requestIntro(id) {
@@ -1211,7 +1313,7 @@ function memberInvoicesPage() {
       <div class="card-title"><h2>My invoices</h2><span class="chip">${memberProfile.tier} member</span></div>
       <table class="table">
         <thead><tr><th>Invoice</th><th>Description</th><th>Amount</th><th>Issued</th><th>Status</th><th></th></tr></thead>
-        <tbody>${memberInvoices.map((inv) => `<tr><td><strong>${inv.id}</strong></td><td>${inv.desc}</td><td><strong>${inv.amount}</strong></td><td>${inv.issued}</td><td><span class="invoice-status ${inv.status}">${cap(inv.status)}</span></td><td>${inv.pdf ? `<a class="link-button" href="${inv.pdf}" target="_blank" rel="noopener">PDF</a>` : `<button class="link-button" data-toast="PDF downloaded">PDF</button>`}</td></tr>`).join('')}</tbody>
+        <tbody>${memberInvoices.map((inv) => `<tr><td><strong>${inv.id}</strong></td><td>${inv.desc}</td><td><strong>${inv.amount}</strong></td><td>${inv.issued}</td><td><span class="invoice-status ${inv.status === 'void' ? 'draft' : inv.status === 'sent' ? 'due' : inv.status}">${cap(inv.status)}</span></td><td style="white-space:nowrap"><button class="link-button" data-view-invoice="${inv.id}">View</button>${inv.status !== 'paid' && inv.status !== 'void' ? ` · <button class="link-button" data-pay-invoice="${inv.id}">Pay</button>` : ''}</td></tr>`).join('')}</tbody>
       </table>
     </section>`;
 }
@@ -1314,7 +1416,7 @@ function sponsorInvoicesPage() {
       <div class="card-title"><h2>Sponsorship invoices</h2><span class="chip">${sponsorProfile.tier} sponsor</span></div>
       <table class="table">
         <thead><tr><th>Invoice</th><th>Description</th><th>Amount</th><th>Issued</th><th>Status</th><th></th></tr></thead>
-        <tbody>${sponsorInvoices.map((inv) => `<tr><td><strong>${inv.id}</strong></td><td>${inv.desc}</td><td><strong>${inv.amount}</strong></td><td>${inv.issued}</td><td><span class="invoice-status ${inv.status}">${cap(inv.status)}</span></td><td><button class="link-button" data-toast="PDF downloaded">PDF</button></td></tr>`).join('')}</tbody>
+        <tbody>${sponsorInvoices.map((inv) => `<tr><td><strong>${inv.id}</strong></td><td>${inv.desc}</td><td><strong>${inv.amount}</strong></td><td>${inv.issued}</td><td><span class="invoice-status ${inv.status === 'void' ? 'draft' : inv.status === 'sent' ? 'due' : inv.status}">${cap(inv.status)}</span></td><td style="white-space:nowrap"><button class="link-button" data-view-invoice="${inv.id}">View</button>${inv.status !== 'paid' && inv.status !== 'void' ? ` · <button class="link-button" data-pay-invoice="${inv.id}">Pay</button>` : ''}</td></tr>`).join('')}</tbody>
       </table>
     </section>`;
 }
@@ -1444,9 +1546,7 @@ const modalForms = {
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-task>Add task</button>`),
   'new-campaign': () => openModal('New campaign',
     `<label>Campaign name<input type="text" /></label><label>Subject line<input type="text" /></label><div class="form-row"><label>Audience<select><option>All members</option><option>Gold tier</option><option>Expiring soon</option></select></label><label>Send time<input type="datetime-local" /></label></div>`),
-  'new-invoice': () => openModal('New invoice',
-    `<div class="form-row"><label>Client email<input type="email" data-field="client" placeholder="member@hbbaglobal.co.uk" /></label><label>Amount (£)<input type="number" data-field="amount" placeholder="1000" /></label><label>Issued<input type="text" data-field="issued" placeholder="today" /></label><label>Status<select data-field="status"><option value="due">Due</option><option value="paid">Paid</option><option value="draft">Draft</option></select></label></div><label>Description<input type="text" data-field="description" placeholder="Gold membership — annual" /></label>`,
-    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-invoice>Create invoice</button>`),
+  'new-invoice': () => openInvoiceForm(),
   'new-user': () => openModal('Invite user',
     `<label>Email<input type="email" /></label><label>Role<select><option>Admin</option><option>Ops</option><option>Finance</option><option>Viewer</option></select></label>`)
 };
@@ -1695,14 +1795,25 @@ function installDelegate() {
       return;
     }
 
-    if (find('[data-create-invoice]')) {
+    if (find('[data-create-invoice]')) { ev.stopPropagation(); createInvoice(); return; }
+    if (find('[data-add-item]')) {
       ev.stopPropagation();
-      const m = document.getElementById('modalBody');
-      const get = (f) => m.querySelector(`[data-field="${f}"]`)?.value || '';
-      createInvoice({ client: get('client'), amount: get('amount'), issued: get('issued'), status: get('status'), description: get('description') })
-        .then((ok) => { if (ok) closeModal(); });
+      document.getElementById('invItems').insertAdjacentHTML('beforeend', invoiceItemRow());
+      initIcons(document.getElementById('invItems'));
+      recalcInvoice();
       return;
     }
+    const delItem = find('[data-del-item]');
+    if (delItem) { ev.stopPropagation(); delItem.closest('.inv-item').remove(); recalcInvoice(); return; }
+    if (find('[data-print-invoice]')) { ev.stopPropagation(); window.print(); return; }
+    const payInv = find('[data-pay-invoice]');
+    if (payInv) { ev.stopPropagation(); payInvoiceOnline(payInv.dataset.payInvoice); return; }
+    const viewInv = find('[data-view-invoice]');
+    if (viewInv) { ev.stopPropagation(); openInvoice(viewInv.dataset.viewInvoice); return; }
+    const remindInv = find('[data-remind-invoice]');
+    if (remindInv) { ev.stopPropagation(); remindInvoice(remindInv.dataset.remindInvoice); return; }
+    const voidInv = find('[data-void-invoice]');
+    if (voidInv) { ev.stopPropagation(); voidInvoice(voidInv.dataset.voidInvoice); return; }
 
     const introBtn = find('[data-intro]');
     if (introBtn) { ev.stopPropagation(); requestIntro(introBtn.dataset.intro); return; }
@@ -1785,6 +1896,9 @@ function installDelegate() {
   document.body.addEventListener('change', (ev) => {
     const cb = ev.target.closest('.task-item input[type="checkbox"]');
     if (cb) showToast(cb.checked ? 'Task complete' : 'Task reopened', cb.checked ? 'success' : 'info');
+  });
+  document.body.addEventListener('input', (ev) => {
+    if (ev.target.closest('.inv-item') || ev.target.matches('[data-iv="vat"]')) recalcInvoice();
   });
 }
 

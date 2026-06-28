@@ -244,30 +244,6 @@ dataRouter.get('/admin/sponsors', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// All invoices org-wide, with the client name.
-dataRouter.get('/admin/invoices', adminOnly, async (_req, res, next) => {
-  try {
-    const { rows } = await query(`
-      SELECT i.number, i.description, i.amount_cents, i.currency, i.issued_on, i.status, u.full_name
-        FROM invoices i LEFT JOIN users u ON u.id = i.user_id
-       ORDER BY i.created_at DESC`);
-    res.json({ invoices: rows.map((r) => ({
-      id: r.number, client: r.full_name || '—', amount: money(r.amount_cents, r.currency),
-      issued: r.issued_on, due: '—', status: r.status
-    })) });
-  } catch (err) { next(err); }
-});
-
-// Mark an invoice paid (or set any valid status).
-dataRouter.patch('/admin/invoices/:number', adminOnly, async (req, res, next) => {
-  try {
-    const status = ['paid', 'due', 'overdue', 'draft'].includes(req.body?.status) ? req.body.status : 'paid';
-    const { rowCount } = await query('UPDATE invoices SET status = $1 WHERE number = $2', [status, req.params.number]);
-    if (!rowCount) return res.status(404).json({ error: 'Invoice not found' });
-    res.json({ ok: true, status });
-  } catch (err) { next(err); }
-});
-
 // Suspend / reactivate a member or sponsor account.
 dataRouter.patch('/admin/users/:email/status', adminOnly, async (req, res, next) => {
   try {
@@ -296,29 +272,6 @@ dataRouter.get('/admin/charts', adminOnly, async (_req, res, next) => {
       usersByRole: roles.rows.map((r) => ({ role: r.role, count: r.count })),
       bookingsPerEvent: perEvent.rows.map((r) => ({ title: r.title, count: r.count }))
     });
-  } catch (err) { next(err); }
-});
-
-// Create an invoice.
-dataRouter.post('/admin/invoices', adminOnly, async (req, res, next) => {
-  try {
-    const { client, description, amount, issued, status } = req.body || {};
-    if (!description || !String(description).trim()) return res.status(400).json({ error: 'Description required' });
-    const cents = Math.round(Number(String(amount).replace(/[£$,\s]/g, '')) * 100);
-    if (!Number.isFinite(cents) || cents <= 0) return res.status(400).json({ error: 'Valid amount required' });
-    let userId = null;
-    if (client && String(client).includes('@')) {
-      const u = await query('SELECT id FROM users WHERE lower(email) = lower($1)', [String(client).trim()]);
-      userId = u.rows[0]?.id || null;
-    }
-    const number = 'INV-' + Date.now().toString().slice(-8);
-    const st = ['paid', 'due', 'overdue', 'draft'].includes(status) ? status : 'due';
-    await query(
-      `INSERT INTO invoices (number, user_id, description, amount_cents, issued_on, status)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [number, userId, String(description).trim(), cents, issued || 'today', st]
-    );
-    res.status(201).json({ number });
   } catch (err) { next(err); }
 });
 
