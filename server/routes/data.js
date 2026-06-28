@@ -150,10 +150,19 @@ dataRouter.get('/sponsor/overview', async (req, res, next) => {
 dataRouter.get('/sponsor/leads', async (req, res, next) => {
   try {
     const { rows } = await query(
-      'SELECT name, company, interest, when_label FROM sponsor_leads WHERE user_id = $1 ORDER BY created_at',
+      'SELECT id, name, company, interest, when_label FROM sponsor_leads WHERE user_id = $1 ORDER BY created_at',
       [req.auth.sub]
     );
-    res.json({ leads: rows.map((r) => ({ name: r.name, company: r.company, interest: r.interest, when: r.when_label })) });
+    res.json({ leads: rows.map((r) => ({ id: r.id, name: r.name, company: r.company, interest: r.interest, when: r.when_label })) });
+  } catch (err) { next(err); }
+});
+
+// Request an intro to a lead (records the action by removing it from the open list).
+dataRouter.post('/sponsor/leads/:id/contact', async (req, res, next) => {
+  try {
+    const { rowCount } = await query('DELETE FROM sponsor_leads WHERE id = $1 AND user_id = $2', [req.params.id, req.auth.sub]);
+    if (!rowCount) return res.status(404).json({ error: 'Lead not found' });
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
@@ -251,6 +260,47 @@ dataRouter.patch('/admin/users/:email/status', adminOnly, async (req, res, next)
     );
     if (!rowCount) return res.status(404).json({ error: 'User not found' });
     res.json({ ok: true, status });
+  } catch (err) { next(err); }
+});
+
+// Real aggregates for admin charts.
+dataRouter.get('/admin/charts', adminOnly, async (_req, res, next) => {
+  try {
+    const [rev, roles, perEvent] = await Promise.all([
+      query(`SELECT status, coalesce(sum(amount_cents),0)::bigint AS total FROM invoices GROUP BY status`),
+      query(`SELECT role, count(*)::int AS count FROM users GROUP BY role`),
+      query(`SELECT e.title, count(b.id)::int AS count
+               FROM events e LEFT JOIN event_bookings b ON b.event_id = e.id
+              GROUP BY e.title ORDER BY count DESC, e.title LIMIT 6`)
+    ]);
+    res.json({
+      revenueByStatus: rev.rows.map((r) => ({ status: r.status, total: Number(r.total) })),
+      usersByRole: roles.rows.map((r) => ({ role: r.role, count: r.count })),
+      bookingsPerEvent: perEvent.rows.map((r) => ({ title: r.title, count: r.count }))
+    });
+  } catch (err) { next(err); }
+});
+
+// Create an invoice.
+dataRouter.post('/admin/invoices', adminOnly, async (req, res, next) => {
+  try {
+    const { client, description, amount, issued, status } = req.body || {};
+    if (!description || !String(description).trim()) return res.status(400).json({ error: 'Description required' });
+    const cents = Math.round(Number(String(amount).replace(/[£$,\s]/g, '')) * 100);
+    if (!Number.isFinite(cents) || cents <= 0) return res.status(400).json({ error: 'Valid amount required' });
+    let userId = null;
+    if (client && String(client).includes('@')) {
+      const u = await query('SELECT id FROM users WHERE lower(email) = lower($1)', [String(client).trim()]);
+      userId = u.rows[0]?.id || null;
+    }
+    const number = 'INV-' + Date.now().toString().slice(-8);
+    const st = ['paid', 'due', 'overdue', 'draft'].includes(status) ? status : 'due';
+    await query(
+      `INSERT INTO invoices (number, user_id, description, amount_cents, issued_on, status)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [number, userId, String(description).trim(), cents, issued || 'today', st]
+    );
+    res.status(201).json({ number });
   } catch (err) { next(err); }
 });
 

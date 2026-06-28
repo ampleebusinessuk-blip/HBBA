@@ -411,9 +411,8 @@ function dashboardPage() {
         ${sponsorList.slice(0, 3).map((s) => `<div class="sponsor-row"><span class="sponsor-mark">${s.name[0]}</span><div><h3>${s.name}</h3><span class="muted">${s.tier} Sponsor</span></div><strong>${s.amount}</strong></div>`).join('')}
       </section>
       <section class="card">
-        <div class="card-title"><h2>Tickets Overview</h2><button class="link-button" data-page-link="tickets">View report</button></div>
-        <div class="bar-chart">${[58, 42, 54, 38, 31].map((v) => `<span class="bar" style="--sold:${v}%"></span>`).join('')}</div>
-        <div class="bar-labels"><span>May 25</span><span>Jun 02</span><span>Jun 15</span><span>Jun 28</span><span>Jul 10</span></div>
+        <div class="card-title"><h2>Bookings per event</h2><button class="link-button" data-page-link="reports">View report</button></div>
+        ${realBars((adminCharts?.bookingsPerEvent || []).map((e) => ({ label: e.title, value: e.count })), '#0f9f6e')}
       </section>
       <section class="card">
         <div class="card-title"><h2>Tasks & Reminders</h2><button class="link-button" data-page-link="tasks">View all</button></div>
@@ -773,17 +772,16 @@ function reportsPage() {
     </div>
     <div class="reports-grid">
       <section class="card full">
-        <div class="card-title"><h2>Member growth — last 12 months</h2><button class="link-button"><span data-icon="download"></span> Export CSV</button></div>
-        ${lineChart('#5b35f5', [22, 38, 32, 48, 41, 58, 52, 68, 62, 78, 74, 92])}
+        <div class="card-title"><h2>Revenue by invoice status</h2><button class="link-button"><span data-icon="download"></span> Export CSV</button></div>
+        ${realBars((adminCharts?.revenueByStatus || []).map((r) => ({ label: r.status, value: Math.round(r.total / 100) })), '#5b35f5')}
       </section>
       <section class="card">
-        <div class="card-title"><h2>Revenue by source</h2><button class="link-button">Details</button></div>
-        ${donut()}
+        <div class="card-title"><h2>Accounts by role</h2><button class="link-button">Details</button></div>
+        ${realBars((adminCharts?.usersByRole || []).map((r) => ({ label: r.role, value: r.count })), '#f2aa00')}
       </section>
       <section class="card">
-        <div class="card-title"><h2>Event ROI</h2><button class="link-button">Details</button></div>
-        <div class="bar-chart">${[58, 42, 54, 38, 72].map((v) => `<span class="bar" style="--sold:${v}%"></span>`).join('')}</div>
-        <div class="bar-labels"><span>Dinner</span><span>Trade</span><span>Forum</span><span>VIP</span><span>Mixer</span></div>
+        <div class="card-title"><h2>Bookings per event</h2><button class="link-button">Details</button></div>
+        ${realBars((adminCharts?.bookingsPerEvent || []).map((e) => ({ label: e.title, value: e.count })), '#0f9f6e')}
       </section>
       <section class="card full">
         <div class="card-title"><h2>Engagement breakdown</h2><button class="link-button">Filters</button></div>
@@ -987,6 +985,17 @@ async function payInvoice(number) {
 
 const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB');
 
+let adminCharts = null;
+
+/* Data-driven bar chart from [{label,value}] (real numbers, scaled to the max). */
+function realBars(items, color = '#5b35f5') {
+  if (!items || !items.length) return emptyState('No data yet', 'Charts fill in as activity happens.');
+  const max = Math.max(1, ...items.map((i) => i.value));
+  return `
+    <div class="bar-chart">${items.map((i) => `<span class="bar" style="--sold:${Math.round((i.value / max) * 100)}%;background:${color}" title="${i.label}: ${i.value}"></span>`).join('')}</div>
+    <div class="bar-labels">${items.map((i) => `<span>${String(i.label).split(' ')[0]}</span>`).join('')}</div>`;
+}
+
 /* Roll numbers up from 0 on the dashboard/stat cards for a live feel. */
 function animateNumbers(root) {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
@@ -1032,6 +1041,25 @@ async function loadAdminData() {
   if (spo.ok && spo.data?.sponsors) sponsorList = spo.data.sponsors;
   if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
   if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
+  const ch = await api('/api/admin/charts');
+  if (ch.ok && ch.data) adminCharts = ch.data;
+}
+
+async function createInvoice(fields) {
+  const { ok, data } = await api('/api/admin/invoices', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not create invoice', 'error'); return false; }
+  showToast(`Invoice ${data.number} created`, 'success');
+  await loadAdminData();
+  render('invoices');
+  return true;
+}
+
+async function requestIntro(id) {
+  const { ok, data } = await api(`/api/sponsor/leads/${id}/contact`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Failed', 'error'); return; }
+  showToast('Intro requested — our team will connect you', 'success');
+  await loadSponsorData();
+  render('brandVisibility');
 }
 
 async function createEvent(fields) {
@@ -1221,7 +1249,7 @@ function brandVisibilityPage() {
       <div class="card-title"><h2>Leads generated</h2><span class="chip">${sponsorLeads.length} this quarter</span></div>
       <table class="table">
         <thead><tr><th>Contact</th><th>Company</th><th>Interest</th><th>When</th><th></th></tr></thead>
-        <tbody>${sponsorLeads.map((l) => `<tr><td><strong>${l.name}</strong></td><td>${l.company}</td><td>${l.interest}</td><td>${l.when}</td><td><button class="link-button" data-toast="Intro requested with ${l.name}" data-toast-variant="success">Request intro</button></td></tr>`).join('')}</tbody>
+        <tbody>${sponsorLeads.length ? sponsorLeads.map((l) => `<tr><td><strong>${l.name}</strong></td><td>${l.company}</td><td>${l.interest}</td><td>${l.when}</td><td>${l.id ? `<button class="link-button" data-intro="${l.id}">Request intro</button>` : `<button class="link-button" data-toast="Intro requested">Request intro</button>`}</td></tr>`).join('') : `<tr><td colspan="5">${emptyState('No open leads', 'New leads from your sponsorship appear here.')}</td></tr>`}</tbody>
       </table>
     </section>`;
 }
@@ -1383,7 +1411,8 @@ const modalForms = {
   'new-campaign': () => openModal('New campaign',
     `<label>Campaign name<input type="text" /></label><label>Subject line<input type="text" /></label><div class="form-row"><label>Audience<select><option>All members</option><option>Gold tier</option><option>Expiring soon</option></select></label><label>Send time<input type="datetime-local" /></label></div>`),
   'new-invoice': () => openModal('New invoice',
-    `<div class="form-row"><label>Client<input type="text" /></label><label>Amount<input type="number" placeholder="1000" /></label><label>Issued<input type="date" /></label><label>Due<input type="date" /></label></div><label>Line items<textarea placeholder="1× Gold membership · £2,400"></textarea></label>`),
+    `<div class="form-row"><label>Client email<input type="email" data-field="client" placeholder="member@hbbaglobal.co.uk" /></label><label>Amount (£)<input type="number" data-field="amount" placeholder="1000" /></label><label>Issued<input type="text" data-field="issued" placeholder="today" /></label><label>Status<select data-field="status"><option value="due">Due</option><option value="paid">Paid</option><option value="draft">Draft</option></select></label></div><label>Description<input type="text" data-field="description" placeholder="Gold membership — annual" /></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-invoice>Create invoice</button>`),
   'new-user': () => openModal('Invite user',
     `<label>Email<input type="email" /></label><label>Role<select><option>Admin</option><option>Ops</option><option>Finance</option><option>Viewer</option></select></label>`)
 };
@@ -1622,6 +1651,18 @@ function installDelegate() {
         .then((ok) => { if (ok) closeModal(); });
       return;
     }
+
+    if (find('[data-create-invoice]')) {
+      ev.stopPropagation();
+      const m = document.getElementById('modalBody');
+      const get = (f) => m.querySelector(`[data-field="${f}"]`)?.value || '';
+      createInvoice({ client: get('client'), amount: get('amount'), issued: get('issued'), status: get('status'), description: get('description') })
+        .then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    const introBtn = find('[data-intro]');
+    if (introBtn) { ev.stopPropagation(); requestIntro(introBtn.dataset.intro); return; }
 
     const modalBtn = find('[data-modal]');
     if (modalBtn) { ev.stopPropagation(); modalForms[modalBtn.dataset.modal]?.(); return; }
