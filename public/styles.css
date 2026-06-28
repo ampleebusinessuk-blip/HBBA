@@ -1,19 +1,21 @@
 :root {
   color-scheme: light;
-  --bg: #f8fafc;
+  --bg: #f6f7fb;
   --surface: #ffffff;
-  --surface-soft: #f1f5fb;
-  --line: #dfe4ec;
-  --text: #171923;
-  --muted: #697386;
-  --purple: #5a4df1;
-  --purple-2: #8b5cf6;
+  --surface-soft: #eef1f8;
+  --line: #dde2ee;
+  --text: #131a2e;
+  --muted: #667089;
+  /* HBBA identity: deep navy primary (from the mark) + mustard gold accent */
+  --purple: #1f3a73;
+  --purple-2: #2f57a8;
   --green: #0f9f6e;
   --orange: #f97316;
-  --gold: #f2aa00;
+  --gold: #d4a02a;
   --red: #e54863;
   --blue: #2563eb;
-  --shadow: 0 18px 45px rgba(31, 41, 55, 0.08);
+  --shadow: 0 20px 48px rgba(18, 28, 56, 0.10);
+  --display: "Bricolage Grotesque", Inter, system-ui, sans-serif;
 }
 
 * {
@@ -54,9 +56,10 @@ button {
   min-height: 100vh;
   padding: 34px;
   background:
-    radial-gradient(circle at 18% 18%, rgba(139, 92, 246, 0.18), transparent 30%),
-    radial-gradient(circle at 82% 20%, rgba(71, 210, 221, 0.16), transparent 26%),
-    #f8fafc;
+    radial-gradient(circle at 16% 16%, rgba(31, 58, 115, 0.16), transparent 32%),
+    radial-gradient(circle at 84% 12%, rgba(212, 160, 42, 0.18), transparent 28%),
+    radial-gradient(circle at 78% 88%, rgba(47, 87, 168, 0.12), transparent 30%),
+    #f6f7fb;
 }
 
 .auth-screen.is-hidden {
@@ -151,7 +154,7 @@ button {
   gap: 6px;
   padding: 4px;
   border-radius: 12px;
-  background: #f1f5fb;
+  background: #eef2f8;
 }
 
 .auth-tabs button {
@@ -164,7 +167,7 @@ button {
 }
 
 .auth-tabs button.is-active {
-  color: #2f21bb;
+  color: var(--purple);
   background: #fff;
   box-shadow: 0 6px 16px rgba(31, 41, 55, 0.07);
 }
@@ -217,7 +220,7 @@ button {
 
 .auth-form input:focus {
   border-color: var(--purple);
-  box-shadow: 0 0 0 4px rgba(90, 77, 241, 0.12);
+  box-shadow: 0 0 0 4px rgba(31, 58, 115, 0.12);
 }
 
 .auth-options {
@@ -246,8 +249,8 @@ button {
 .auth-submit {
   border: 0;
   color: #fff;
-  background: linear-gradient(135deg, var(--purple), #594ee7);
-  box-shadow: 0 16px 28px rgba(91, 77, 241, 0.22);
+  background: linear-gradient(135deg, var(--purple), var(--purple-2));
+  box-shadow: 0 16px 28px rgba(31, 58, 115, 0.22);
 }
 
 .auth-secondary {
@@ -296,8 +299,8 @@ button {
   border-radius: 18px;
   color: #fff;
   font-weight: 800;
-  background: linear-gradient(135deg, #6d5df6, #9b5cf7);
-  box-shadow: 0 16px 28px rgba(91, 77, 241, 0.22);
+  background: linear-gradient(135deg, #1f3a73, #d4a02a);
+  box-shadow: 0 16px 28px rgba(31, 58, 115, 0.22);
 }
 
 .brand strong,
@@ -352,15 +355,15 @@ button {
 }
 
 .nav-item.is-active {
-  color: #2f21bb;
-  background: #eeeafb;
+  color: var(--purple);
+  background: #e9eff9;
   box-shadow: inset 4px 0 0 var(--purple);
 }
 
 .sidebar-card {
   margin: 18px 0 0;
   border-radius: 8px;
-  background: #f1edff;
+  background: #eef2fb;
   padding: 14px;
 }
 
@@ -622,10 +625,10 @@ h1 {
   border: 0;
   border-radius: 999px;
   color: #fff;
-  background: linear-gradient(135deg, var(--purple), #594ee7);
+  background: linear-gradient(135deg, var(--purple), var(--purple-2));
   padding: 0 16px;
   font-weight: 800;
-  box-shadow: 0 16px 28px rgba(91, 77, 241, 0.24);
+  box-shadow: 0 16px 28px rgba(31, 58, 115, 0.24);
 }
 
 .notice-bar {
@@ -686,7 +689,7 @@ h1 {
   border-radius: 16px;
   color: #fff;
   background: linear-gradient(135deg, var(--purple), var(--purple-2));
-  box-shadow: 0 14px 30px rgba(91, 77, 241, 0.24);
+  box-shadow: 0 14px 30px rgba(31, 58, 115, 0.24);
 }
 
 .briefing-body h2 {
@@ -725,7 +728,7 @@ h1 {
 .briefing-tags span {
   border-radius: 999px;
   color: #5146f2;
-  background: rgba(91, 77, 241, 0.12);
+  background: rgba(31, 58, 115, 0.12);
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -1391,11 +1394,11 @@ body[data-theme="dark"] .nav-item {
 
 body[data-theme="dark"] .nav-item.is-active {
   color: #c9c0ff;
-  background: rgba(91, 77, 241, 0.18);
+  background: rgba(31, 58, 115, 0.18);
 }
 
 body[data-theme="dark"] .sidebar-card {
-  background: rgba(91, 77, 241, 0.12);
+  background: rgba(31, 58, 115, 0.12);
 }
 
 body[data-theme="dark"] .help {
@@ -1461,7 +1464,7 @@ body[data-theme="dark"] .status.danger { background: rgba(229, 72, 99, 0.18); }
 }
 .notif-item:last-child { border-bottom: 0; }
 .notif-item:hover { background: var(--surface-soft); }
-.notif-item.unread { background: rgba(91, 77, 241, 0.06); }
+.notif-item.unread { background: rgba(31, 58, 115, 0.06); }
 .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); margin-top: 6px; justify-self: end; }
 .notif-item h4 { margin: 0 0 4px; font-size: 13px; }
 .notif-item p { margin: 0; font-size: 12px; color: var(--muted); }
@@ -1526,7 +1529,7 @@ body[data-theme="dark"] .status.danger { background: rgba(229, 72, 99, 0.18); }
 .modal-body select:focus, .drawer-body select:focus,
 .modal-body textarea:focus, .drawer-body textarea:focus {
   border-color: var(--purple);
-  box-shadow: 0 0 0 4px rgba(90, 77, 241, 0.14);
+  box-shadow: 0 0 0 4px rgba(31, 58, 115, 0.14);
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-error {
@@ -1615,7 +1618,7 @@ label.has-success input { border-color: var(--green); }
 .toast.success { background: linear-gradient(135deg, #0f9f6e, #0c805a); }
 .toast.error   { background: linear-gradient(135deg, #e54863, #b6354b); }
 .toast.warn    { background: linear-gradient(135deg, #f97316, #c95709); }
-.toast.info    { background: linear-gradient(135deg, var(--purple), #594ee7); }
+.toast.info    { background: linear-gradient(135deg, var(--purple), var(--purple-2)); }
 .toast .close { margin-left: auto; background: transparent; border: 0; color: rgba(255,255,255,0.85); cursor: pointer; }
 @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
 
@@ -1635,7 +1638,7 @@ label.has-success input { border-color: var(--green); }
   background: transparent; color: var(--muted);
   font-size: 10px; font-weight: 700;
 }
-.bottom-nav button.is-active { color: var(--purple); background: rgba(91, 77, 241, 0.1); }
+.bottom-nav button.is-active { color: var(--purple); background: rgba(31, 58, 115, 0.1); }
 .bottom-nav [data-icon] { width: 20px; height: 20px; }
 
 @media (max-width: 880px) {
@@ -1680,7 +1683,7 @@ body[data-theme="dark"] .skeleton {
   background: var(--surface); color: var(--text);
   font-size: 13px; font-weight: 600;
 }
-.filter-chip.is-active { border-color: var(--purple); background: rgba(91, 77, 241, 0.1); color: var(--purple); }
+.filter-chip.is-active { border-color: var(--purple); background: rgba(31, 58, 115, 0.1); color: var(--purple); }
 .filter-chip i { font-style: normal; padding: 2px 7px; border-radius: 99px; background: var(--surface-soft); font-size: 11px; }
 
 /* === Pagination === */
@@ -1932,7 +1935,7 @@ body[data-theme="dark"] .skeleton {
   background: var(--surface-soft); padding: 10px 12px;
   border-radius: 12px; font-size: 13px;
 }
-.thread-msg.me .bubble { background: rgba(91, 77, 241, 0.12); color: var(--purple); }
+.thread-msg.me .bubble { background: rgba(31, 58, 115, 0.12); color: var(--purple); }
 .thread-reply {
   display: flex; gap: 8px;
   padding-top: 12px; border-top: 1px solid var(--line);
@@ -2132,3 +2135,29 @@ body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
   #pageRoot.page-enter > *, .empty-state, .toast { animation: none; }
   .metric-card, .compact-card, .event-card, .nav-item, .primary-action { transition: none; }
 }
+
+/* ===================== HBBA visual identity ===================== */
+/* Display face on the headlines that carry the brand voice */
+.auth-hero h1, #pageTitle, .auth-panel h2, .page-head h1, .brand-tag {
+  font-family: var(--display);
+}
+.auth-hero h1 { letter-spacing: -0.03em; line-height: 1.05; font-weight: 800; }
+#pageTitle, .page-head h1 { letter-spacing: -0.02em; font-weight: 800; }
+.auth-panel h2 { letter-spacing: -0.015em; font-weight: 700; }
+
+/* Eyebrows pick up the navy; a small gold square echoes the logo mark */
+.eyebrow { color: var(--purple); letter-spacing: .14em; font-weight: 700; }
+.page-head .eyebrow::before {
+  content: ""; display: inline-block; width: 9px; height: 9px;
+  background: var(--gold); border-radius: 2px; margin-right: 9px; vertical-align: middle;
+}
+.brand-tag { color: var(--gold) !important; letter-spacing: .12em; }
+
+/* Quieter, more premium depth + roundness */
+.card, .metric-card, .compact-card, .event-card, .auth-panel { border-radius: 16px; }
+.primary-action, .auth-submit { box-shadow: 0 10px 22px -10px rgba(31, 58, 115, .55); }
+.metric-card:hover, .compact-card:hover, .event-card:hover {
+  box-shadow: 0 16px 34px -14px rgba(31, 58, 115, .30);
+}
+/* Gold accent on the active nav item instead of flat purple bar */
+.nav-item.is-active { box-shadow: inset 3px 0 0 var(--gold); }

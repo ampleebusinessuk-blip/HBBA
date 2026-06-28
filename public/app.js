@@ -78,10 +78,10 @@ const pageMeta = {
 
 /* ---------- Data ---------- */
 let metrics = [
-  ['Total Members', '1,250', '12.5%', 'users', '#5b35f5'],
+  ['Total Members', '1,250', '12.5%', 'users', '#1f3a73'],
   ['Events', '24', '8.3%', 'calendar', '#2563eb'],
   ['Ticket Sales', '342', '18.7%', 'ticket', '#0f9f6e'],
-  ['Revenue', '£78,450', '22.1%', 'chart', '#5b35f5'],
+  ['Revenue', '£78,450', '22.1%', 'chart', '#1f3a73'],
   ['New Leads', '186', '15.3%', 'users', '#f97316']
 ];
 
@@ -354,7 +354,7 @@ function briefingCard() {
   </section>`;
 }
 
-function lineChart(color = '#5b35f5', vals = [22, 38, 32, 48, 41, 58, 52, 68, 62, 78, 74, 92]) {
+function lineChart(color = '#1f3a73', vals = [22, 38, 32, 48, 41, 58, 52, 68, 62, 78, 74, 92]) {
   const w = 600, h = 220, pad = 30;
   const max = Math.max(...vals), min = Math.min(...vals);
   const pts = vals.map((v, i) => [pad + (i * (w - pad * 2) / (vals.length - 1)), h - pad - ((v - min) / (max - min || 1)) * (h - pad * 2)]);
@@ -431,7 +431,7 @@ function dashboardPage() {
 function crmPage() {
   return `
     <div class="cards-grid">
-      ${[['Active Contacts', '4,820'], ['Companies', '936'], ['Hot Leads', '186']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#5b35f5')}</button>`).join('')}
+      ${[['Active Contacts', '4,820'], ['Companies', '936'], ['Hot Leads', '186']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     ${filterBar('Search contacts, companies, emails…', [{ label: 'All', count: contacts.length }, { label: 'Active' }, { label: 'Warm' }, { label: 'New' }])}
     <section class="card">
@@ -466,7 +466,7 @@ function crmPage() {
 function membershipsPage() {
   return `
     <div class="cards-grid">
-      ${[['Total Members', '1,250'], ['Renewals Due', '32'], ['Applications', '18']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#5b35f5')}</button>`).join('')}
+      ${[['Total Members', '1,250'], ['Renewals Due', '32'], ['Applications', '18']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     <div class="tier-grid">
       ${membershipTiers.map((t) => `
@@ -621,7 +621,7 @@ function networkingPage() {
 
 function networkGraph() {
   const nodes = [
-    { x: 300, y: 60, r: 28, label: 'You', color: '#5b35f5' },
+    { x: 300, y: 60, r: 28, label: 'You', color: '#1f3a73' },
     { x: 120, y: 140, r: 22, label: 'Sarah', color: '#0f9f6e' },
     { x: 480, y: 140, r: 22, label: 'Amina', color: '#0f9f6e' },
     { x: 80, y: 260, r: 18, label: 'Lukas', color: '#f97316' },
@@ -645,7 +645,7 @@ function tasksPage() {
   ];
   return `
     <div class="cards-grid">
-      ${[['Open', tasksData.todo.length + tasksData.doing.length], ['Overdue', 2], ['Completed', tasksData.done.length]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#5b35f5')}</button>`).join('')}
+      ${[['Open', tasksData.todo.length + tasksData.doing.length], ['Overdue', 2], ['Completed', tasksData.done.length]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     ${filterBar('Search tasks…', [{ label: 'All' }, { label: 'Mine' }, { label: 'High priority' }, { label: 'Due today' }])}
     <div class="kanban">
@@ -768,12 +768,12 @@ function invoicesPage() {
 function reportsPage() {
   return `
     <div class="cards-grid">
-      ${[['Growth', '12.5%'], ['Revenue', '22.1%'], ['Engagement', '68%']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#5b35f5')}</button>`).join('')}
+      ${[['Growth', '12.5%'], ['Revenue', '22.1%'], ['Engagement', '68%']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     <div class="reports-grid">
       <section class="card full">
         <div class="card-title"><h2>Revenue by invoice status</h2><button class="link-button"><span data-icon="download"></span> Export CSV</button></div>
-        ${realBars((adminCharts?.revenueByStatus || []).map((r) => ({ label: r.status, value: Math.round(r.total / 100) })), '#5b35f5')}
+        ${realBars((adminCharts?.revenueByStatus || []).map((r) => ({ label: r.status, value: Math.round(r.total / 100) })), '#1f3a73')}
       </section>
       <section class="card">
         <div class="card-title"><h2>Accounts by role</h2><button class="link-button">Details</button></div>
@@ -988,7 +988,7 @@ const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB')
 let adminCharts = null;
 
 /* Data-driven bar chart from [{label,value}] (real numbers, scaled to the max). */
-function realBars(items, color = '#5b35f5') {
+function realBars(items, color = '#1f3a73') {
   if (!items || !items.length) return emptyState('No data yet', 'Charts fill in as activity happens.');
   const max = Math.max(1, ...items.map((i) => i.value));
   return `
@@ -1030,11 +1030,11 @@ async function loadAdminData() {
   if (st.ok && st.data?.stats) {
     const s = st.data.stats;
     metrics = [
-      ['Total Members', String(s.members), '12.5%', 'users', '#5b35f5'],
+      ['Total Members', String(s.members), '12.5%', 'users', '#1f3a73'],
       ['Sponsors', String(s.sponsors), '8.3%', 'star', '#f2aa00'],
       ['Events', String(s.events), '6.1%', 'calendar', '#2563eb'],
       ['Bookings', String(s.bookings), '18.7%', 'ticket', '#0f9f6e'],
-      ['Revenue', fmtMoney(s.revenue_cents), '22.1%', 'chart', '#5b35f5']
+      ['Revenue', fmtMoney(s.revenue_cents), '22.1%', 'chart', '#1f3a73']
     ];
   }
   if (mem.ok && mem.data?.members) contacts = mem.data.members;
@@ -1232,7 +1232,7 @@ function sponsorOverviewPage() {
 function brandVisibilityPage() {
   return `
     <div class="cards-grid">
-      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#5b35f5')}</button>`).join('')}
+      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     <div class="reports-grid">
       <section class="card full">
