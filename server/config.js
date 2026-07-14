@@ -27,7 +27,7 @@ export function getRuntimeConfig(env = process.env) {
   const pgPoolOptions = {
     connectionString: databaseUrl,
     max: Number(env.PG_POOL_MAX || 5),
-    connectionTimeoutMillis: Number(env.PG_CONNECTION_TIMEOUT_MS || 3000),
+    connectionTimeoutMillis: Number(env.PG_CONNECTION_TIMEOUT_MS || 12000),
     idleTimeoutMillis: Number(env.PG_IDLE_TIMEOUT_MS || 30000)
   };
 
