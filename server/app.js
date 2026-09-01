@@ -9,6 +9,7 @@ import { invoicesRouter } from './routes/invoices.js';
 import { supportRouter } from './routes/support.js';
 import { crmRouter } from './routes/crm.js';
 import { stripeRouter } from './routes/stripe.js';
+import { opsRouter } from './routes/ops.js';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -53,6 +54,9 @@ export function createApp() {
 
   // Blanket limit for the API, with a tighter one on the auth surface.
   app.use('/api', rateLimit({ windowMs: 60000, max: 240 }));
+  // Ops routes must sit ahead of the routers that require a session, or their
+  // auth middleware answers first.
+  app.use('/api', opsRouter);
   app.use('/api/auth', rateLimit({ windowMs: 60000, max: 30 }), authRouter);
   app.use('/api', invoicesRouter);
   app.use('/api', supportRouter);
