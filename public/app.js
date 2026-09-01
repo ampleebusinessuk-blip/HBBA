@@ -110,6 +110,14 @@ function initIcons(root) {
 }
 
 /* ---------- Small components ---------- */
+/* Events created in-app have no artwork; never emit <img src="null">. */
+function eventImage(e, variant = 'row') {
+  if (e.img) return `<img src="${e.img}" alt="" />`;
+  return variant === 'card'
+    ? '<div class="event-thumb-empty" aria-hidden="true"></div>'
+    : '<span class="date-tile" style="background:var(--line)"></span>';
+}
+
 function avatar(src, presence) {
   const cls = presence ? `presence ${presence}` : '';
   return `<span class="${cls}"><img class="avatar" src="${src}" alt="" /></span>`;
@@ -1508,7 +1516,7 @@ function memberDashboardPage() {
     <div class="dashboard-grid">
       <section class="card">
         <div class="card-title"><h2>Upcoming events</h2><button class="link-button" data-page-link="myEvents">View all</button></div>
-        ${eventsCatalog.slice(0, 4).map((e) => `<button class="event-row" type="button" data-event-id="${e.id}"><span class="date-tile">${e.date.split(' ')[0].toUpperCase()}<strong>${e.date.split(' ')[1]}</strong></span><img src="${e.img}" alt="" /><span><h3>${e.title}</h3><span class="event-meta">${e.time}<br />${e.city}</span><span class="chip">${e.attendees}/${e.capacity}</span></span></button>`).join('')}
+        ${eventsCatalog.slice(0, 4).map((e) => `<button class="event-row" type="button" data-event-id="${e.id}"><span class="date-tile">${e.date.split(' ')[0].toUpperCase()}<strong>${e.date.split(' ')[1]}</strong></span>${eventImage(e)}<span><h3>${e.title}</h3><span class="event-meta">${e.time}<br />${e.city}</span><span class="chip">${e.attendees}/${e.capacity}</span></span></button>`).join('')}
       </section>
       <section class="card">
         <div class="card-title"><h2>My membership</h2><button class="link-button" data-page-link="myMembership">Manage</button></div>
@@ -1559,7 +1567,7 @@ function myEventsPage() {
         const booked = memberTickets.some((t) => t.event === e.title);
         return `
         <article class="event-card" data-event-id="${e.id}">
-          <img src="${e.img}" alt="" />
+          ${eventImage(e, 'card')}
           <div class="body">
             <h3>${e.title}</h3>
             <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
@@ -1601,7 +1609,7 @@ function sponsorDashboardPage() {
       </section>
       <section class="card">
         <div class="card-title"><h2>Sponsored events</h2><button class="link-button" data-page-link="sponsoredEvents">View all</button></div>
-        ${sponsoredEventsData.map((e) => `<button class="event-row" type="button" data-event-id="${e.id}"><span class="date-tile">${e.date.split(' ')[0].toUpperCase()}<strong>${e.date.split(' ')[1]}</strong></span><img src="${e.img}" alt="" /><span><h3>${e.title}</h3><span class="event-meta">${e.booth}<br />${e.city}</span><span class="chip">${e.reach}</span></span></button>`).join('')}
+        ${sponsoredEventsData.map((e) => `<button class="event-row" type="button" data-event-id="${e.id}"><span class="date-tile">${e.date.split(' ')[0].toUpperCase()}<strong>${e.date.split(' ')[1]}</strong></span>${eventImage(e)}<span><h3>${e.title}</h3><span class="event-meta">${e.booth}<br />${e.city}</span><span class="chip">${e.reach}</span></span></button>`).join('')}
       </section>
     </div>`;
 }
@@ -1664,7 +1672,7 @@ function sponsoredEventsPage() {
     <div class="event-grid">
       ${sponsoredEventsData.map((e) => `
         <article class="event-card" data-event-id="${e.id}">
-          <img src="${e.img}" alt="" />
+          ${eventImage(e, 'card')}
           <div class="body">
             <h3>${e.title}</h3>
             <div class="meta">${e.date} · ${e.city}</div>

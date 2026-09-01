@@ -2186,3 +2186,10 @@ body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
 
 /* rows hidden by the search box or a filter chip */
 .filtered-out { display: none !important; }
+
+/* Event with no artwork: keep the card layout without a broken image. */
+.event-thumb-empty {
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(135deg, var(--line), rgba(31, 58, 115, 0.12));
+}
