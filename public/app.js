@@ -89,6 +89,7 @@ let crmStats = { contacts: 0, companies: 0, hot: 0 };
 let membershipStats = { members: 0, renewalsDue: 0, applications: 0 };
 let campaignStats = { campaigns: 0, openRate: '—', clicks: 0 };
 let campaignAudiences = [];
+let outbox = [];
 let networkStats = { introductions: 0, meetings: 0, matchRate: '—' };
 let networkPeople = [];
 let memberDirectory = [];
@@ -561,7 +562,13 @@ function emailPage() {
         </table>` : emptyState('No campaigns yet', 'Create one and pick the audience it goes to.')}
       </section>
       <aside class="card">
-        <div class="card-title"><h2>Templates</h2></div>
+        <div class="card-title"><h2>${adminIntegrations.demo?.email ? 'Demo outbox' : 'Outbox'}</h2><span class="chip">${outbox.length}</span></div>
+        <p class="muted" style="font-size:12px;margin:0 0 10px">${adminIntegrations.demo?.email ? 'Nothing is delivered while email is in demo mode — this is exactly what would be sent.' : 'Recent deliveries through your email provider.'}</p>
+        ${outbox.length ? outbox.slice(0, 8).map((m) => `
+          <div class="activity"><span class="activity-icon" style="background:var(--${m.status === 'sent' ? 'green' : m.status === 'failed' ? 'red' : 'orange'})">${icons.mail}</span><div><h3>${m.subject}</h3><span>${m.to} · ${m.kind}</span></div><small class="muted">${m.time}</small></div>
+        `).join('') : emptyState('Nothing queued yet', 'Invites, reminders and campaigns show up here.')}
+
+        <div class="card-title" style="margin-top:18px"><h2>Templates</h2></div>
         <div class="template-grid">
           ${['Welcome', 'Renewal', 'Event Invite', 'Newsletter'].map((n) => `<div class="template-card" data-template="${n}"><div class="template-thumb">${n}</div><strong style="font-size:13px">${n}</strong><p class="muted" style="font-size:12px;margin:4px 0 0">Start a campaign</p></div>`).join('')}
         </div>
@@ -815,9 +822,13 @@ function settingsBody(tab) {
     { key: 'email', name: 'Email (Resend)', desc: 'Invites, password resets, reminders, campaigns', env: 'RESEND_API_KEY + EMAIL_FROM' },
     { key: 'google', name: 'Sign in with Google', desc: 'Optional social login', env: 'GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET' }
   ];
+  const demo = adminIntegrations.demo || {};
+  const demoFor = { stripe: demo.payments, email: demo.email };
   return `<div class="settings-grid">${apps.map((a) => {
     const on = !!adminIntegrations[a.key];
-    return `<section class="card"><div class="card-title"><h2>${a.name}</h2><span class="invoice-status ${on ? 'paid' : 'draft'}">${on ? 'Connected' : 'Not connected'}</span></div><p class="muted" style="font-size:13px">${a.desc}</p><p class="muted" style="font-size:12px;margin-top:6px">Set <code>${a.env}</code> in your Vercel env to connect.</p></section>`;
+    const inDemo = !on && demoFor[a.key];
+    const label = on ? 'Connected' : inDemo ? 'Demo mode' : 'Not connected';
+    return `<section class="card"><div class="card-title"><h2>${a.name}</h2><span class="invoice-status ${on ? 'paid' : inDemo ? 'due' : 'draft'}">${label}</span></div><p class="muted" style="font-size:13px">${a.desc}</p><p class="muted" style="font-size:12px;margin-top:6px">${inDemo ? `Running in demo mode: ${a.key === 'stripe' ? 'invoices can be marked paid without a card' : 'messages are queued to the outbox, never delivered'}. Set <code>${a.env}</code> to go live.` : `Set <code>${a.env}</code> in your Vercel env to connect.`}</p></section>`;
   }).join('')}</div>`;
 }
 
@@ -1056,6 +1067,8 @@ async function loadAdminData() {
     campaignStats = cp.data.stats;
   }
   if (nw.ok && nw.data?.intros) { introRequests = nw.data.intros; networkPeople = nw.data.people; networkStats = nw.data.stats; }
+  const ob = await api('/api/admin/outbox');
+  if (ob.ok && ob.data?.messages) outbox = ob.data.messages;
   if (act.ok && act.data?.activity) activities = act.data.activity;
   await loadNotifications();
 }
@@ -1218,9 +1231,25 @@ async function openInvoice(number) {
 
 async function payInvoiceOnline(number) {
   const { ok, status, data } = await api(`/api/invoices/${number}/pay`, { method: 'POST' });
-  if (status === 503) { showToast('Online card payments connect soon (Stripe)', 'info'); return; }
+  if (status === 503) { showToast('Card payments are switched off for this deployment', 'info'); return; }
   if (!ok) { showToast(data?.error || 'Payment failed', 'error'); return; }
+  if (data.demo) {
+    closeModal();
+    openConfirm('Record a demo payment?',
+      `${data.message} Invoice ${number} for ${data.amount} will be marked paid so you can walk through the rest of the flow.`,
+      () => settleDemoPayment(number));
+    return;
+  }
   if (data.url) window.location.href = data.url;
+}
+
+async function settleDemoPayment(number) {
+  const { ok, data } = await api(`/api/invoices/${number}/pay/demo`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Could not record the demo payment', 'error'); return; }
+  showToast(`${data.number} marked paid — demo only, no card charged`, 'success');
+  if (currentRole === 'admin') await refreshAdmin('invoices');
+  else if (currentRole === 'sponsor') { await loadSponsorData(); render('myInvoices'); }
+  else { await loadMemberData(); render('myInvoices'); }
 }
 
 async function remindInvoice(number) {

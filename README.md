@@ -40,6 +40,22 @@ Set these on Vercel before production deployment:
 
 Do not use the local demo `JWT_SECRET` or a localhost database URL in production. The app rejects those settings.
 
+## Demo Mode
+
+While Stripe and Resend are not connected, the portal still demonstrates both
+journeys end to end, and labels them everywhere:
+
+- **Payments** — "Pay now" asks for confirmation ("no card is charged"), then
+  marks the invoice paid with a `demo-` payment reference. The activity feed and
+  the payer's notification both say `(demo)`.
+- **Email** — invites, resets, reminders and campaigns queue into an in-app
+  outbox (Email Marketing -> Outbox) instead of being delivered.
+
+Connecting a real provider switches that capability to the real path
+automatically; a demo settlement is refused once `STRIPE_SECRET_KEY` is set.
+Set `DEMO_MODE=0` to turn the demo paths off entirely: payments then return
+`503` and email is only recorded.
+
 ## Optional Integrations
 
 Each one is dormant until its keys are set, and Settings -> Integrations shows

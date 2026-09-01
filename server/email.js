@@ -2,6 +2,7 @@
 // Dormant unless RESEND_API_KEY is set: every send is still recorded in
 // email_log with status 'skipped', so the UI can tell the truth about it.
 import { query } from './db.js';
+import { demoEmail } from './demo.js';
 
 const RESEND_API = 'https://api.resend.com/emails';
 
@@ -100,7 +101,11 @@ export async function sendBulk(recipients, build, kind = 'campaign') {
 
 /** One-line summary for API responses and toasts. */
 export function deliverySummary({ sent, skipped, failed, total }) {
-  if (!emailConfigured()) return `recorded for ${total} recipient(s) — connect an email provider to deliver`;
+  if (!emailConfigured()) {
+    return demoEmail(false)
+      ? `queued in the demo outbox for ${total} recipient(s) — nothing was delivered`
+      : `recorded for ${total} recipient(s) — connect an email provider to deliver`;
+  }
   if (failed && sent) return `${sent} delivered, ${failed} failed`;
   if (failed) return `${failed} failed to send`;
   return `${sent} delivered`;

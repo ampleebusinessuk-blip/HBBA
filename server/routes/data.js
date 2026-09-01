@@ -445,12 +445,18 @@ dataRouter.get('/admin/integrations', adminOnly, async (_req, res) => {
   const { ebConfigured } = await import('../eventbrite.js');
   const { paymentsConfigured } = await import('../payments.js');
   const { googleConfigured } = await import('../google.js');
+  const { demoPayments, demoEmail, demoEnabled } = await import('../demo.js');
   res.json({
     eventbrite: ebConfigured(),
     stripe: paymentsConfigured(),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
     email: emailConfigured(),
-    google: googleConfigured()
+    google: googleConfigured(),
+    demo: {
+      enabled: demoEnabled(),
+      payments: demoPayments(paymentsConfigured()),
+      email: demoEmail(emailConfigured())
+    }
   });
 });
 

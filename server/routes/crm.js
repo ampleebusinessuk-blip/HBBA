@@ -422,3 +422,22 @@ crmRouter.get('/admin/activity', adminOnly, async (req, res, next) => {
     res.json({ activity: rows.map((r) => ({ title: r.title, body: r.body || '', time: ago(r.created_at), tone: r.tone })) });
   } catch (err) { next(err); }
 });
+
+/* ===================== OUTBOX ===================== */
+
+// Everything the app has tried to email, so the demo can show exactly what
+// would have gone out (and a live deployment can audit what did).
+crmRouter.get('/admin/outbox', adminOnly, async (_req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT to_email, subject, kind, status, error, created_at
+         FROM email_log ORDER BY created_at DESC LIMIT 40`);
+    res.json({
+      messages: rows.map((r) => ({
+        to: r.to_email, subject: r.subject, kind: r.kind,
+        status: r.status, error: r.error || '', time: ago(r.created_at)
+      })),
+      emailConnected: emailConfigured()
+    });
+  } catch (err) { next(err); }
+});

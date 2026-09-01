@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from '../auth.js';
 import { logActivity } from '../activity.js';
 import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
 import { paymentsConfigured, createInvoiceCheckout } from '../payments.js';
+import { demoPayments } from '../demo.js';
 
 export const invoicesRouter = Router();
 invoicesRouter.use(requireAuth);
@@ -224,9 +225,49 @@ invoicesRouter.post('/invoices/:number/pay', async (req, res, next) => {
     if (!row) return res.status(404).json({ error: 'Invoice not found' });
     if (req.auth.role !== 'admin' && row.user_id !== req.auth.sub) return res.status(403).json({ error: 'Forbidden' });
     if (row.status === 'paid') return res.status(400).json({ error: 'Invoice already paid' });
-    if (!paymentsConfigured()) return res.status(503).json({ error: 'Online payments are not connected yet' });
+    if (!paymentsConfigured()) {
+      if (!demoPayments(paymentsConfigured())) {
+        return res.status(503).json({ error: 'Online payments are not connected yet' });
+      }
+      // Demo mode: hand the client a confirmation step instead of a checkout URL.
+      return res.json({
+        demo: true,
+        amount: money(row.amount_cents, row.currency),
+        message: 'Demo payment — no card is charged and no money moves.'
+      });
+    }
     const url = await createInvoiceCheckout(row);
     await logActivity({ kind: 'invoice', title: 'Payment started', body: row.number, tone: 'green' });
     res.json({ url });
+  } catch (err) { next(err); }
+});
+
+// Settle an invoice in demo mode. Refused the moment real payments are live,
+// and the record is stamped 'demo' so it can never be mistaken for a charge.
+invoicesRouter.post('/invoices/:number/pay/demo', async (req, res, next) => {
+  try {
+    if (paymentsConfigured()) return res.status(409).json({ error: 'Stripe is live — use the real checkout' });
+    if (!demoPayments(paymentsConfigured())) return res.status(503).json({ error: 'Demo payments are disabled' });
+
+    const row = await fetchInvoice(req.params.number);
+    if (!row) return res.status(404).json({ error: 'Invoice not found' });
+    if (req.auth.role !== 'admin' && row.user_id !== req.auth.sub) return res.status(403).json({ error: 'Forbidden' });
+    if (row.status === 'paid') return res.status(400).json({ error: 'Invoice already paid' });
+
+    const { rows } = await query(
+      `UPDATE invoices SET status = 'paid', paid_at = now(), payment_ref = $2
+        WHERE number = $1 AND status <> 'paid' RETURNING number, amount_cents, currency, user_id`,
+      [req.params.number, `demo-${Date.now()}`]);
+    if (!rows[0]) return res.status(400).json({ error: 'Invoice already paid' });
+
+    const amount = money(rows[0].amount_cents, rows[0].currency);
+    await logActivity({ kind: 'invoice', title: 'Invoice paid (demo)', body: `${rows[0].number} · ${amount} — no card charged`, tone: 'green' });
+    if (rows[0].user_id) {
+      await logActivity({
+        kind: 'invoice', title: 'Payment recorded (demo)', body: `${rows[0].number} · ${amount}`,
+        tone: 'green', role: 'all', userId: rows[0].user_id
+      });
+    }
+    res.json({ ok: true, demo: true, number: rows[0].number, amount });
   } catch (err) { next(err); }
 });
