@@ -26,13 +26,17 @@ export function verifyToken(token) {
   }
 }
 
-export function setAuthCookie(res, token) {
+/**
+ * `remember: false` issues a session cookie that dies with the browser, which
+ * is what an unticked "Remember me" is supposed to do.
+ */
+export function setAuthCookie(res, token, { remember = true } = {}) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: 'lax',
     secure: isProduction,
     path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    ...(remember ? { maxAge: 7 * 24 * 60 * 60 * 1000 } : {})
   });
 }
 

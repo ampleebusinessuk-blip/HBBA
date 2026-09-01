@@ -8,6 +8,7 @@ import { dataRouter } from './routes/data.js';
 import { invoicesRouter } from './routes/invoices.js';
 import { supportRouter } from './routes/support.js';
 import { crmRouter } from './routes/crm.js';
+import { stripeRouter } from './routes/stripe.js';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -30,6 +31,10 @@ function rateLimit({ windowMs = 60000, max = 60 } = {}) {
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
+  // The Stripe webhook needs the raw body for signature checks, so it is
+  // mounted ahead of the JSON parser.
+  app.use('/api', stripeRouter);
+
   app.use(express.json({ limit: '256kb' }));
   app.use(cookieParser());
 

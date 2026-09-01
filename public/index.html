@@ -48,11 +48,11 @@
           <label>Email address<input type="email" value="admin@hbbaglobal.co.uk" autocomplete="email" /></label>
           <label>Password<input type="password" value="hbbaglobal" autocomplete="current-password" /></label>
           <div class="auth-options">
-            <label><input type="checkbox" checked /> Remember me</label>
-            <button type="button" class="text-button">Forgot password?</button>
+            <label><input type="checkbox" id="rememberMe" checked /> Remember me</label>
+            <button type="button" class="text-button" id="forgotPassword">Forgot password?</button>
           </div>
           <button class="auth-submit" type="submit">Login</button>
-          <button class="auth-secondary" type="button">Continue with Google</button>
+          <a class="auth-secondary" id="googleSignIn" href="/api/auth/google" hidden>Continue with Google</a>
           <div class="demo-hint">
             <span>Demo logins — click to fill, then Login:</span>
             <div class="demo-chips">
@@ -75,6 +75,17 @@
           <label>Organisation<input type="text" placeholder="Your company" data-field="org" /></label>
           <button class="auth-submit" type="submit">Create Account</button>
           <p class="auth-small">By continuing, you agree to HBBA Global workspace terms.</p>
+        </form>
+
+        <form class="auth-form" id="resetForm">
+          <div>
+            <h2>Choose a new password</h2>
+            <p>Set a password for your HBBA Global account.</p>
+          </div>
+          <label>New password<input type="password" autocomplete="new-password" placeholder="At least 8 characters" /></label>
+          <label>Confirm password<input type="password" autocomplete="new-password" placeholder="Repeat it" data-field="confirm" /></label>
+          <button class="auth-submit" type="submit">Save password and sign in</button>
+          <button class="text-button" type="button" data-auth-tab="login">Back to login</button>
         </form>
       </div>
     </section>

@@ -40,6 +40,24 @@ Set these on Vercel before production deployment:
 
 Do not use the local demo `JWT_SECRET` or a localhost database URL in production. The app rejects those settings.
 
+## Optional Integrations
+
+Each one is dormant until its keys are set, and Settings -> Integrations shows
+the live status of every row:
+
+- `RESEND_API_KEY` (+ `EMAIL_FROM`): delivers invites, password resets, invoice
+  reminders and campaigns. Without it those actions are still recorded in
+  `email_log` with status `skipped`, and the UI says so.
+- `STRIPE_SECRET_KEY`: enables the hosted checkout on an invoice.
+- `STRIPE_WEBHOOK_SECRET`: lets `POST /api/stripe/webhook` mark an invoice paid
+  when checkout completes. Point the Stripe endpoint at
+  `https://<your-domain>/api/stripe/webhook` and subscribe to
+  `checkout.session.completed`.
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: shows the "Continue with Google"
+  button. Redirect URI defaults to `<APP_URL>/api/auth/google/callback`.
+- `EVENTBRITE_TOKEN` / `EVENTBRITE_ORG_ID`: two-way event sync.
+- `APP_URL`: the public URL used in email links and the OAuth redirect.
+
 ## Production Database
 
 Run migrations against the production database before opening the app to users:

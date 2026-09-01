@@ -109,10 +109,6 @@ function initIcons(root) {
 }
 
 /* ---------- Small components ---------- */
-function spark(color) {
-  return `<svg class="sparkline" viewBox="0 0 220 50" preserveAspectRatio="none"><path d="M0 38 C22 38 28 38 42 24 S70 42 92 35 S128 24 146 17 S168 33 190 27 S210 20 220 21" fill="none" stroke="${color}" stroke-width="3"/><path d="M0 48 C32 48 44 48 68 38 S112 41 142 28 S178 41 220 32 L220 50 L0 50Z" fill="${color}" opacity=".08"/></svg>`;
-}
-
 function avatar(src, presence) {
   const cls = presence ? `presence ${presence}` : '';
   return `<span class="${cls}"><img class="avatar" src="${src}" alt="" /></span>`;
@@ -130,7 +126,6 @@ function metricCards() {
       </div>
       <h3>${value}</h3>
       <small>${label}</small>
-      ${spark(color)}
     </button>`).join('')}</div>`;
 }
 
@@ -219,7 +214,8 @@ function briefingCard() {
   </section>`;
 }
 
-function lineChart(color = '#1f3a73', vals = [22, 38, 32, 48, 41, 58, 52, 68, 62, 78, 74, 92]) {
+function lineChart(color = '#1f3a73', vals = []) {
+  if (!vals.length) return emptyState('No data yet', 'This chart fills in as activity is recorded.');
   const w = 600, h = 220, pad = 30;
   const max = Math.max(...vals), min = Math.min(...vals);
   const pts = vals.map((v, i) => [pad + (i * (w - pad * 2) / (vals.length - 1)), h - pad - ((v - min) / (max - min || 1)) * (h - pad * 2)]);
@@ -296,7 +292,7 @@ function crmPage() {
   contacts.forEach((c) => { counts[c.status] = (counts[c.status] || 0) + 1; });
   return `
     <div class="cards-grid">
-      ${[['Contacts', crmStats.contacts, 'All'], ['Companies', crmStats.companies, null], ['Active & warm', crmStats.hot, 'Active']].map(([l, v, filter]) => `<button class="compact-card" type="button" ${filter ? `data-crm-filter="${filter}"` : 'data-page-link="crm"'}><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['Contacts', crmStats.contacts, 'All'], ['Companies', crmStats.companies, null], ['Active & warm', crmStats.hot, 'Active']].map(([l, v, filter]) => `<button class="compact-card" type="button" ${filter ? `data-crm-filter="${filter}"` : 'data-page-link="crm"'}><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     ${filterBar('Search contacts, companies, emails…', ['All', 'Active', 'Warm', 'New', 'Cold'].map((label) => ({ label, count: counts[label] || 0, active: crmFilter === label, filter: label })))}
     <section class="card">
@@ -330,7 +326,7 @@ function crmPage() {
 function membershipsPage() {
   return `
     <div class="cards-grid">
-      ${[['Members on a tier', membershipStats.members], ['Renewals due (30d)', membershipStats.renewalsDue], ['Applications pending', membershipStats.applications]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="memberships"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['Members on a tier', membershipStats.members], ['Renewals due (30d)', membershipStats.renewalsDue], ['Applications pending', membershipStats.applications]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="memberships"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <div class="tier-grid">
       ${membershipTiers.map((t) => `
@@ -388,7 +384,7 @@ function eventsPage() {
       </div>
     </div>
     <div class="cards-grid">
-      ${[['Upcoming', String(eventsCatalog.length)], ['On Eventbrite', String(eventsCatalog.filter((e) => e.source === 'eventbrite').length)], ['Cities', String(new Set(eventsCatalog.map((e) => e.city)).size)]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="events"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
+      ${[['Upcoming', String(eventsCatalog.length)], ['On Eventbrite', String(eventsCatalog.filter((e) => e.source === 'eventbrite').length)], ['Cities', String(new Set(eventsCatalog.map((e) => e.city)).size)]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="events"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     ${filterBar('Search events…', [{ label: 'All', count: eventsCatalog.length }, { label: 'Confirmed' }, { label: 'Selling' }, { label: 'Draft' }])}
     <div class="event-grid">
@@ -413,7 +409,7 @@ function ticketsPage() {
   const inCount = live.filter((t) => t.checked_in).length;
   return `
     <div class="cards-grid">
-      ${[['Tickets', String(live.length)], ['Checked in', String(inCount)], ['To arrive', String(live.length - inCount)]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="tickets"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
+      ${[['Tickets', String(live.length)], ['Checked in', String(inCount)], ['To arrive', String(live.length - inCount)]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="tickets"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <section class="card">
       <div class="card-title"><h2>Ticket desk — check-in</h2><div style="display:flex;gap:10px;align-items:center"><span class="chip">${inCount}/${live.length} in</span><button class="primary-action" type="button" data-modal="new-ticket"><span data-icon="plus"></span>Issue ticket</button></div></div>
@@ -448,7 +444,7 @@ function sponsorsPage() {
   ];
   return `
     <div class="cards-grid">
-      ${[['Sponsors', sponsorList.length], ['Contract value', '£' + pipeline.toLocaleString('en-GB')], ['Renewals tracked', sponsorList.filter((sp) => sp.renewal && sp.renewal !== '—').length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsors"><span class="muted">${l}</span><h2>${v}</h2>${spark('#f2aa00')}</button>`).join('')}
+      ${[['Sponsors', sponsorList.length], ['Contract value', '£' + pipeline.toLocaleString('en-GB')], ['Renewals tracked', sponsorList.filter((sp) => sp.renewal && sp.renewal !== '—').length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsors"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <div class="tier-grid">
       ${tiers.map(([color, name, ...perks]) => `<div class="tier-card ${color}"><span class="chip">${byTier[name.split(' ')[0]] || 0} sponsor(s)</span><h3>${name}</h3><ul>${perks.map((perk) => `<li>✓ ${perk}</li>`).join('')}</ul></div>`).join('')}
@@ -471,7 +467,7 @@ function networkingPage() {
   const pending = introRequests.filter((r) => r.status === 'pending');
   return `
     <div class="cards-grid">
-      ${[['Introductions', networkStats.introductions], ['Matched', networkStats.meetings], ['Match rate', networkStats.matchRate]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="networking"><span class="muted">${l}</span><h2>${v}</h2>${spark('#8b5cf6')}</button>`).join('')}
+      ${[['Introductions', networkStats.introductions], ['Matched', networkStats.meetings], ['Match rate', networkStats.matchRate]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="networking"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <div class="intro-grid">
       <section class="card graph-card">
@@ -529,7 +525,7 @@ function tasksPage() {
   ];
   return `
     <div class="cards-grid">
-      ${[['To do', tasksData.todo.length], ['In progress', tasksData.doing.length], ['Completed', tasksData.done.length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="tasks"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['To do', tasksData.todo.length], ['In progress', tasksData.doing.length], ['Completed', tasksData.done.length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="tasks"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     ${filterBar('Search tasks…', [{ label: 'All' }, { label: 'Mine' }, { label: 'High priority' }, { label: 'Due today' }])}
     <div class="kanban">
@@ -554,7 +550,7 @@ function tasksPage() {
 function emailPage() {
   return `
     <div class="cards-grid">
-      ${[['Campaigns', campaignStats.campaigns], ['Open rate', campaignStats.openRate], ['Clicks', campaignStats.clicks]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="email"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
+      ${[['Campaigns', campaignStats.campaigns], ['Open rate', campaignStats.openRate], ['Clicks', campaignStats.clicks]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="email"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <div class="email-grid">
       <section class="card">
@@ -613,7 +609,7 @@ function supportPage() {
   return `
     <div class="page-head" style="padding:0;margin-bottom:14px"><div></div><div class="head-actions">${!isAdmin ? '<button class="primary-action" type="button" data-new-ticket><span data-icon="plus"></span>New ticket</button>' : ''}</div></div>
     <div class="cards-grid">
-      ${[['Open', count('open')], ['Pending', count('pending')], ['Resolved', count('resolved')]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="support"><span class="muted">${l}</span><h2>${v}</h2>${spark('#e54863')}</button>`).join('')}
+      ${[['Open', count('open')], ['Pending', count('pending')], ['Resolved', count('resolved')]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="support"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <div class="support-grid">
       <section class="card">
@@ -687,7 +683,7 @@ async function setTicketStatus(spec) {
 function invoicesPage() {
   return `
     <div class="cards-grid">
-      ${[['Paid', sumInvoices(invoices, ['paid'])], ['Outstanding', sumInvoices(invoices, ['due', 'sent'])], ['Overdue', sumInvoices(invoices, ['overdue'])]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="invoices"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
+      ${[['Paid', sumInvoices(invoices, ['paid'])], ['Outstanding', sumInvoices(invoices, ['due', 'sent'])], ['Overdue', sumInvoices(invoices, ['overdue'])]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="invoices"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     ${filterBar('Search invoices…', [{ label: 'All', count: invoices.length }, { label: 'Paid' }, { label: 'Due' }, { label: 'Overdue' }, { label: 'Draft' }])}
     <section class="card">
@@ -723,7 +719,7 @@ function reportsPage() {
   const bookings = (adminCharts?.bookingsPerEvent || []).reduce((n, e) => n + e.count, 0);
   return `
     <div class="cards-grid">
-      ${[['Accounts', String(accounts), 'settings'], ['Revenue collected', fmtMoney(paid?.total || 0), 'invoices'], ['Bookings', String(bookings), 'tickets']].map(([l, v, page]) => `<button class="compact-card" type="button" data-page-link="${page}"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['Accounts', String(accounts), 'settings'], ['Revenue collected', fmtMoney(paid?.total || 0), 'invoices'], ['Bookings', String(bookings), 'tickets']].map(([l, v, page]) => `<button class="compact-card" type="button" data-page-link="${page}"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <div class="reports-grid">
       <section class="card full">
@@ -815,7 +811,9 @@ function settingsBody(tab) {
   const apps = [
     { key: 'eventbrite', name: 'Eventbrite', desc: 'Sync events and ticketing', env: 'EVENTBRITE_TOKEN + EVENTBRITE_ORG_ID' },
     { key: 'stripe', name: 'Stripe', desc: 'Card payments for invoices', env: 'STRIPE_SECRET_KEY' },
-    { key: 'email', name: 'Email (Resend)', desc: 'Send receipts, reminders, campaigns', env: 'RESEND_API_KEY' }
+    { key: 'stripeWebhook', name: 'Stripe webhook', desc: 'Marks invoices paid when checkout completes', env: 'STRIPE_WEBHOOK_SECRET' },
+    { key: 'email', name: 'Email (Resend)', desc: 'Invites, password resets, reminders, campaigns', env: 'RESEND_API_KEY + EMAIL_FROM' },
+    { key: 'google', name: 'Sign in with Google', desc: 'Optional social login', env: 'GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET' }
   ];
   return `<div class="settings-grid">${apps.map((a) => {
     const on = !!adminIntegrations[a.key];
@@ -955,7 +953,14 @@ function exportCSV() {
     events: [['Event', 'Date', 'City', 'Attendees', 'Capacity', 'Status'], eventsCatalog.map((e) => [e.title, e.date, e.city, e.attendees, e.capacity, e.status])],
     crm: [['Name', 'Email', 'Company', 'Status'], contacts.map((c) => [c.name, c.email, c.company, c.status])],
     sponsors: [['Sponsor', 'Tier', 'Amount', 'Renewal', 'Contact'], sponsorList.map((s) => [s.name, s.tier, s.amount, s.renewal, s.contact])],
-    myInvoices: [['Invoice', 'Description', 'Amount', 'Issued', 'Status'], (currentRole === 'sponsor' ? sponsorInvoices : memberInvoices).map((i) => [i.id, i.desc, i.amount, i.issued, i.status])]
+    myInvoices: [['Invoice', 'Description', 'Amount', 'Issued', 'Status'], (currentRole === 'sponsor' ? sponsorInvoices : memberInvoices).map((i) => [i.id, i.desc, i.amount, i.issued, i.status])],
+    brandVisibility: [['Contact', 'Company', 'Interest', 'When'], sponsorLeads.map((l) => [l.name, l.company, l.interest, l.when])],
+    sponsoredEvents: [['Event', 'Date', 'City', 'Booth', 'Attendees'], sponsoredEventsData.map((e) => [e.title, e.date, e.city, e.booth || '', e.attendees])],
+    memberships: [['Member', 'Tier', 'Renews in (days)', 'Email'], renewals.map((r) => [r.name, r.tier, r.days, r.email])],
+    email: [['Campaign', 'Segment', 'Sent', 'Open', 'Click', 'Status'], campaigns.map((c) => [c.name, c.segment, c.sent, c.open, c.click, c.status])],
+    tickets: [['Event', 'Attendee', 'Tier', 'Status', 'Checked in'], ticketRecords.map((t) => [t.event, t.buyer, t.tier, t.status, t.checked_in ? 'yes' : 'no'])],
+    networking: [['From', 'To', 'Reason', 'Status'], introRequests.map((i) => [i.from, i.to, i.reason, i.status])],
+    tasks: [['Task', 'Column', 'Assignee', 'Due', 'Priority'], ['todo', 'doing', 'done'].flatMap((col) => (tasksData[col] || []).map((t) => [t.title, col, t.assignee || '', t.due || '', t.priority]))]
   };
   const set = sets[page];
   if (!set) { showToast('Nothing to export on this page', 'info'); return; }
@@ -1428,19 +1433,22 @@ let sponsorStats = [];
 let sponsorLeads = [];
 let sponsoredEventsData = [];
 let sponsorInvoices = [];
+let sponsorCharts = { leadsByMonth: [], reachByEvent: [] };
 
 async function loadSponsorData() {
-  const [ov, ld, ev, inv] = await Promise.all([
+  const [ov, ld, ev, inv, ch] = await Promise.all([
     api('/api/sponsor/overview'),
     api('/api/sponsor/leads'),
     api('/api/sponsor/events'),
-    api('/api/me/invoices')
+    api('/api/me/invoices'),
+    api('/api/sponsor/charts')
   ]);
   if (ov.ok && ov.data?.overview) sponsorProfile = { ...sponsorProfile, ...ov.data.overview };
   if (ov.ok && Array.isArray(ov.data?.stats) && ov.data.stats.length) sponsorStats = ov.data.stats;
   if (ld.ok && ld.data?.leads) sponsorLeads = ld.data.leads;
   if (ev.ok && ev.data?.events) sponsoredEventsData = ev.data.events;
   if (inv.ok && inv.data?.invoices) sponsorInvoices = inv.data.invoices;
+  if (ch.ok && ch.data) sponsorCharts = ch.data;
   await Promise.all([loadNotifications(), loadNetworking()]);
 }
 
@@ -1533,7 +1541,7 @@ function memberInvoicesPage() {
 function sponsorDashboardPage() {
   return `
     <div class="cards-grid">
-      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsorOverview"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#f2aa00')}</button>`).join('')}
+      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsorOverview"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <div class="dashboard-grid">
       <section class="card">
@@ -1576,23 +1584,24 @@ function sponsorOverviewPage() {
 }
 
 function brandVisibilityPage() {
+  const months = sponsorCharts.leadsByMonth || [];
+  const events = sponsorCharts.reachByEvent || [];
   return `
     <div class="cards-grid">
-      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-page-link="brandVisibility"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-page-link="brandVisibility"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <div class="reports-grid">
       <section class="card full">
-        <div class="card-title"><h2>Impressions — last 12 months</h2><button class="link-button"><span data-icon="download"></span> Export</button></div>
-        ${lineChart('#f2aa00', [8, 12, 10, 16, 14, 19, 17, 22, 20, 26, 24, 31])}
+        <div class="card-title"><h2>Leads — last 12 months</h2><button class="link-button" data-export><span data-icon="download"></span> Export</button></div>
+        ${months.some((m) => m.count) ? lineChart('#f2aa00', months.map((m) => m.count)) : emptyState('No leads yet', 'Leads from your sponsorship show up here as they arrive.')}
       </section>
       <section class="card">
-        <div class="card-title"><h2>Logo placements</h2><button class="link-button">Details</button></div>
-        <div class="bar-chart">${[58, 42, 54, 38, 31, 46].map((v) => `<span class="bar" style="--sold:${v}%"></span>`).join('')}</div>
-        <div class="bar-labels"><span>Web</span><span>Email</span><span>Events</span><span>Print</span><span>Social</span><span>App</span></div>
+        <div class="card-title"><h2>Reach by sponsored event</h2><button class="link-button" data-page-link="sponsoredEvents">Details</button></div>
+        ${realBars(events.map((e) => ({ label: e.title, value: e.attendees })), '#f2aa00')}
       </section>
     </div>
     <section class="card">
-      <div class="card-title"><h2>Leads generated</h2><span class="chip">${sponsorLeads.length} this quarter</span></div>
+      <div class="card-title"><h2>Leads generated</h2><span class="chip">${sponsorLeads.length} on file</span></div>
       <table class="table">
         <thead><tr><th>Contact</th><th>Company</th><th>Interest</th><th>When</th><th></th></tr></thead>
         <tbody>${sponsorLeads.length ? sponsorLeads.map((l) => `<tr><td><strong>${l.name}</strong></td><td>${l.company}</td><td>${l.interest}</td><td>${l.when}</td><td>${l.id ? `<button class="link-button" data-lead-intro="${l.id}">Request intro</button>` : '<span class="muted">—</span>'}</td></tr>`).join('') : `<tr><td colspan="5">${emptyState('No open leads', 'New leads from your sponsorship appear here.')}</td></tr>`}</tbody>
@@ -2305,6 +2314,8 @@ function installDelegate() {
       return;
     }
 
+    if (find('[data-send-reset]')) { ev.stopPropagation(); requestPasswordReset(); return; }
+
     const remindInvBtn = find('[data-remind-invoice]');
     if (remindInvBtn) { ev.stopPropagation(); remindInvoice(remindInvBtn.dataset.remindInvoice); return; }
 
@@ -2466,7 +2477,7 @@ function showAuth(mode = 'login') {
   document.querySelector('.app-shell').classList.add('is-hidden');
   document.querySelectorAll('[data-auth-tab]').forEach((b) => b.classList.toggle('is-active', b.dataset.authTab === mode));
   document.querySelectorAll('.auth-form').forEach((f) => f.classList.toggle('is-active', f.id === `${mode}Form`));
-  history.replaceState(null, '', `#${mode}`);
+  if (mode !== 'reset') history.replaceState(null, '', `#${mode}`);
 }
 
 /* ===================== BOTTOM NAV ===================== */
@@ -2494,7 +2505,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   const password = f.querySelector('input[type="password"]').value;
   const submit = f.querySelector('.auth-submit');
   submit.disabled = true;
-  const { ok, data } = await api('/api/auth/login', { method: 'POST', body: { email, password } });
+  const remember = document.getElementById('rememberMe')?.checked !== false;
+  const { ok, data } = await api('/api/auth/login', { method: 'POST', body: { email, password, remember } });
   submit.disabled = false;
   if (!ok) { showToast(data?.error || 'Login failed', 'error'); return; }
   enterApp(data.user, `Logged in as ${ROLES[data.user.role].label}`);
@@ -2510,7 +2522,8 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
     email: get('input[type="email"]'),
     password: get('input[type="password"]'),
     org: get('[data-field="org"]'),
-    role: get('[data-field="role"]')
+    role: get('[data-field="role"]'),
+    remember: true
   };
   const submit = f.querySelector('.auth-submit');
   submit.disabled = true;
@@ -2600,15 +2613,84 @@ attachAuthValidation();
 document.querySelector('.app-shell').classList.add('is-hidden');
 document.getElementById('authScreen').classList.add('is-hidden');
 
+/* ---------- Password reset / invite links ---------- */
+let resetToken = null;
+
+function readHashParam(name) {
+  const raw = location.hash.replace('#', '');
+  const qs = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
+  return new URLSearchParams(qs).get(name);
+}
+
+document.getElementById('forgotPassword').addEventListener('click', () => {
+  openModal('Reset your password',
+    `<label>Email address<input type="email" data-fp="email" placeholder="you@company.com" value="${document.querySelector('#loginForm input[type=\'email\']')?.value || ''}" /></label>
+     <p class="muted" style="font-size:12px;margin-top:8px">We send a single-use link that expires in an hour.</p>`,
+    '<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-send-reset>Send reset link</button>');
+});
+
+async function requestPasswordReset() {
+  const email = document.getElementById('modalBody')?.querySelector('[data-fp="email"]')?.value?.trim();
+  const { ok, data } = await api('/api/auth/forgot', { method: 'POST', body: { email } });
+  if (!ok) { showToast(data?.error || 'Could not start the reset', 'error'); return; }
+  closeModal();
+  showToast(data.message, data.delivered ? 'success' : 'info');
+}
+
+document.getElementById('resetForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.currentTarget;
+  const [pw, confirm] = [...f.querySelectorAll('input[type="password"]')].map((i) => i.value);
+  if (pw.length < 8) { showToast('Password must be at least 8 characters', 'error'); return; }
+  if (pw !== confirm) { showToast('Those passwords do not match', 'error'); return; }
+  const submit = f.querySelector('.auth-submit');
+  submit.disabled = true;
+  const { ok, data } = await api('/api/auth/reset', { method: 'POST', body: { token: resetToken, password: pw } });
+  submit.disabled = false;
+  if (!ok) { showToast(data?.error || 'That link is no longer valid', 'error'); return; }
+  resetToken = null;
+  history.replaceState(null, '', '#dashboard');
+  enterApp(data.user, 'Password set — you are signed in');
+});
+
+/* Only offer Google when this deployment has it configured. */
+async function showAvailableProviders() {
+  const { ok, data } = await api('/api/auth/providers');
+  const btn = document.getElementById('googleSignIn');
+  if (btn) btn.hidden = !(ok && data?.google);
+}
+
+/* Coming back from Stripe checkout: #invoices?paid=INV-123 */
+async function handlePaymentReturn() {
+  const paid = readHashParam('paid');
+  if (!paid) return;
+  const { ok, data } = await api(`/api/invoices/${paid}`);
+  const settled = ok && data?.invoice?.status === 'paid';
+  showToast(settled ? `Payment received for ${paid}` : `Payment for ${paid} is still settling`, settled ? 'success' : 'info');
+  history.replaceState(null, '', `#${location.hash.replace('#', '').split('?')[0] || 'dashboard'}`);
+}
+
 (async function boot() {
   // Restore session from the server (httpOnly cookie). No client-side role guessing.
+  const route = location.hash.replace('#', '').split('?')[0];
+  const token = readHashParam('token');
   const { ok, data } = await api('/api/auth/me');
+
+  if (route === 'reset' && token) {
+    resetToken = token;
+    showAuth('reset');
+    showAvailableProviders();
+    return;
+  }
+
   if (ok && data?.user) {
     setSession(data.user);
-    const route = location.hash.replace('#', '');
-    showApp(route && pageRendererFor(currentRole, route) ? route : ROLES[currentRole].landing);
+    await showApp(route && pageRendererFor(currentRole, route) ? route : ROLES[currentRole].landing);
+    await handlePaymentReturn();
   } else {
-    const route = location.hash.replace('#', '');
     showAuth(route === 'signup' ? 'signup' : 'login');
+    showAvailableProviders();
+    const err = readHashParam('error');
+    if (err) showToast(err === 'suspended' ? 'That account is suspended' : 'Google sign-in did not complete', 'error');
   }
 })();

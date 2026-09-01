@@ -3,6 +3,8 @@ import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { ebConfigured, listOrgEvents, eventAttendeeCount, createOrgEvent } from '../eventbrite.js';
 import { logActivity } from '../activity.js';
+import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
+import { createResetLink } from '../tokens.js';
 
 const STOCK_AVATAR = 'https://i.pravatar.cc/96?img=12';
 
@@ -198,6 +200,33 @@ dataRouter.get('/sponsor/overview', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Real series behind the sponsor's brand page: leads over time and the reach
+// of each event they sponsor.
+dataRouter.get('/sponsor/charts', async (req, res, next) => {
+  try {
+    const [byMonth, byEvent] = await Promise.all([
+      query(
+        `SELECT to_char(m.month, 'Mon') AS label,
+                (SELECT count(*)::int FROM sponsor_leads l
+                  WHERE l.user_id = $1 AND date_trunc('month', l.created_at) = m.month) AS count
+           FROM generate_series(date_trunc('month', now()) - INTERVAL '11 months',
+                                date_trunc('month', now()), INTERVAL '1 month') AS m(month)
+          ORDER BY m.month`, [req.auth.sub]),
+      query(
+        `SELECT e.title,
+                (SELECT count(*)::int FROM event_bookings b WHERE b.event_id = e.id) AS attendees,
+                se.booth
+           FROM sponsored_events se JOIN events e ON e.id = se.event_id
+          WHERE se.user_id = $1
+          ORDER BY attendees DESC`, [req.auth.sub])
+    ]);
+    res.json({
+      leadsByMonth: byMonth.rows.map((r) => ({ label: r.label, count: r.count })),
+      reachByEvent: byEvent.rows.map((r) => ({ title: r.title, attendees: r.attendees, booth: r.booth || '—' }))
+    });
+  } catch (err) { next(err); }
+});
+
 // Leads attributed to the current sponsor.
 dataRouter.get('/sponsor/leads', async (req, res, next) => {
   try {
@@ -351,15 +380,33 @@ dataRouter.post('/admin/users', adminOnly, async (req, res, next) => {
     const temp = randomBytes(12).toString('hex');
     const { hashPassword } = await import('../auth.js');
     const hash = await hashPassword(temp);
+    let created;
     try {
-      await query(`INSERT INTO users (email, password_hash, role, full_name, status) VALUES ($1,$2,$3,$4,'pending')`,
-        [email, hash, role, name]);
+      ({ rows: created } = await query(
+        `INSERT INTO users (email, password_hash, role, full_name, status)
+         VALUES ($1,$2,$3,$4,'pending') RETURNING id`,
+        [email, hash, role, name]));
     } catch (err) {
       if (err.code === '23505') return res.status(409).json({ error: 'A user with that email already exists' });
       throw err;
     }
-    await logActivity({ kind: 'user', title: 'User invited', body: `${name} · ${role}`, tone: 'blue' });
-    res.status(201).json({ ok: true });
+
+    // Invited accounts start pending; the link lets them set their own password.
+    const { link } = await createResetLink(created[0].id, 'invite');
+    const out = await sendEmail({
+      to: email,
+      subject: 'You have been invited to HBBA Global',
+      kind: 'invite',
+      html: layout({
+        heading: 'Set up your HBBA Global account',
+        body: `<p>Hi ${name},</p><p>An HBBA Global admin created a ${role} account for you. Choose a password to activate it — the link is valid for 7 days.</p>`,
+        cta: { url: link, label: 'Set my password' }
+      }),
+      text: `Set up your HBBA Global account: ${link}`
+    });
+    const delivery = out.sent ? 'invite emailed' : out.skipped ? 'invite recorded — email delivery is not connected' : `invite email failed: ${out.error}`;
+    await logActivity({ kind: 'user', title: 'User invited', body: `${name} · ${role} — ${delivery}`, tone: 'blue' });
+    res.status(201).json({ ok: true, delivery, emailConnected: emailConfigured(), invite_link: emailConfigured() ? undefined : link });
   } catch (err) { next(err); }
 });
 
@@ -397,10 +444,13 @@ dataRouter.patch('/admin/users/:email/tier', adminOnly, async (req, res, next) =
 dataRouter.get('/admin/integrations', adminOnly, async (_req, res) => {
   const { ebConfigured } = await import('../eventbrite.js');
   const { paymentsConfigured } = await import('../payments.js');
+  const { googleConfigured } = await import('../google.js');
   res.json({
     eventbrite: ebConfigured(),
     stripe: paymentsConfigured(),
-    email: Boolean(process.env.RESEND_API_KEY)
+    stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+    email: emailConfigured(),
+    google: googleConfigured()
   });
 });
 

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { logActivity, feedFor, markFeedRead } from '../activity.js';
+import { sendEmail, sendBulk, layout, deliverySummary, emailConfigured, appUrl } from '../email.js';
 
 export const crmRouter = Router();
 crmRouter.use(requireAuth);
@@ -196,15 +197,43 @@ crmRouter.post('/admin/renewals/remind', adminOnly, async (req, res, next) => {
         tone: 'orange', role: 'all', userId: r.id
       });
     }
+    const outcome = await sendBulk(rows.map((r) => ({ email: r.email, name: r.full_name })), (person) => ({
+      subject: 'Your HBBA Global membership is due for renewal',
+      html: layout({
+        heading: 'Time to renew',
+        body: `<p>Hi ${person.name},</p><p>Your HBBA Global membership renews soon. Open My Membership to confirm your tier or talk to us about changing it.</p>`,
+        cta: { url: `${appUrl()}/#myMembership`, label: 'Review my membership' }
+      }),
+      text: `Your HBBA Global membership renews soon: ${appUrl()}/#myMembership`
+    }), 'renewal');
     await logActivity({
       kind: 'renewal', title: 'Renewal reminders sent',
-      body: `${rows.length} member(s) nudged`, tone: 'orange'
+      body: `${rows.length} member(s) nudged, ${deliverySummary(outcome)}`, tone: 'orange'
     });
-    res.json({ reminded: rows.length, members: rows.map((r) => r.email) });
+    res.json({
+      reminded: rows.length, delivered: outcome.sent,
+      delivery: deliverySummary(outcome), members: rows.map((r) => r.email)
+    });
   } catch (err) { next(err); }
 });
 
 /* ===================== CAMPAIGNS ===================== */
+
+const AUDIENCE_SQL = {
+  'All members': `SELECT email, full_name FROM users WHERE role = 'member' AND status = 'active'`,
+  'Gold tier': `SELECT email, full_name FROM users WHERE role = 'member' AND tier = 'Gold'`,
+  'Expiring soon': `SELECT email, full_name FROM users WHERE renews_on IS NOT NULL AND renews_on <= CURRENT_DATE + INTERVAL '30 days'`,
+  Sponsors: `SELECT email, full_name FROM users WHERE role = 'sponsor'`,
+  Contacts: 'SELECT email, name AS full_name FROM contacts'
+};
+
+/** Everyone a campaign segment would actually reach. */
+async function audienceRecipients(segment) {
+  const sql = AUDIENCE_SQL[segment];
+  if (!sql) return [];
+  const { rows } = await query(sql);
+  return rows.map((r) => ({ email: r.email, name: r.full_name }));
+}
 
 async function audienceCount(segment) {
   const sql = {
@@ -237,6 +266,7 @@ crmRouter.get('/admin/campaigns', adminOnly, async (_req, res, next) => {
         scheduled_for: c.scheduled_for
       })),
       audiences,
+      emailConnected: emailConfigured(),
       stats: {
         campaigns: rows.length,
         openRate: totalSent ? `${Math.round((totalOpen / totalSent) * 100)}%` : '—',
@@ -273,15 +303,28 @@ crmRouter.post('/admin/campaigns/:id/send', adminOnly, async (req, res, next) =>
     const { rows } = await query('SELECT * FROM campaigns WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Campaign not found' });
     if (rows[0].status === 'Sent') return res.status(409).json({ error: 'Campaign already sent' });
-    const size = await audienceCount(rows[0].segment);
-    if (!size) return res.status(400).json({ error: 'That audience is empty' });
+    const recipients = await audienceRecipients(rows[0].segment);
+    if (!recipients.length) return res.status(400).json({ error: 'That audience is empty' });
+
+    const campaign = rows[0];
+    const outcome = await sendBulk(recipients, (person) => ({
+      subject: campaign.subject || campaign.name,
+      html: layout({
+        heading: campaign.subject || campaign.name,
+        body: `<p>Hi ${person.name || 'there'},</p><p>${campaign.name} from the HBBA Global team.</p><p>Sign in to your portal for the full detail, upcoming events and your membership benefits.</p>`,
+        cta: { url: appUrl(), label: 'Open your portal' }
+      }),
+      text: `${campaign.name} — sign in at ${appUrl()}`
+    }), 'campaign');
+
     const { rows: updated } = await query(
-      `UPDATE campaigns SET status = 'Sent', sent_count = $1 WHERE id = $2 RETURNING *`, [size, req.params.id]);
+      `UPDATE campaigns SET status = 'Sent', sent_count = $1 WHERE id = $2 RETURNING *`,
+      [recipients.length, req.params.id]);
     await logActivity({
       kind: 'campaign', title: 'Campaign sent',
-      body: `${updated[0].name} → ${size} recipient(s)`, tone: 'green'
+      body: `${updated[0].name} → ${recipients.length} recipient(s), ${deliverySummary(outcome)}`, tone: 'green'
     });
-    res.json({ sent: size, delivery: process.env.RESEND_API_KEY ? 'queued' : 'recorded (no email provider connected)' });
+    res.json({ sent: recipients.length, delivered: outcome.sent, delivery: deliverySummary(outcome) });
   } catch (err) { next(err); }
 });
 

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { logActivity } from '../activity.js';
+import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
 import { paymentsConfigured, createInvoiceCheckout } from '../payments.js';
 
 export const invoicesRouter = Router();
@@ -178,15 +179,41 @@ invoicesRouter.delete('/admin/invoices/:number', adminOnly, async (req, res, nex
   } catch (err) { next(err); }
 });
 
-// Record that a reminder was sent (real email arrives with the email phase).
+// Chase an unpaid invoice: bump the reminder count and email the client.
 invoicesRouter.post('/admin/invoices/:number/remind', adminOnly, async (req, res, next) => {
   try {
-    const { rowCount } = await query(
+    const { rows } = await query(
       `UPDATE invoices SET reminder_count = reminder_count + 1, reminded_at = now(),
               status = CASE WHEN status = 'draft' THEN 'sent' ELSE status END
-        WHERE number = $1`, [req.params.number]);
-    if (!rowCount) return res.status(404).json({ error: 'Invoice not found' });
-    res.json({ ok: true });
+        WHERE number = $1
+       RETURNING number, amount_cents, currency, due_on, user_id`, [req.params.number]);
+    if (!rows[0]) return res.status(404).json({ error: 'Invoice not found' });
+
+    let delivery = 'no client account on this invoice';
+    if (rows[0].user_id) {
+      const client = await query('SELECT email, full_name FROM users WHERE id = $1', [rows[0].user_id]);
+      if (client.rows[0]) {
+        const amount = money(rows[0].amount_cents, rows[0].currency);
+        const out = await sendEmail({
+          to: client.rows[0].email,
+          subject: `Reminder: invoice ${rows[0].number} (${amount})`,
+          kind: 'invoice-reminder',
+          html: layout({
+            heading: `Invoice ${rows[0].number} is outstanding`,
+            body: `<p>Hi ${client.rows[0].full_name},</p><p>A friendly reminder that invoice <strong>${rows[0].number}</strong> for <strong>${amount}</strong> is still open${rows[0].due_on ? ` (due ${dateISO(rows[0].due_on)})` : ''}.</p>`,
+            cta: { url: `${appUrl()}/#myInvoices`, label: 'View and pay' }
+          }),
+          text: `Invoice ${rows[0].number} for ${amount} is outstanding: ${appUrl()}/#myInvoices`
+        });
+        delivery = out.sent ? 'emailed the client' : out.skipped ? 'recorded — email delivery is not connected' : `email failed: ${out.error}`;
+        await logActivity({
+          kind: 'invoice', title: 'Payment reminder', body: `${rows[0].number} — ${delivery}`,
+          tone: 'orange', role: 'all', userId: rows[0].user_id
+        });
+      }
+    }
+    await logActivity({ kind: 'invoice', title: 'Reminder sent', body: `${rows[0].number} — ${delivery}`, tone: 'orange' });
+    res.json({ ok: true, delivery, emailConnected: emailConfigured() });
   } catch (err) { next(err); }
 });
 
