@@ -51,6 +51,8 @@ export function createApp() {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
+  // Blanket limit for the API, with a tighter one on the auth surface.
+  app.use('/api', rateLimit({ windowMs: 60000, max: 240 }));
   app.use('/api/auth', rateLimit({ windowMs: 60000, max: 30 }), authRouter);
   app.use('/api', invoicesRouter);
   app.use('/api', supportRouter);
