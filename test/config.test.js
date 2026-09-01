@@ -8,7 +8,7 @@ test('development config uses explicit safe local defaults', () => {
   assert.equal(cfg.isProduction, false);
   assert.equal(cfg.jwtSecret, 'dev-only-change-me');
   assert.equal(cfg.databaseUrl, 'postgres://hbba:hbba@localhost:5544/hbba');
-  assert.equal(cfg.pgPoolOptions.connectionTimeoutMillis, 3000);
+  assert.equal(cfg.pgPoolOptions.connectionTimeoutMillis, 12000);
 });
 
 test('production rejects missing database url', () => {

@@ -50,7 +50,7 @@
 - Produces: `getRuntimeConfig(env?: NodeJS.ProcessEnv): { nodeEnv: string, isProduction: boolean, jwtSecret: string, databaseUrl: string, pgPoolOptions: { connectionString: string, max: number, connectionTimeoutMillis: number, idleTimeoutMillis: number, ssl?: { rejectUnauthorized: boolean } } }`
 - Consumes: Existing `process.env`, `pg.Pool`, `jsonwebtoken`.
 
-- [ ] **Step 1: Write the failing config tests**
+- [x] **Step 1: Write the failing config tests**
 
 Create `test/config.test.js`:
 
@@ -100,13 +100,13 @@ test('production accepts managed postgres url and enables ssl unless explicitly 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test test/config.test.js`
 
 Expected: FAIL with `Cannot find module '../server/config.js'`.
 
-- [ ] **Step 3: Implement runtime config**
+- [x] **Step 3: Implement runtime config**
 
 Create `server/config.js`:
 
@@ -238,13 +238,13 @@ export async function closePool() {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --test test/config.test.js`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/config.js server/auth.js server/db.js test/config.test.js
@@ -262,7 +262,7 @@ git commit -m "feat: guard production runtime config"
 - Consumes: Existing `createApp()`, `pool`, `closePool()`, auth API routes.
 - Produces: Fail-fast DB readiness behavior and admin route protection tests.
 
-- [ ] **Step 1: Write the failing/expanded auth tests**
+- [x] **Step 1: Write the failing/expanded auth tests**
 
 Modify the top of `test/auth.test.js` to ping the database before starting the app:
 
@@ -299,7 +299,7 @@ test('unauthenticated admin stats returns 401', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify behavior**
+- [x] **Step 2: Run test to verify behavior**
 
 Run: `node --test test/auth.test.js`
 
@@ -307,7 +307,7 @@ Expected if DB is down: FAIL within about 3 seconds with `Test database is not r
 
 Expected if DB is up and migrated: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add test/auth.test.js
@@ -329,7 +329,7 @@ git commit -m "test: fail fast when database is unavailable"
 - Produces: `bootstrapAdmin(input, deps): Promise<{ email: string, created: boolean }>`
 - Consumes: `query`, `hashPassword`, `closePool`.
 
-- [ ] **Step 1: Write the failing validation tests**
+- [x] **Step 1: Write the failing validation tests**
 
 Create `test/admin-bootstrap.test.js`:
 
@@ -379,13 +379,13 @@ test('rejects demo password in production', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test test/admin-bootstrap.test.js`
 
 Expected: FAIL with `Cannot find module '../server/admin-bootstrap.js'`.
 
-- [ ] **Step 3: Implement admin bootstrap module and script**
+- [x] **Step 3: Implement admin bootstrap module and script**
 
 Create `server/admin-bootstrap.js`:
 
@@ -463,13 +463,13 @@ Modify `package.json` scripts:
 "bootstrap:admin": "node scripts/bootstrap-admin.js"
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `node --test test/admin-bootstrap.test.js`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server/admin-bootstrap.js scripts/bootstrap-admin.js package.json test/admin-bootstrap.test.js
@@ -487,7 +487,7 @@ git commit -m "feat: add first admin bootstrap"
 - Consumes: `createApp()`, `pool`, `/api/events`, `/api/me/bookings`, `/api/sponsor/overview`, `/api/admin/stats`, `/api/admin/events`.
 - Produces: DB-backed smoke tests for member, sponsor, and admin flows.
 
-- [ ] **Step 1: Write DB-backed endpoint smoke tests**
+- [x] **Step 1: Write DB-backed endpoint smoke tests**
 
 Create `test/data.test.js`:
 
@@ -612,7 +612,7 @@ test('admin can view stats and create event', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify behavior**
+- [x] **Step 2: Run test to verify behavior**
 
 Run: `node --test test/data.test.js`
 
@@ -620,7 +620,7 @@ Expected if DB is down: FAIL within about 3 seconds with `Test database is not r
 
 Expected if DB is up and migrated: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add test/data.test.js
@@ -639,13 +639,13 @@ git commit -m "test: cover production smoke data flows"
 - Consumes: Existing frontend globals and renderers.
 - Produces: Product-facing title/header comments and corrected visible text constants.
 
-- [ ] **Step 1: Search for prototype and mojibake text**
+- [x] **Step 1: Search for prototype and mojibake text**
 
 Run: `Select-String -Path public\index.html,public\app.js -Pattern 'Prototype|UI Only|no backend|GitHub Pages|Â|ð|â'`
 
 Expected now: matches in `public/index.html` and `public/app.js`.
 
-- [ ] **Step 2: Replace visible prototype labels and common mojibake**
+- [x] **Step 2: Replace visible prototype labels and common mojibake**
 
 Modify `public/index.html`:
 
@@ -672,13 +672,13 @@ Replace visible mojibake in `public/app.js`:
 ðŸ‘‹ -> 👋
 ```
 
-- [ ] **Step 3: Re-run the search**
+- [x] **Step 3: Re-run the search**
 
 Run: `Select-String -Path public\index.html,public\app.js -Pattern 'Prototype|UI Only|no backend|GitHub Pages|Â|ð|â'`
 
 Expected: no output.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add public/index.html public/app.js
@@ -697,7 +697,7 @@ git commit -m "fix: remove prototype copy and encoding artifacts"
 - Consumes: Scripts `start`, `dev`, `migrate`, `seed`, `test`, `bootstrap:admin`.
 - Produces: Client/developer setup, production environment, deployment, and smoke checklist docs.
 
-- [ ] **Step 1: Replace `.env.example` content**
+- [x] **Step 1: Replace `.env.example` content**
 
 Use this content:
 
@@ -720,7 +720,7 @@ ADMIN_FULL_NAME=Owner User
 ADMIN_ORG=HBBA Global
 ```
 
-- [ ] **Step 2: Replace `README.md` content**
+- [x] **Step 2: Replace `README.md` content**
 
 Use this structure:
 
@@ -816,7 +816,7 @@ You can also deploy through Vercel Git integration after setting the production 
 - Confirm a member gets `403` from `/api/admin/stats`.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md .env.example
@@ -834,7 +834,7 @@ git commit -m "docs: add production handoff guide"
 - Consumes: all prior task outputs.
 - Produces: verified production-readiness branch.
 
-- [ ] **Step 1: Run the full test suite**
+- [x] **Step 1: Run the full test suite**
 
 Run: `npm test`
 
@@ -842,13 +842,13 @@ Expected if DB is up and migrated: PASS.
 
 Expected if DB is down: FAIL quickly with `Test database is not reachable`.
 
-- [ ] **Step 2: Run app locally**
+- [x] **Step 2: Run app locally**
 
 Run: `npm start`
 
 Expected: console prints `HBBA Global running on http://localhost:3000`.
 
-- [ ] **Step 3: Verify health endpoint**
+- [x] **Step 3: Verify health endpoint**
 
 Run in a second shell: `Invoke-RestMethod http://localhost:3000/api/health`
 
@@ -860,7 +860,7 @@ ok
 True
 ```
 
-- [ ] **Step 4: Check Vercel CLI availability**
+- [x] **Step 4: Check Vercel CLI availability**
 
 Run: `vercel --version`
 
@@ -868,7 +868,7 @@ Expected if installed: prints a version.
 
 Expected currently: command not found. Install with `npm i -g vercel` before deploying from CLI.
 
-- [ ] **Step 5: Commit verification fixes if any were needed**
+- [x] **Step 5: Commit verification fixes if any were needed**
 
 If Step 1-4 required code or docs fixes:
 
