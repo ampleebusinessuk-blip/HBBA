@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
+import { logActivity } from '../activity.js';
 import {
   hashPassword, verifyPassword, signToken,
   setAuthCookie, clearAuthCookie, requireAuth
@@ -39,6 +40,10 @@ authRouter.post('/signup', async (req, res, next) => {
       throw err;
     }
 
+    await logActivity({
+      kind: 'signup', title: `New ${row.role} registered`,
+      body: `${row.full_name}${row.org ? ` — ${row.org}` : ''}`, tone: 'green'
+    });
     setAuthCookie(res, signToken(row));
     res.status(201).json({ user: publicUser(row) });
   } catch (err) {

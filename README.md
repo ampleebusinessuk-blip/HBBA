@@ -79,11 +79,19 @@ You can also deploy through Vercel Git integration after setting the production 
 ## Smoke Checklist
 
 - Visit the deployed site.
-- Log in as admin.
-- Log in as member.
-- Log in as sponsor.
+- Log in as admin, member and sponsor.
 - Sign up as a member or sponsor.
-- Book an event as a member.
-- View invoices.
-- Create an event as admin.
+- Book an event as a member; check the member in from the admin ticket desk.
+- Create, edit and cancel an event as admin.
+- Add a CRM contact, log a call against it, then delete it.
+- Create a campaign and send it to a real audience.
+- Edit a membership tier and send renewal reminders.
+- Issue and refund a ticket.
+- Create, remind and pay an invoice.
+- Request an introduction as a member and match it as admin.
+- Invite, suspend and remove a user from Settings → Team.
 - Confirm a member gets `403` from `/api/admin/stats`.
+
+Email delivery is recorded but not sent until `RESEND_API_KEY` is set; card
+payments need Stripe keys. Both surfaces say so in the UI rather than pretending
+to have sent something.

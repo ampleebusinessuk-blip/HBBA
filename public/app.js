@@ -39,25 +39,7 @@ const icons = {
 };
 
 /* ---------- Photos ---------- */
-const photos = [
-  'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=320&q=80',
-  'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=320&q=80',
-  'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=320&q=80',
-  'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=320&q=80',
-  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=320&q=80',
-  'https://images.unsplash.com/photo-1559523161-0fc0d8b38a7a?auto=format&fit=crop&w=320&q=80'
-];
 
-const avatars = [
-  'https://i.pravatar.cc/96?img=12',
-  'https://i.pravatar.cc/96?img=24',
-  'https://i.pravatar.cc/96?img=33',
-  'https://i.pravatar.cc/96?img=47',
-  'https://i.pravatar.cc/96?img=51',
-  'https://i.pravatar.cc/96?img=65',
-  'https://i.pravatar.cc/96?img=14',
-  'https://i.pravatar.cc/96?img=68'
-];
 
 /* ---------- Page metadata ---------- */
 const pageMeta = {
@@ -77,152 +59,47 @@ const pageMeta = {
 };
 
 /* ---------- Data ---------- */
-let metrics = [
-  ['Total Members', '1,250', '12.5%', 'users', '#1f3a73'],
-  ['Events', '24', '8.3%', 'calendar', '#2563eb'],
-  ['Ticket Sales', '342', '18.7%', 'ticket', '#0f9f6e'],
-  ['Revenue', '£78,450', '22.1%', 'chart', '#1f3a73'],
-  ['New Leads', '186', '15.3%', 'users', '#f97316']
-];
+let metrics = [];
 
-const upcomingEvents = [
-  ['MAY', '25', 'Global Business Networking Dinner', '6:00 PM - 10:00 PM', 'London, UK', '120 Attendees'],
-  ['JUN', '02', 'International Trade Conference 2024', '9:00 AM - 5:00 PM', 'Budapest, Hungary', '250 Attendees'],
-  ['JUN', '15', 'Embassy Business Forum', '2:00 PM - 6:00 PM', 'Dubai, UAE', '80 Attendees'],
-  ['JUN', '28', 'VIP Investment Roundtable', '5:00 PM - 9:00 PM', 'Paris, France', '40 Attendees']
-];
 
-const activities = [
-  ['New member registered', 'Sarah Johnson joined as Gold Member', '2 mins ago', 'green'],
-  ['New lead added', 'TechVision Ltd. from Germany', '15 mins ago', 'blue'],
-  ['Ticket sold', '2 VIP tickets for Business Dinner', '1 hour ago', 'red'],
-  ['Meeting scheduled', 'John Doe with Emirates Chamber', '2 hours ago', 'orange'],
-  ['Sponsor onboarded', 'Global Bank Ltd. - Gold Sponsor', '3 hours ago', 'purple']
-];
+let activities = [];
 
-let contacts = [
-  { name: 'Sarah Johnson', email: 'sarah@globalbank.co.uk', company: 'Global Bank Ltd.', city: 'London', status: 'Active', tier: 'Gold', avatar: avatars[0], presence: 'online', phone: '+44 20 7946 0991', deals: 3, last: '2h ago' },
-  { name: 'Lukas Meyer', email: 'l.meyer@techvision.de', company: 'TechVision Ltd.', city: 'Berlin', status: 'Warm', tier: 'Silver', avatar: avatars[1], presence: 'away', phone: '+49 30 1234 5678', deals: 1, last: '1d ago' },
-  { name: 'Amina Hassan', email: 'amina@emiratesch.ae', company: 'Emirates Chamber', city: 'Dubai', status: 'Active', tier: 'Gold', avatar: avatars[2], presence: 'online', phone: '+971 4 200 3000', deals: 2, last: '3h ago' },
-  { name: 'Peter Novak', email: 'pnovak@tradepartners.hu', company: 'Trade Partners', city: 'Budapest', status: 'New', tier: 'Bronze', avatar: avatars[3], presence: 'busy', phone: '+36 1 555 0123', deals: 0, last: '4d ago' },
-  { name: 'Elena Rossi', email: 'erossi@italtrade.it', company: 'Italtrade SRL', city: 'Milan', status: 'Active', tier: 'Silver', avatar: avatars[4], presence: 'online', phone: '+39 02 1234 5678', deals: 4, last: '1h ago' },
-  { name: 'Marcus Chen', email: 'marcus@chenholdings.sg', company: 'Chen Holdings', city: 'Singapore', status: 'Warm', tier: 'Gold', avatar: avatars[5], presence: 'offline', phone: '+65 6789 0123', deals: 2, last: '2d ago' },
-  { name: 'Olivia Watson', email: 'olivia@cityfin.co.uk', company: 'City Finance', city: 'London', status: 'Active', tier: 'Silver', avatar: avatars[6], presence: 'online', phone: '+44 20 7946 7711', deals: 1, last: '5h ago' },
-  { name: 'Daniel Park', email: 'd.park@koreabiz.kr', company: 'Korea Biz Group', city: 'Seoul', status: 'New', tier: 'Bronze', avatar: avatars[7], presence: 'away', phone: '+82 2 555 1234', deals: 0, last: '6d ago' }
-];
+let contacts = [];
 
-let dealStages = [
-  { name: 'Lead', total: '£24k', cards: [
-    { title: 'TechVision intro', value: '£8k', owner: 'Lukas Meyer', tier: 'Silver' },
-    { title: 'City Finance pitch', value: '£6k', owner: 'Olivia Watson', tier: 'Silver' },
-    { title: 'Korea Biz exploration', value: '£10k', owner: 'Daniel Park', tier: 'Bronze' }
-  ]},
-  { name: 'Qualified', total: '£36k', cards: [
-    { title: 'Global Bank renewal', value: '£15k', owner: 'Sarah Johnson', tier: 'Gold' },
-    { title: 'Italtrade expansion', value: '£12k', owner: 'Elena Rossi', tier: 'Silver' },
-    { title: 'Emirates partnership', value: '£9k', owner: 'Amina Hassan', tier: 'Gold' }
-  ]},
-  { name: 'Proposal', total: '£28k', cards: [
-    { title: 'Chen Holdings VIP', value: '£18k', owner: 'Marcus Chen', tier: 'Gold' },
-    { title: 'Trade Partners sponsor', value: '£10k', owner: 'Peter Novak', tier: 'Bronze' }
-  ]},
-  { name: 'Won', total: '£42k', cards: [
-    { title: 'Global Bank Sponsor 2024', value: '£25k', owner: 'Sarah Johnson', tier: 'Gold' },
-    { title: 'Emirates Forum Sponsor', value: '£17k', owner: 'Amina Hassan', tier: 'Gold' }
-  ]}
-];
+let dealStages = [];
 
-const membershipTiers = [
-  { name: 'Gold', price: '£2,400/yr', members: 450, color: 'gold', perks: ['VIP event access', 'Dedicated relationship manager', 'Quarterly briefings', 'Sponsor introductions'] },
-  { name: 'Silver', price: '£1,200/yr', members: 500, color: 'silver', perks: ['Premium event access', 'Member directory', 'Monthly newsletter', 'Trade missions'] },
-  { name: 'Bronze', price: '£480/yr', members: 300, color: 'bronze', perks: ['Standard event access', 'Online community', 'Resource library'] }
-];
+let membershipTiers = [];
 
-const renewals = [
-  { name: 'Sarah Johnson', tier: 'Gold', days: 4 },
-  { name: 'Global Bank Ltd.', tier: 'Corporate Gold', days: 9 },
-  { name: 'Tech Solutions Inc.', tier: 'Silver', days: 14 },
-  { name: 'Business World', tier: 'Bronze', days: 21 },
-  { name: 'TechVision Ltd.', tier: 'Silver', days: 28 }
-];
+let renewals = [];
 
-let eventsCatalog = [
-  { id: 'E001', title: 'Global Business Networking Dinner', date: 'May 25', time: '6 PM', city: 'London, UK', attendees: 120, capacity: 150, status: 'Confirmed', img: photos[0] },
-  { id: 'E002', title: 'International Trade Conference 2024', date: 'Jun 02', time: '9 AM', city: 'Budapest, Hungary', attendees: 250, capacity: 320, status: 'Selling', img: photos[1] },
-  { id: 'E003', title: 'Embassy Business Forum', date: 'Jun 15', time: '2 PM', city: 'Dubai, UAE', attendees: 80, capacity: 100, status: 'Confirmed', img: photos[2] },
-  { id: 'E004', title: 'VIP Investment Roundtable', date: 'Jun 28', time: '5 PM', city: 'Paris, France', attendees: 40, capacity: 50, status: 'Selling', img: photos[3] },
-  { id: 'E005', title: 'Sponsor Strategy Workshop', date: 'Jul 10', time: '10 AM', city: 'London, UK', attendees: 22, capacity: 60, status: 'Draft', img: photos[4] },
-  { id: 'E006', title: 'Member-Only Summer Mixer', date: 'Jul 22', time: '7 PM', city: 'Manchester, UK', attendees: 90, capacity: 110, status: 'Confirmed', img: photos[5] }
-];
+let eventsCatalog = [];
 
-let ticketRecords = [
-  { id: 'T-9821', event: 'Global Business Networking Dinner', buyer: 'Sarah Johnson', tier: 'VIP', price: '£250', status: 'Paid', checkin: 'In' },
-  { id: 'T-9820', event: 'International Trade Conference', buyer: 'Lukas Meyer', tier: 'Standard', price: '£120', status: 'Paid', checkin: 'Pending' },
-  { id: 'T-9819', event: 'Embassy Business Forum', buyer: 'Amina Hassan', tier: 'VIP', price: '£300', status: 'Paid', checkin: 'In' },
-  { id: 'T-9818', event: 'VIP Investment Roundtable', buyer: 'Marcus Chen', tier: 'VIP', price: '£450', status: 'Pending', checkin: 'Pending' },
-  { id: 'T-9817', event: 'Sponsor Strategy Workshop', buyer: 'Elena Rossi', tier: 'Standard', price: '£90', status: 'Refunded', checkin: '—' }
-];
+let ticketRecords = [];
 
-let sponsorList = [
-  { name: 'Global Bank Ltd.', tier: 'Gold', amount: '£15,000', renewal: 'Jun 2025', contact: 'Sarah Johnson', status: 'Active' },
-  { name: 'Tech Solutions Inc.', tier: 'Silver', amount: '£10,000', renewal: 'Jul 2024', contact: 'Lukas Meyer', status: 'Renewal' },
-  { name: 'Business World', tier: 'Bronze', amount: '£5,000', renewal: 'Sep 2024', contact: 'Peter Novak', status: 'Active' },
-  { name: 'Emirates Chamber', tier: 'Gold', amount: '£18,000', renewal: 'Dec 2024', contact: 'Amina Hassan', status: 'Active' },
-  { name: 'Italtrade SRL', tier: 'Silver', amount: '£8,500', renewal: 'Aug 2024', contact: 'Elena Rossi', status: 'Renewal' }
-];
+let sponsorList = [];
 
-const introRequests = [
-  { from: 'Sarah Johnson', to: 'Marcus Chen', reason: 'Looking to expand investment portfolio into Asia.', status: 'pending', avatar: avatars[0] },
-  { from: 'Lukas Meyer', to: 'Elena Rossi', reason: 'EU trade partnership exploration.', status: 'pending', avatar: avatars[1] },
-  { from: 'Amina Hassan', to: 'Olivia Watson', reason: 'City Finance cross-listing intro.', status: 'pending', avatar: avatars[2] },
-  { from: 'Peter Novak', to: 'Daniel Park', reason: 'Joint manufacturing scoping call.', status: 'matched', avatar: avatars[3] }
-];
+let introRequests = [];
 
-let tasksData = {
-  todo: [
-    { title: 'Follow up with TechVision lead', assignee: avatars[1], due: 'Today', priority: 'high' },
-    { title: 'Draft sponsor renewal email', assignee: avatars[0], due: 'Tomorrow', priority: 'med' },
-    { title: 'Prepare board pack section 3', assignee: avatars[2], due: 'Fri', priority: 'high' }
-  ],
-  doing: [
-    { title: 'Onboard Global Bank Gold sponsor', assignee: avatars[0], due: 'Wed', priority: 'high' },
-    { title: 'Update CRM tagging rules', assignee: avatars[4], due: 'Wed', priority: 'low' }
-  ],
-  done: [
-    { title: 'Send May newsletter', assignee: avatars[3], due: 'Mon', priority: 'med' },
-    { title: 'Reconcile April invoices', assignee: avatars[6], due: 'Mon', priority: 'med' },
-    { title: 'Confirm London venue', assignee: avatars[0], due: 'Last week', priority: 'med' }
-  ]
-};
+let tasksData = { todo: [], doing: [], done: [] };
 
-const campaigns = [
-  { name: 'May Newsletter', segment: 'All members', sent: '1,245', open: '42%', click: '11%', status: 'Sent' },
-  { name: 'Trade Dinner Invite', segment: 'VIP Segment', sent: '180', open: '57%', click: '24%', status: 'Active' },
-  { name: 'Renewal Reminder', segment: 'Expiring Members', sent: '—', open: '—', click: '—', status: 'Draft' },
-  { name: 'Sponsor Update Q2', segment: 'Partners', sent: '52', open: '49%', click: '18%', status: 'Scheduled' }
-];
+let campaigns = [];
 
 let supportThreads = [];
+let crmStats = { contacts: 0, companies: 0, hot: 0 };
+let membershipStats = { members: 0, renewalsDue: 0, applications: 0 };
+let campaignStats = { campaigns: 0, openRate: '—', clicks: 0 };
+let campaignAudiences = [];
+let networkStats = { introductions: 0, meetings: 0, matchRate: '—' };
+let networkPeople = [];
+let memberDirectory = [];
+let crmFilter = 'All';
+let statsRange = { label: 'This month', days: 30 };
+const RANGE_DAYS = { Today: 1, 'This week': 7, 'This month': 30, 'This quarter': 90, 'This year': 365, 'All time': null };
 let activeTicket = null;
 
-let invoices = [
-  { id: 'INV-3021', client: 'Global Bank Ltd.', amount: '£15,000', issued: '01 May', due: '31 May', status: 'paid' },
-  { id: 'INV-3020', client: 'Tech Solutions Inc.', amount: '£10,000', issued: '01 May', due: '31 May', status: 'paid' },
-  { id: 'INV-3019', client: 'Emirates Chamber', amount: '£18,000', issued: '03 May', due: '02 Jun', status: 'due' },
-  { id: 'INV-3018', client: 'Business World', amount: '£5,000', issued: '15 Apr', due: '15 May', status: 'due' },
-  { id: 'INV-3017', client: 'Italtrade SRL', amount: '£8,500', issued: '10 Apr', due: '10 May', status: 'overdue' },
-  { id: 'INV-3016', client: 'Trade Partners', amount: '£3,200', issued: '02 Apr', due: '02 May', status: 'overdue' },
-  { id: 'INV-3015', client: 'Chen Holdings', amount: '£12,000', issued: '20 May', due: '19 Jun', status: 'draft' }
-];
+let invoices = [];
 
-const notifications = [
-  { title: 'Sponsor renewed', body: 'Global Bank Ltd. renewed Gold sponsorship.', time: '2m', unread: true },
-  { title: 'Event nearly full', body: 'International Trade Conference at 78% capacity.', time: '1h', unread: true },
-  { title: 'New support ticket', body: 'SUP-1042 from Sarah Johnson.', time: '3h', unread: true },
-  { title: 'Invoice overdue', body: 'INV-3017 to Italtrade SRL is 4 days overdue.', time: '6h', unread: true },
-  { title: 'Lead assigned', body: 'TechVision Ltd. assigned to you.', time: 'Yesterday', unread: true },
-  { title: 'Briefing ready', body: 'Daily intelligence briefing generated.', time: 'Yesterday', unread: false }
-];
+let notifications = [];
 
 /* ---------- Init icons ---------- */
 function initIcons(root) {
@@ -246,14 +123,13 @@ function avatarGroup(srcs, more) {
 }
 
 function metricCards() {
-  return `<div class="metric-grid">${metrics.map(([label, value, trend, icon, color]) => `
-    <button class="metric-card" type="button" data-toast="${label} details">
+  return `<div class="metric-grid">${metrics.map(([label, value, page, icon, color]) => `
+    <button class="metric-card" type="button" data-page-link="${page}">
       <div class="metric-top">
         <span class="metric-icon" style="color:${color};background:${color}16">${icons[icon]}</span>
-        <span class="trend">↑ ${trend}</span>
       </div>
       <h3>${value}</h3>
-      <small>${label}<br />vs last month</small>
+      <small>${label}</small>
       ${spark(color)}
     </button>`).join('')}</div>`;
 }
@@ -261,8 +137,7 @@ function metricCards() {
 function filterBar(searchPlaceholder, chips) {
   return `<div class="filterbar">
     <input class="search-input" type="search" placeholder="${searchPlaceholder}" />
-    ${chips.map((c, i) => `<button class="filter-chip ${i === 0 ? 'is-active' : ''}" type="button">${c.label}${c.count != null ? ` <i>${c.count}</i>` : ''}</button>`).join('')}
-    <button class="control" type="button"><span data-icon="filter"></span>Filter</button>
+    ${chips.map((c, i) => `<button class="filter-chip ${(c.active !== undefined ? c.active : i === 0) ? 'is-active' : ''}" type="button"${c.filter ? ` data-crm-filter="${c.filter}"` : ''}>${c.label}${c.count != null ? ` <i>${c.count}</i>` : ''}</button>`).join('')}
     <button class="control" type="button" data-export><span data-icon="download"></span>Export</button>
   </div>`;
 }
@@ -286,7 +161,7 @@ function emptyState(title, body, cta) {
     <span class="emoji">📭</span>
     <h3>${title}</h3>
     <p>${body}</p>
-    ${cta ? `<button class="primary-action" type="button" data-toast="${cta}">${cta}</button>` : ''}
+    ${cta ? `<button class="primary-action" type="button" data-page-link="${cta.page}">${cta.label}</button>` : ''}
   </div>`;
 }
 
@@ -295,26 +170,38 @@ function skeletonRows(n) {
 }
 
 function donut() {
+  const total = membershipTiers.reduce((n, t) => n + t.members, 0);
+  if (!total) return emptyState('No members on a tier yet', 'Assign tiers from Memberships.');
+  const shade = { gold: 'var(--gold)', silver: '#cfd3dc', bronze: '#bd6425' };
   return `<div class="donut-wrap">
     <div class="donut"></div>
     <div class="legend">
-      <div><span style="background:var(--gold)"></span><strong>Gold</strong><p class="muted">450 (36%)</p></div>
-      <div><span style="background:#cfd3dc"></span><strong>Silver</strong><p class="muted">500 (40%)</p></div>
-      <div><span style="background:#bd6425"></span><strong>Bronze</strong><p class="muted">300 (24%)</p></div>
+      ${membershipTiers.map((t) => `<div><span style="background:${shade[t.color] || 'var(--blue)'}"></span><strong>${t.name}</strong><p class="muted">${t.members} (${Math.round((t.members / total) * 100)}%)</p></div>`).join('')}
     </div>
   </div>
-  <div class="mini-stats"><div><span class="muted">Renewals Due Soon</span><strong>32</strong></div><div><span class="muted">Expiring This Month</span><strong>18</strong></div></div>`;
+  <div class="mini-stats"><div><span class="muted">Renewals due (30d)</span><strong>${membershipStats.renewalsDue}</strong></div><div><span class="muted">Applications pending</span><strong>${membershipStats.applications}</strong></div></div>`;
 }
 
 function noticeBar() {
+  if (adminIntegrations.email) return '';
   return `<div class="notice-bar">
-    <strong>Verify your email.</strong>
-    <span>A verification link will be sent to ${currentUser?.email || 'your email'} once email is connected.</span>
-    <button type="button" data-toast="Verification email queued — sends when email is connected" data-toast-variant="info">Resend</button>
+    <strong>Email delivery is not connected.</strong>
+    <span>Campaigns, invoice reminders and verification emails are recorded but not delivered until an email provider is configured.</span>
+    <button type="button" data-page-link="settings">Open settings</button>
   </div>`;
 }
 
 function briefingCard() {
+  const live = eventsCatalog.filter((e) => e.status !== 'Cancelled').length;
+  const owed = invoices.filter((i) => i.status === 'due' || i.status === 'overdue').length;
+  const pendingIntros = introRequests.filter((r) => r.status === 'pending').length;
+  const lines = [
+    `${live} live event(s) in the calendar, ${eventsCatalog.reduce((n, e) => n + (Number(e.attendees) || 0), 0)} booking(s) across them.`,
+    `${crmStats.hot} active or warm contact(s) out of ${crmStats.contacts} in the CRM.`,
+    `${membershipStats.renewalsDue} membership renewal(s) fall due in the next 30 days.`,
+    owed ? `${owed} invoice(s) are still outstanding.` : 'Every issued invoice is settled.',
+    pendingIntros ? `${pendingIntros} introduction request(s) waiting on you.` : 'No introduction requests waiting.'
+  ];
   return `<section class="briefing-card">
     <div class="briefing-left">
       <span class="briefing-icon">${icons.gem}</span>
@@ -324,20 +211,11 @@ function briefingCard() {
       </div>
     </div>
     <div class="briefing-body">
-      <h2>UK network position next 30d: 24 events · 186 warm leads</h2>
+      <h2>${live} event(s) · ${crmStats.contacts} contact(s) · ${membershipStats.members} member(s)</h2>
       <div class="briefing-grid">
-        <p><i></i> Gold member renewals remain healthy across London and regional chapters.</p>
-        <p><i></i> Sponsor conversations are strongest in finance, trade and technology.</p>
-        <p><i></i> Business Dinner attendance is trending above the current venue target.</p>
-        <p><i></i> Follow up with new leads before Friday to protect conversion momentum.</p>
-      </div>
-      <div class="briefing-tags">
-        <button type="button" data-quick-task="Send sponsor follow-ups to top-3 open conversations">Send sponsor follow-ups to top-3 open conversations today.</button>
-        <button type="button" data-quick-task="Prepare London dinner guest list for board review">Prepare London dinner guest list for board review.</button>
-        <button type="button" data-quick-task="Check renewals due before the end of the month">Check renewals due before the end of the month.</button>
+        ${lines.slice(0, 4).map((l) => `<p><i></i> ${l}</p>`).join('')}
       </div>
     </div>
-    <button class="refresh-button" type="button" data-toast="Briefing refreshed" data-toast-variant="info">↻</button>
   </section>`;
 }
 
@@ -365,6 +243,8 @@ function statusPill(s) {
 /* ===================== PAGE RENDERERS ===================== */
 
 function dashboardPage() {
+  const soon = eventsCatalog.filter((e) => e.status !== 'Cancelled').slice(0, 4);
+  const openTasks = [...(tasksData.todo || []), ...(tasksData.doing || [])].slice(0, 4);
   return `
     ${noticeBar()}
     ${briefingCard()}
@@ -372,30 +252,30 @@ function dashboardPage() {
     <div class="dashboard-grid">
       <section class="card">
         <div class="card-title"><h2>Upcoming Events</h2><button class="link-button" data-page-link="events">View all</button></div>
-        ${upcomingEvents.map((e, i) => {
-          const [m, d, t, time, place, badge] = e;
-          return `<button class="event-row" type="button" data-event-id="E00${i+1}">
-            <span class="date-tile">${m}<strong>${d}</strong></span>
-            <img src="${photos[i % photos.length]}" alt="" />
-            <span><h3>${t}</h3><span class="event-meta">${time}<br />${place}</span><span class="chip">${badge}</span></span>
+        ${soon.length ? soon.map((e) => {
+          const [mon, day] = String(e.date || '').split(' ');
+          return `<button class="event-row" type="button" data-event-id="${e.id}">
+            <span class="date-tile">${(mon || '').toUpperCase()}<strong>${day || ''}</strong></span>
+            ${e.img ? `<img src="${e.img}" alt="" />` : '<span class="date-tile" style="background:var(--line)"></span>'}
+            <span><h3>${e.title}</h3><span class="event-meta">${e.time}<br />${e.city}</span><span class="chip">${e.attendees}/${e.capacity} attending</span></span>
           </button>`;
-        }).join('')}
+        }).join('') : emptyState('No events yet', 'Create an event and it appears here.')}
       </section>
       <section class="card">
-        <div class="card-title"><h2>Membership Overview</h2><button class="link-button" data-page-link="reports">View report</button></div>
+        <div class="card-title"><h2>Membership Overview</h2><button class="link-button" data-page-link="memberships">View report</button></div>
         ${donut()}
       </section>
       <section class="card">
         <div class="card-title"><h2>Recent Activity</h2><button class="link-button" data-page-link="tasks">View all</button></div>
-        ${activities.map(([t, b, time, tone]) => `
-          <div class="activity"><span class="activity-icon" style="background:var(--${tone === 'purple' ? 'purple' : tone})">${icons.users}</span><div><h3>${t}</h3><span>${b}</span></div><small class="muted">${time}</small></div>
-        `).join('')}
+        ${activities.length ? activities.map((a) => `
+          <div class="activity"><span class="activity-icon" style="background:var(--${a.tone === 'purple' ? 'purple' : a.tone})">${icons.users}</span><div><h3>${a.title}</h3><span>${a.body}</span></div><small class="muted">${a.time}</small></div>
+        `).join('') : emptyState('Nothing yet', 'Signups, bookings and invoices show up here as they happen.')}
       </section>
     </div>
     <div class="lower-grid">
       <section class="card">
         <div class="card-title"><h2>Top Sponsors</h2><button class="link-button" data-page-link="sponsors">View all</button></div>
-        ${sponsorList.slice(0, 3).map((s) => `<div class="sponsor-row"><span class="sponsor-mark">${s.name[0]}</span><div><h3>${s.name}</h3><span class="muted">${s.tier} Sponsor</span></div><strong>${s.amount}</strong></div>`).join('')}
+        ${sponsorList.length ? sponsorList.slice(0, 3).map((sp) => `<div class="sponsor-row"><span class="sponsor-mark">${sp.name[0]}</span><div><h3>${sp.name}</h3><span class="muted">${sp.tier} Sponsor</span></div><strong>${sp.amount}</strong></div>`).join('') : emptyState('No sponsors yet', 'Add a sponsor contract to see it here.')}
       </section>
       <section class="card">
         <div class="card-title"><h2>Bookings per event</h2><button class="link-button" data-page-link="reports">View report</button></div>
@@ -403,12 +283,7 @@ function dashboardPage() {
       </section>
       <section class="card">
         <div class="card-title"><h2>Tasks & Reminders</h2><button class="link-button" data-page-link="tasks">View all</button></div>
-        ${[
-          ['Follow up with new leads', '12 pending', ''],
-          ['Send event invitation emails', 'Due in 2 days', 'blue'],
-          ['Membership renewals', '18 pending', 'red'],
-          ['Prepare report for board meeting', 'Due in 5 days', 'blue']
-        ].map(([txt, pill, tone]) => `<div class="task-item"><label><input type="checkbox" />${txt}</label><span class="pill ${tone}">${pill}</span></div>`).join('')}
+        ${openTasks.length ? openTasks.map((t) => `<div class="task-item"><label><input type="checkbox" data-task-done="${t.id}" />${t.title}</label><span class="pill ${t.priority === 'high' ? 'red' : t.priority === 'low' ? '' : 'blue'}">${t.due || t.priority}</span></div>`).join('') : emptyState('No open tasks', 'Add one from the Tasks board.')}
       </section>
     </div>
   `;
@@ -416,32 +291,34 @@ function dashboardPage() {
 
 /* --- CRM --- */
 function crmPage() {
+  const shown = crmFilter === 'All' ? contacts : contacts.filter((c) => c.status === crmFilter);
+  const counts = { All: contacts.length, Active: 0, Warm: 0, New: 0, Cold: 0 };
+  contacts.forEach((c) => { counts[c.status] = (counts[c.status] || 0) + 1; });
   return `
     <div class="cards-grid">
-      ${[['Active Contacts', '4,820'], ['Companies', '936'], ['Hot Leads', '186']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['Contacts', crmStats.contacts, 'All'], ['Companies', crmStats.companies, null], ['Active & warm', crmStats.hot, 'Active']].map(([l, v, filter]) => `<button class="compact-card" type="button" ${filter ? `data-crm-filter="${filter}"` : 'data-page-link="crm"'}><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
-    ${filterBar('Search contacts, companies, emails…', [{ label: 'All', count: contacts.length }, { label: 'Active' }, { label: 'Warm' }, { label: 'New' }])}
+    ${filterBar('Search contacts, companies, emails…', ['All', 'Active', 'Warm', 'New', 'Cold'].map((label) => ({ label, count: counts[label] || 0, active: crmFilter === label, filter: label })))}
     <section class="card">
       <div class="card-title"><h2>Contacts</h2><button class="primary-action" type="button" data-modal="new-contact"><span data-icon="plus"></span>Add Contact</button></div>
-      ${contacts.map((c, i) => `
-        <div class="contact-row" data-contact="${i}">
+      ${shown.length ? shown.map((c, i) => `
+        <div class="contact-row" data-contact="${contacts.indexOf(c)}">
           <span class="presence ${c.presence}"><img class="avatar" src="${c.avatar}" alt="" /></span>
           <div><h4>${c.name}</h4><small>${c.email}</small></div>
-          <div><strong style="font-size:13px">${c.company}</strong><small style="display:block;color:var(--muted)">${c.city}</small></div>
+          <div><strong style="font-size:13px">${c.company || '—'}</strong><small style="display:block;color:var(--muted)">${c.city || '—'}</small></div>
           <span class="chip">${c.tier}</span>
           ${statusPill(c.status)}
           <button class="icon-button" type="button" aria-label="More"><span data-icon="chevron"></span></button>
         </div>
-      `).join('')}
-      ${pagination(contacts.length, 1, 8)}
+      `).join('') : emptyState('No contacts here', crmFilter === 'All' ? 'Add your first contact to start the pipeline.' : `No contacts with status “${crmFilter}”.`)}
     </section>
     <section class="card" style="margin-top:14px">
       <div class="card-title"><h2>Deal Pipeline</h2><button class="primary-action" type="button" data-modal="new-deal"><span data-icon="plus"></span>New deal</button></div>
       <div class="pipeline">
-        ${dealStages.map((s) => `
-          <div class="pipe-col" data-stage="${s.key || ''}">
-            <div class="pipe-col-head"><strong>${s.name}</strong><span>${s.cards.length} · ${s.total}</span></div>
-            ${s.cards.map((c) => `<div class="pipe-card" draggable="true" data-deal-id="${c.id || ''}"><h5>${c.title}</h5><small class="muted">${c.owner || ''}</small><div class="meta"><span class="chip">${c.tier || ''}</span><strong>${c.value}</strong></div></div>`).join('')}
+        ${dealStages.map((st) => `
+          <div class="pipe-col" data-stage="${st.key || ''}">
+            <div class="pipe-col-head"><strong>${st.name}</strong><span>${st.cards.length} · ${st.total}</span></div>
+            ${st.cards.map((c) => `<div class="pipe-card" draggable="true" data-deal-id="${c.id || ''}"><h5>${c.title}</h5><small class="muted">${c.owner || ''}</small><div class="meta"><span class="chip">${c.tier || ''}</span><strong>${c.value}</strong></div></div>`).join('')}
           </div>
         `).join('')}
       </div>
@@ -453,29 +330,29 @@ function crmPage() {
 function membershipsPage() {
   return `
     <div class="cards-grid">
-      ${[['Total Members', '1,250'], ['Renewals Due', '32'], ['Applications', '18']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['Members on a tier', membershipStats.members], ['Renewals due (30d)', membershipStats.renewalsDue], ['Applications pending', membershipStats.applications]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="memberships"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     <div class="tier-grid">
       ${membershipTiers.map((t) => `
         <div class="tier-card ${t.color}">
-          <span class="chip">${t.members} members</span>
+          <span class="chip">${t.members} member(s)</span>
           <h3>${t.name}</h3>
           <div class="price">${t.price}</div>
-          <ul>${t.perks.map((p) => `<li>✓ ${p}</li>`).join('')}</ul>
-          <button class="secondary-action" type="button" data-toast="${t.name} tier opened">Manage tier</button>
+          <ul>${(t.perks || []).map((perk) => `<li>✓ ${perk}</li>`).join('')}</ul>
+          <button class="secondary-action" type="button" data-tier-manage="${t.name}">Manage tier</button>
         </div>
       `).join('')}
     </div>
     <div class="page-grid">
       <section class="card">
-        <div class="card-title"><h2>Renewal calendar — next 30 days</h2><button class="link-button">View all</button></div>
+        <div class="card-title"><h2>Renewal calendar — next 60 days</h2><span class="chip">${renewals.length} renewal(s)</span></div>
         ${calendarGrid()}
       </section>
       <aside class="card">
-        <div class="card-title"><h2>Expiry alerts</h2><button class="link-button" data-toast="Reminders sent" data-toast-variant="success">Send reminders</button></div>
-        ${renewals.map((r) => `
-          <div class="activity"><span class="activity-icon" style="background:var(--${r.days < 7 ? 'red' : r.days < 14 ? 'orange' : 'green'})">${icons.crown}</span><div><h3>${r.name}</h3><span>${r.tier} · expires in ${r.days} days</span></div><button class="link-button" data-toast="Renewal nudge queued">Nudge</button></div>
-        `).join('')}
+        <div class="card-title"><h2>Expiry alerts</h2>${renewals.length ? '<button class="link-button" data-remind-renewals>Send reminders</button>' : ''}</div>
+        ${renewals.length ? renewals.map((r) => `
+          <div class="activity"><span class="activity-icon" style="background:var(--${r.days < 7 ? 'red' : r.days < 14 ? 'orange' : 'green'})">${icons.crown}</span><div><h3>${r.name}</h3><span>${r.tier} · ${r.days < 0 ? `expired ${Math.abs(r.days)} day(s) ago` : `expires in ${r.days} day(s)`}</span></div>${r.nudged ? '<span class="chip">Nudged</span>' : `<button class="link-button" data-nudge="${r.email}">Nudge</button>`}</div>
+        `).join('') : emptyState('No renewals due', 'Memberships with a renewal date inside 60 days appear here.')}
       </aside>
     </div>
   `;
@@ -483,16 +360,19 @@ function membershipsPage() {
 
 function calendarGrid() {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const today = 14;
-  const offset = 2;
-  const total = 30;
-  const eventsOnDay = { 4: 1, 9: 1, 14: 1, 21: 2, 28: 1, 18: 1 };
+  const start = new Date();
+  const offset = (start.getDay() + 6) % 7;
+  const byDay = {};
+  renewals.forEach((r) => {
+    const d = Math.round((new Date(r.renews_on) - start) / 86400000);
+    if (d >= 0 && d < 60) byDay[d] = (byDay[d] || 0) + 1;
+  });
   let cells = '';
-  for (let i = 0; i < offset; i++) cells += `<div class="cal-day muted"></div>`;
-  for (let d = 1; d <= total; d++) {
-    const cls = d === today ? 'today' : '';
-    const evs = eventsOnDay[d] || 0;
-    cells += `<div class="cal-day ${cls}">${d}${evs ? `<div class="events">${Array.from({ length: evs }, () => '<span class="dot"></span>').join('')}</div>` : ''}</div>`;
+  for (let i = 0; i < offset; i++) cells += '<div class="cal-day muted"></div>';
+  for (let d = 0; d < 42; d++) {
+    const date = new Date(start.getTime() + d * 86400000);
+    const marks = byDay[d] || 0;
+    cells += `<div class="cal-day ${d === 0 ? 'today' : ''}" title="${date.toLocaleDateString('en-GB')}${marks ? ` — ${marks} renewal(s)` : ''}">${date.getDate()}${marks ? `<div class="events">${Array.from({ length: Math.min(marks, 3) }, () => '<span class="dot"></span>').join('')}</div>` : ''}</div>`;
   }
   return `<div class="cal-grid">${days.map((d) => `<div class="head">${d}</div>`).join('')}${cells}</div>`;
 }
@@ -508,7 +388,7 @@ function eventsPage() {
       </div>
     </div>
     <div class="cards-grid">
-      ${[['Upcoming', String(eventsCatalog.length)], ['On Eventbrite', String(eventsCatalog.filter((e) => e.source === 'eventbrite').length)], ['Venues', '12']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
+      ${[['Upcoming', String(eventsCatalog.length)], ['On Eventbrite', String(eventsCatalog.filter((e) => e.source === 'eventbrite').length)], ['Cities', String(new Set(eventsCatalog.map((e) => e.city)).size)]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="events"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
     </div>
     ${filterBar('Search events…', [{ label: 'All', count: eventsCatalog.length }, { label: 'Confirmed' }, { label: 'Selling' }, { label: 'Draft' }])}
     <div class="event-grid">
@@ -519,7 +399,7 @@ function eventsPage() {
             <h3>${e.title} ${e.source === 'eventbrite' ? '<span class="chip" style="background:#f6562210;color:#f05537">Eventbrite</span>' : ''}</h3>
             <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
             <div class="progress" style="margin-bottom:10px"><i style="--value:${Math.round(e.attendees / Math.max(1, e.capacity) * 100)}%"></i></div>
-            <footer><span>${e.attendees}/${e.capacity} attendees</span>${e.url ? `<a class="link-button" href="${e.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View ↗</a>` : statusPill(e.status)}</footer>
+            <footer><span>${e.attendees}/${e.capacity} attendees</span>${e.url ? `<a class="link-button" href="${e.url}" target="_blank" rel="noopener">View ↗</a>` : statusPill(e.status)}</footer>
           </div>
         </article>
       `).join('')}
@@ -529,13 +409,14 @@ function eventsPage() {
 
 /* --- Tickets --- */
 function ticketsPage() {
-  const inCount = ticketRecords.filter((t) => t.checked_in).length;
+  const live = ticketRecords.filter((t) => t.status !== 'Refunded');
+  const inCount = live.filter((t) => t.checked_in).length;
   return `
     <div class="cards-grid">
-      ${[['Bookings', String(ticketRecords.length)], ['Checked in', String(inCount)], ['To arrive', String(ticketRecords.length - inCount)]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
+      ${[['Tickets', String(live.length)], ['Checked in', String(inCount)], ['To arrive', String(live.length - inCount)]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="tickets"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
     </div>
     <section class="card">
-      <div class="card-title"><h2>Ticket desk — check-in</h2><span class="chip">${inCount}/${ticketRecords.length} in</span></div>
+      <div class="card-title"><h2>Ticket desk — check-in</h2><div style="display:flex;gap:10px;align-items:center"><span class="chip">${inCount}/${live.length} in</span><button class="primary-action" type="button" data-modal="new-ticket"><span data-icon="plus"></span>Issue ticket</button></div></div>
       ${ticketRecords.length ? `<table class="table">
         <thead><tr><th>Event</th><th>Attendee</th><th>Tier</th><th>Status</th><th></th></tr></thead>
         <tbody>
@@ -544,79 +425,97 @@ function ticketsPage() {
               <td><strong>${t.event}</strong></td>
               <td>${t.buyer}</td>
               <td><span class="chip">${t.tier}</span></td>
-              <td>${t.checked_in ? '<span class="invoice-status paid">Checked in</span>' : '<span class="invoice-status due">Booked</span>'}</td>
-              <td><button class="${t.checked_in ? 'control' : 'primary-action'}" type="button" data-checkin="${t.id}:${t.checked_in ? '0' : '1'}"><span data-icon="check"></span>${t.checked_in ? 'Undo' : 'Check in'}</button></td>
+              <td>${t.status === 'Refunded' ? '<span class="invoice-status draft">Refunded</span>' : t.checked_in ? '<span class="invoice-status paid">Checked in</span>' : '<span class="invoice-status due">Booked</span>'}</td>
+              <td style="white-space:nowrap">${t.status === 'Refunded' ? '' : `<button class="${t.checked_in ? 'control' : 'primary-action'}" type="button" data-checkin="${t.id}:${t.checked_in ? '0' : '1'}"><span data-icon="check"></span>${t.checked_in ? 'Undo' : 'Check in'}</button> <button class="control" type="button" data-refund="${t.id}">Refund</button>`}</td>
             </tr>
           `).join('')}
         </tbody>
-      </table>` : emptyState('No bookings yet', 'Member event bookings show up here for check-in.')}
+      </table>` : emptyState('No bookings yet', 'Member bookings and tickets you issue show up here.')}
     </section>
   `;
 }
 
 /* --- Sponsors --- */
 function sponsorsPage() {
+  const cents = (v) => Number(String(v).replace(/[^0-9.]/g, '')) || 0;
+  const pipeline = sponsorList.reduce((n, sp) => n + cents(sp.amount), 0);
+  const byTier = { Gold: 0, Silver: 0, Bronze: 0 };
+  sponsorList.forEach((sp) => { byTier[sp.tier] = (byTier[sp.tier] || 0) + 1; });
+  const tiers = [
+    ['gold', 'Gold Tier', 'Logo on all events', 'Keynote slot', 'Dedicated activations'],
+    ['silver', 'Silver Tier', 'Logo on tier events', 'Workshop slot', 'Member directory feature'],
+    ['bronze', 'Bronze Tier', 'Logo on materials', '4 event passes', 'Newsletter mention']
+  ];
   return `
     <div class="cards-grid">
-      ${[['Sponsors', '42'], ['Pipeline', '£92k'], ['Deliverables', '17']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#f2aa00')}</button>`).join('')}
+      ${[['Sponsors', sponsorList.length], ['Contract value', '£' + pipeline.toLocaleString('en-GB')], ['Renewals tracked', sponsorList.filter((sp) => sp.renewal && sp.renewal !== '—').length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsors"><span class="muted">${l}</span><h2>${v}</h2>${spark('#f2aa00')}</button>`).join('')}
     </div>
     <div class="tier-grid">
-      <div class="tier-card gold"><span class="chip">12 sponsors</span><h3>Gold Tier</h3><div class="price">£15k+</div><ul><li>✓ Logo on all events</li><li>✓ Keynote slot</li><li>✓ Dedicated activations</li></ul></div>
-      <div class="tier-card silver"><span class="chip">18 sponsors</span><h3>Silver Tier</h3><div class="price">£8k+</div><ul><li>✓ Logo on tier events</li><li>✓ Workshop slot</li><li>✓ Member directory feature</li></ul></div>
-      <div class="tier-card bronze"><span class="chip">12 sponsors</span><h3>Bronze Tier</h3><div class="price">£3k+</div><ul><li>✓ Logo on materials</li><li>✓ 4 event passes</li></ul></div>
+      ${tiers.map(([color, name, ...perks]) => `<div class="tier-card ${color}"><span class="chip">${byTier[name.split(' ')[0]] || 0} sponsor(s)</span><h3>${name}</h3><ul>${perks.map((perk) => `<li>✓ ${perk}</li>`).join('')}</ul></div>`).join('')}
     </div>
     <section class="card">
       <div class="card-title"><h2>Sponsor contracts</h2><button class="primary-action" type="button" data-modal="new-sponsor"><span data-icon="plus"></span>New sponsor</button></div>
-      <table class="table">
+      ${sponsorList.length ? `<table class="table">
         <thead><tr><th>Sponsor</th><th>Tier</th><th>Amount</th><th>Renewal</th><th>Contact</th><th>Status</th></tr></thead>
         <tbody>
-          ${sponsorList.map((s) => `<tr><td><strong>${s.name}</strong></td><td><span class="chip">${s.tier}</span></td><td>${s.amount}</td><td>${s.renewal}</td><td>${s.contact}</td><td>${statusPill(s.status)}</td></tr>`).join('')}
+          ${sponsorList.map((sp) => `<tr><td><strong>${sp.name}</strong></td><td><span class="chip">${sp.tier}</span></td><td>${sp.amount}</td><td>${sp.renewal}</td><td>${sp.contact}</td><td>${statusPill(sp.status)}</td></tr>`).join('')}
         </tbody>
-      </table>
+      </table>` : emptyState('No sponsors yet', 'Add a sponsor contract and it appears here with its package.')}
     </section>
   `;
 }
 
 /* --- Networking --- */
 function networkingPage() {
+  const isAdmin = currentRole === 'admin';
+  const pending = introRequests.filter((r) => r.status === 'pending');
   return `
     <div class="cards-grid">
-      ${[['Introductions', '78'], ['Meetings', '34'], ['Match Score', '86%']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#8b5cf6')}</button>`).join('')}
+      ${[['Introductions', networkStats.introductions], ['Matched', networkStats.meetings], ['Match rate', networkStats.matchRate]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="networking"><span class="muted">${l}</span><h2>${v}</h2>${spark('#8b5cf6')}</button>`).join('')}
     </div>
     <div class="intro-grid">
       <section class="card graph-card">
-        <div class="card-title"><h2>Network graph</h2><button class="link-button">Filters</button></div>
+        <div class="card-title"><h2>Network graph</h2><button class="primary-action" type="button" data-modal="new-intro"><span data-icon="plus"></span>Request intro</button></div>
         ${networkGraph()}
       </section>
       <aside class="card">
-        <div class="card-title"><h2>Intro requests</h2><span class="chip">${introRequests.filter((r) => r.status === 'pending').length} pending</span></div>
-        ${introRequests.map((r) => `
+        <div class="card-title"><h2>Intro requests</h2><span class="chip">${pending.length} pending</span></div>
+        ${introRequests.length ? introRequests.map((r) => `
           <div class="intro-item">
             <img class="avatar" src="${r.avatar}" alt="" />
-            <div><strong>${r.from}</strong> → ${r.to}<p>${r.reason}</p></div>
+            <div><strong>${r.from}</strong> → ${r.to}<p>${r.reason || 'No note added.'}</p></div>
             <div class="intro-actions">
-              ${r.status === 'pending' ? `<button class="accept" data-toast="Intro accepted" data-toast-variant="success">Accept</button><button class="decline" data-toast="Intro declined">Skip</button>` : `<span class="chip">Matched</span>`}
+              ${r.status === 'pending'
+                ? (isAdmin
+                    ? `<button class="accept" data-intro="${r.id}:matched">Accept</button><button class="decline" data-intro="${r.id}:declined">Skip</button>`
+                    : '<span class="chip">Pending</span>')
+                : `<span class="chip">${cap(r.status)}</span>`}
             </div>
           </div>
-        `).join('')}
+        `).join('') : emptyState('No introductions yet', 'Request an intro and it lands here for the team.')}
       </aside>
     </div>
   `;
 }
 
 function networkGraph() {
-  const nodes = [
-    { x: 300, y: 60, r: 28, label: 'You', color: '#1f3a73' },
-    { x: 120, y: 140, r: 22, label: 'Sarah', color: '#0f9f6e' },
-    { x: 480, y: 140, r: 22, label: 'Amina', color: '#0f9f6e' },
-    { x: 80, y: 260, r: 18, label: 'Lukas', color: '#f97316' },
-    { x: 240, y: 280, r: 18, label: 'Elena', color: '#0f9f6e' },
-    { x: 380, y: 280, r: 18, label: 'Marcus', color: '#f97316' },
-    { x: 520, y: 270, r: 18, label: 'Peter', color: '#94a3b8' }
-  ];
-  const edges = [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5], [2, 6], [4, 5]];
+  const people = networkPeople.slice(0, 7);
+  if (!people.length) return emptyState('No network yet', 'Members and sponsors appear here as they join.');
+  const tone = { admin: '#1f3a73', member: '#0f9f6e', sponsor: '#f97316' };
+  const nodes = people.map((person, i) => {
+    if (i === 0) return { x: 300, y: 60, r: 28, label: person.name.split(' ')[0], color: tone[person.role] || '#94a3b8' };
+    const spread = people.length - 1;
+    const angle = Math.PI * (0.15 + (0.7 * (i - 1)) / Math.max(1, spread - 1));
+    return {
+      x: Math.round(300 + Math.cos(angle) * 230),
+      y: Math.round(150 + Math.sin(angle) * 120),
+      r: 20,
+      label: person.name.split(' ')[0],
+      color: tone[person.role] || '#94a3b8'
+    };
+  });
   return `<svg viewBox="0 0 600 320" preserveAspectRatio="xMidYMid meet">
-    ${edges.map(([a, b]) => `<line x1="${nodes[a].x}" y1="${nodes[a].y}" x2="${nodes[b].x}" y2="${nodes[b].y}" stroke="#cbd5e1" stroke-width="1.4"/>`).join('')}
+    ${nodes.slice(1).map((n) => `<line x1="${nodes[0].x}" y1="${nodes[0].y}" x2="${n.x}" y2="${n.y}" stroke="#cbd5e1" stroke-width="1.4"/>`).join('')}
     ${nodes.map((n) => `<g><circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${n.color}" opacity="0.18"/><circle cx="${n.x}" cy="${n.y}" r="${n.r - 8}" fill="${n.color}"/><text x="${n.x}" y="${n.y + n.r + 14}" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">${n.label}</text></g>`).join('')}
   </svg>`;
 }
@@ -630,7 +529,7 @@ function tasksPage() {
   ];
   return `
     <div class="cards-grid">
-      ${[['Open', tasksData.todo.length + tasksData.doing.length], ['Overdue', 2], ['Completed', tasksData.done.length]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['To do', tasksData.todo.length], ['In progress', tasksData.doing.length], ['Completed', tasksData.done.length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="tasks"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     ${filterBar('Search tasks…', [{ label: 'All' }, { label: 'Mine' }, { label: 'High priority' }, { label: 'Due today' }])}
     <div class="kanban">
@@ -655,23 +554,23 @@ function tasksPage() {
 function emailPage() {
   return `
     <div class="cards-grid">
-      ${[['Campaigns', '14'], ['Open rate', '42%'], ['Clicks', '1,860']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
+      ${[['Campaigns', campaignStats.campaigns], ['Open rate', campaignStats.openRate], ['Clicks', campaignStats.clicks]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="email"><span class="muted">${l}</span><h2>${v}</h2>${spark('#2563eb')}</button>`).join('')}
     </div>
     <div class="email-grid">
       <section class="card">
         <div class="card-title"><h2>Campaigns</h2><button class="primary-action" type="button" data-modal="new-campaign"><span data-icon="plus"></span>New campaign</button></div>
-        <table class="table">
-          <thead><tr><th>Name</th><th>Segment</th><th>Sent</th><th>Open</th><th>Click</th><th>Status</th></tr></thead>
-          <tbody>${campaigns.map((c) => `<tr><td><strong>${c.name}</strong></td><td>${c.segment}</td><td>${c.sent}</td><td>${c.open}</td><td>${c.click}</td><td>${statusPill(c.status)}</td></tr>`).join('')}</tbody>
-        </table>
+        ${campaigns.length ? `<table class="table">
+          <thead><tr><th>Name</th><th>Segment</th><th>Sent</th><th>Open</th><th>Click</th><th>Status</th><th></th></tr></thead>
+          <tbody>${campaigns.map((c) => `<tr><td><strong>${c.name}</strong><small style="display:block;color:var(--muted)">${c.subject || 'No subject line'}</small></td><td>${c.segment}</td><td>${c.sent}</td><td>${c.open}</td><td>${c.click}</td><td>${statusPill(c.status)}</td><td>${c.status === 'Sent' ? '' : `<button class="link-button" data-send-campaign="${c.id}">Send</button>`}</td></tr>`).join('')}</tbody>
+        </table>` : emptyState('No campaigns yet', 'Create one and pick the audience it goes to.')}
       </section>
       <aside class="card">
-        <div class="card-title"><h2>Templates</h2><button class="link-button">Browse all</button></div>
+        <div class="card-title"><h2>Templates</h2></div>
         <div class="template-grid">
-          ${['Welcome', 'Renewal', 'Event Invite', 'Newsletter'].map((n) => `<div class="template-card" data-toast="${n} template opened"><div class="template-thumb">${n}</div><strong style="font-size:13px">${n}</strong><p class="muted" style="font-size:12px;margin:4px 0 0">Last edited 2d ago</p></div>`).join('')}
+          ${['Welcome', 'Renewal', 'Event Invite', 'Newsletter'].map((n) => `<div class="template-card" data-template="${n}"><div class="template-thumb">${n}</div><strong style="font-size:13px">${n}</strong><p class="muted" style="font-size:12px;margin:4px 0 0">Start a campaign</p></div>`).join('')}
         </div>
-        <div class="card-title" style="margin-top:18px"><h2>Audience picker</h2></div>
-        ${['All members', 'Gold tier', 'Expiring soon', 'Sponsors', 'London chapter'].map((a, i) => `<div class="task-item"><label><input type="checkbox" ${i < 2 ? 'checked' : ''}/>${a}</label><span class="muted" style="font-size:12px">${[1250, 450, 32, 42, 380][i]}</span></div>`).join('')}
+        <div class="card-title" style="margin-top:18px"><h2>Audiences</h2></div>
+        ${campaignAudiences.map((a) => `<div class="task-item"><label>${a.segment}</label><span class="muted" style="font-size:12px">${a.size}</span></div>`).join('')}
       </aside>
     </div>
   `;
@@ -714,7 +613,7 @@ function supportPage() {
   return `
     <div class="page-head" style="padding:0;margin-bottom:14px"><div></div><div class="head-actions">${!isAdmin ? '<button class="primary-action" type="button" data-new-ticket><span data-icon="plus"></span>New ticket</button>' : ''}</div></div>
     <div class="cards-grid">
-      ${[['Open', count('open')], ['Pending', count('pending')], ['Resolved', count('resolved')]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2>${v}</h2>${spark('#e54863')}</button>`).join('')}
+      ${[['Open', count('open')], ['Pending', count('pending')], ['Resolved', count('resolved')]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="support"><span class="muted">${l}</span><h2>${v}</h2>${spark('#e54863')}</button>`).join('')}
     </div>
     <div class="support-grid">
       <section class="card">
@@ -788,7 +687,7 @@ async function setTicketStatus(spec) {
 function invoicesPage() {
   return `
     <div class="cards-grid">
-      ${[['Paid', '£78,450'], ['Outstanding', '£12,900'], ['Overdue', '£3,200']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
+      ${[['Paid', sumInvoices(invoices, ['paid'])], ['Outstanding', sumInvoices(invoices, ['due', 'sent'])], ['Overdue', sumInvoices(invoices, ['overdue'])]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="invoices"><span class="muted">${l}</span><h2>${v}</h2>${spark('#0f9f6e')}</button>`).join('')}
     </div>
     ${filterBar('Search invoices…', [{ label: 'All', count: invoices.length }, { label: 'Paid' }, { label: 'Due' }, { label: 'Overdue' }, { label: 'Draft' }])}
     <section class="card">
@@ -805,7 +704,7 @@ function invoicesPage() {
               <td>${inv.due || '—'}</td>
               <td><span class="invoice-status ${inv.status === 'void' ? 'draft' : inv.status === 'sent' ? 'due' : inv.status}">${cap(inv.status)}</span></td>
               <td style="white-space:nowrap">
-                ${inv.status !== 'paid' && inv.status !== 'void' ? `<button class="link-button" data-pay="${inv.id}" onclick="event.stopPropagation()">Mark paid</button> · <button class="link-button" data-remind-invoice="${inv.id}" onclick="event.stopPropagation()">Remind</button> · <button class="link-button" data-void-invoice="${inv.id}" onclick="event.stopPropagation()">Void</button>` : `<button class="link-button" data-view-invoice="${inv.id}" onclick="event.stopPropagation()">View</button>`}
+                ${inv.status !== 'paid' && inv.status !== 'void' ? `<button class="link-button" data-pay="${inv.id}">Mark paid</button> · <button class="link-button" data-remind-invoice="${inv.id}">Remind</button> · <button class="link-button" data-void-invoice="${inv.id}">Void</button>` : `<button class="link-button" data-view-invoice="${inv.id}">View</button>`}
               </td>
             </tr>
           `).join('')}
@@ -818,26 +717,30 @@ function invoicesPage() {
 
 /* --- Reports --- */
 function reportsPage() {
+  const months = adminCharts?.activityByMonth || [];
+  const paid = (adminCharts?.revenueByStatus || []).find((r) => r.status === 'paid');
+  const accounts = (adminCharts?.usersByRole || []).reduce((n, r) => n + r.count, 0);
+  const bookings = (adminCharts?.bookingsPerEvent || []).reduce((n, e) => n + e.count, 0);
   return `
     <div class="cards-grid">
-      ${[['Growth', '12.5%'], ['Revenue', '22.1%'], ['Engagement', '68%']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l} opened"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${[['Accounts', String(accounts), 'settings'], ['Revenue collected', fmtMoney(paid?.total || 0), 'invoices'], ['Bookings', String(bookings), 'tickets']].map(([l, v, page]) => `<button class="compact-card" type="button" data-page-link="${page}"><span class="muted">${l}</span><h2>${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     <div class="reports-grid">
       <section class="card full">
-        <div class="card-title"><h2>Revenue by invoice status</h2><button class="link-button"><span data-icon="download"></span> Export CSV</button></div>
+        <div class="card-title"><h2>Revenue by invoice status</h2><button class="link-button" data-export><span data-icon="download"></span> Export CSV</button></div>
         ${realBars((adminCharts?.revenueByStatus || []).map((r) => ({ label: r.status, value: Math.round(r.total / 100) })), '#1f3a73')}
       </section>
       <section class="card">
-        <div class="card-title"><h2>Accounts by role</h2><button class="link-button">Details</button></div>
+        <div class="card-title"><h2>Accounts by role</h2></div>
         ${realBars((adminCharts?.usersByRole || []).map((r) => ({ label: r.role, value: r.count })), '#f2aa00')}
       </section>
       <section class="card">
-        <div class="card-title"><h2>Bookings per event</h2><button class="link-button">Details</button></div>
+        <div class="card-title"><h2>Bookings per event</h2></div>
         ${realBars((adminCharts?.bookingsPerEvent || []).map((e) => ({ label: e.title, value: e.count })), '#0f9f6e')}
       </section>
       <section class="card full">
-        <div class="card-title"><h2>Engagement breakdown</h2><button class="link-button">Filters</button></div>
-        ${lineChart('#0f9f6e', [45, 52, 48, 58, 62, 55, 67, 71, 68, 74, 78, 82])}
+        <div class="card-title"><h2>Bookings per month (last 12)</h2><span class="chip">${months.reduce((n, m) => n + m.bookings, 0)} in 12 months</span></div>
+        ${months.length ? lineChart('#0f9f6e', months.map((m) => m.bookings)) : emptyState('No history yet', 'Bookings build this trend as they come in.')}
       </section>
     </div>
   `;
@@ -877,6 +780,7 @@ function settingsBody(tab) {
           <div style="display:flex;align-items:center;gap:10px"><span class="sponsor-mark">${(u.name || '?').charAt(0)}</span><div><strong>${u.name}</strong><br /><small class="muted">${u.email}</small></div></div>
           <span class="chip">${ROLES[u.role]?.label || cap(u.role)}</span>
           <span class="invoice-status ${u.status === 'active' ? 'paid' : 'due'}">${cap(u.status)}</span>
+          ${u.email === currentUser?.email ? '<span class="muted" style="font-size:12px">You</span>' : `<span style="display:flex;gap:8px"><button class="link-button" data-user-status="${u.email}|${u.status === 'suspended' ? 'active' : 'suspended'}">${u.status === 'suspended' ? 'Reactivate' : 'Suspend'}</button>${u.role === 'admin' ? '' : `<button class="link-button" data-remove-user="${u.email}" style="color:var(--red)">Remove</button>`}</span>`}
         </div>
       `).join('') : emptyState('No users yet', 'Invite your first user.')}
     </section>`;
@@ -1002,6 +906,7 @@ async function loadMemberData() {
   if (tk.ok && tk.data?.tickets) memberTickets = tk.data.tickets;
   if (inv.ok && inv.data?.invoices) memberInvoices = inv.data.invoices;
   if (mem.ok && mem.data?.membership) memberProfile = mem.data.membership;
+  await Promise.all([loadNotifications(), loadNetworking()]);
 }
 
 async function bookEvent(code) {
@@ -1028,6 +933,12 @@ async function payInvoice(number) {
   render('invoices');
 }
 
+function sumInvoices(rows, statuses) {
+  const cents = rows.filter((i) => statuses.includes(i.status))
+    .reduce((n, i) => n + (Number(i.amount_cents) || 0), 0);
+  return fmtMoney(cents);
+}
+
 const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB');
 
 let adminCharts = null;
@@ -1038,8 +949,8 @@ let adminIntegrations = {};
 function exportCSV() {
   const page = (location.hash.replace('#', '') || 'dashboard');
   const sets = {
-    dashboard: [['Metric', 'Value', 'Change'], metrics.map((m) => [m[0], m[1], m[2]])],
-    reports: [['Metric', 'Value', 'Change'], metrics.map((m) => [m[0], m[1], m[2]])],
+    dashboard: [['Metric', 'Value'], metrics.map((m) => [m[0], m[1]])],
+    reports: [['Metric', 'Value'], metrics.map((m) => [m[0], m[1]])],
     invoices: [['Invoice', 'Client', 'Amount', 'Issued', 'Due', 'Status'], invoices.map((i) => [i.id, i.client || '', i.amount, i.issued || '', i.due || '', i.status])],
     events: [['Event', 'Date', 'City', 'Attendees', 'Capacity', 'Status'], eventsCatalog.map((e) => [e.title, e.date, e.city, e.attendees, e.capacity, e.status])],
     crm: [['Name', 'Email', 'Company', 'Status'], contacts.map((c) => [c.name, c.email, c.company, c.status])],
@@ -1091,8 +1002,9 @@ function animateNumbers(root) {
 }
 
 async function loadAdminData() {
+  const rangeQS = statsRange.days ? `?range=${statsRange.days}` : '';
   const [st, mem, spo, inv, ev] = await Promise.all([
-    api('/api/admin/stats'),
+    api(`/api/admin/stats${rangeQS}`),
     api('/api/admin/members'),
     api('/api/admin/sponsors'),
     api('/api/admin/invoices'),
@@ -1101,19 +1013,19 @@ async function loadAdminData() {
   if (st.ok && st.data?.stats) {
     const s = st.data.stats;
     metrics = [
-      ['Total Members', String(s.members), '12.5%', 'users', '#1f3a73'],
-      ['Sponsors', String(s.sponsors), '8.3%', 'star', '#f2aa00'],
-      ['Events', String(s.events), '6.1%', 'calendar', '#2563eb'],
-      ['Bookings', String(s.bookings), '18.7%', 'ticket', '#0f9f6e'],
-      ['Revenue', fmtMoney(s.revenue_cents), '22.1%', 'chart', '#1f3a73']
+      ['Total Members', String(s.members), 'memberships', 'users', '#1f3a73'],
+      ['Sponsors', String(s.sponsors), 'sponsors', 'star', '#f2aa00'],
+      ['Events', String(s.events), 'events', 'calendar', '#2563eb'],
+      ['Bookings', String(s.bookings), 'tickets', 'ticket', '#0f9f6e'],
+      ['Revenue collected', fmtMoney(s.revenue_cents), 'invoices', 'chart', '#1f3a73']
     ];
   }
-  if (mem.ok && mem.data?.members) contacts = mem.data.members;
+  if (mem.ok && mem.data?.members) memberDirectory = mem.data.members;
   if (spo.ok && spo.data?.sponsors) sponsorList = spo.data.sponsors;
   if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
   if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
   const [ch, tk, dl, tix, us, intg] = await Promise.all([
-    api('/api/admin/charts'), api('/api/admin/tasks'), api('/api/admin/deals'),
+    api(`/api/admin/charts${rangeQS}`), api('/api/admin/tasks'), api('/api/admin/deals'),
     api('/api/admin/tickets'), api('/api/admin/users'), api('/api/admin/integrations')
   ]);
   if (ch.ok && ch.data) adminCharts = ch.data;
@@ -1122,6 +1034,42 @@ async function loadAdminData() {
   if (tix.ok && tix.data?.tickets) ticketRecords = tix.data.tickets;
   if (us.ok && us.data?.users) adminUsers = us.data.users;
   if (intg.ok && intg.data) adminIntegrations = intg.data;
+
+  const [ct, ms, cp, nw, act] = await Promise.all([
+    api('/api/admin/contacts'), api('/api/admin/memberships'), api('/api/admin/campaigns'),
+    api('/api/networking'), api('/api/admin/activity')
+  ]);
+  if (ct.ok && ct.data?.contacts) { contacts = ct.data.contacts; crmStats = ct.data.stats; }
+  if (ms.ok && ms.data?.tiers) {
+    membershipTiers = ms.data.tiers;
+    renewals = ms.data.renewals;
+    membershipStats = ms.data.stats;
+  }
+  if (cp.ok && cp.data?.campaigns) {
+    campaigns = cp.data.campaigns;
+    campaignAudiences = cp.data.audiences;
+    campaignStats = cp.data.stats;
+  }
+  if (nw.ok && nw.data?.intros) { introRequests = nw.data.intros; networkPeople = nw.data.people; networkStats = nw.data.stats; }
+  if (act.ok && act.data?.activity) activities = act.data.activity;
+  await loadNotifications();
+}
+
+/* Notification bell + panel, for every role. */
+async function loadNotifications() {
+  const { ok, data } = await api('/api/notifications');
+  if (!ok || !data?.notifications) return;
+  notifications = data.notifications;
+  const badge = document.querySelector('.has-badge i');
+  if (badge) badge.textContent = String(data.unread);
+}
+
+async function loadNetworking() {
+  const { ok, data } = await api('/api/networking');
+  if (!ok) return;
+  introRequests = data.intros || [];
+  networkPeople = data.people || [];
+  networkStats = data.stats || networkStats;
 }
 
 async function inviteUser(fields) {
@@ -1294,6 +1242,177 @@ async function requestIntro(id) {
   render('brandVisibility');
 }
 
+/* Filter whatever the current page is listing, by free text. */
+function filterVisibleRows(term) {
+  const q = String(term || '').trim().toLowerCase();
+  const root = document.getElementById('pageRoot');
+  if (!root) return;
+  const rows = root.querySelectorAll('.contact-row, tbody tr, .event-card, .event-row, .kanban-card, .support-item, .sponsor-row, .intro-item, .pipe-card');
+  rows.forEach((row) => {
+    // Match on the row's data, not on its action buttons ("Mark paid" must not
+    // make every invoice look Paid).
+    const clone = row.cloneNode(true);
+    clone.querySelectorAll('button, a, input, select, textarea').forEach((el) => el.remove());
+    const hide = q ? !clone.textContent.toLowerCase().includes(q) : false;
+    row.classList.toggle('filtered-out', hide);
+  });
+}
+
+function activePage() { return location.hash.replace('#', '') || ROLES[currentRole].landing; }
+
+async function refreshAdmin(page) {
+  await loadAdminData();
+  render(page || activePage());
+}
+
+/* ---------- CRM ---------- */
+async function createContact(fields) {
+  const { ok, data } = await api('/api/admin/contacts', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not add contact', 'error'); return false; }
+  showToast(`${data.contact.name} added to the CRM`, 'success');
+  await refreshAdmin('crm');
+  return true;
+}
+
+async function logContactTouch(id, kind) {
+  const { ok, data } = await api(`/api/admin/contacts/${id}/log`, { method: 'POST', body: { kind } });
+  if (!ok) { showToast(data?.error || 'Could not log that', 'error'); return; }
+  showToast(kind === 'call' ? 'Call logged' : 'Email logged against the contact', 'success');
+  closeDrawer();
+  await refreshAdmin('crm');
+}
+
+async function deleteContact(id) {
+  const { ok, data } = await api(`/api/admin/contacts/${id}`, { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Could not delete contact', 'error'); return; }
+  closeDrawer();
+  showToast('Contact deleted', 'info');
+  await refreshAdmin('crm');
+}
+
+/* ---------- Memberships ---------- */
+async function saveTier(name, fields) {
+  const { ok, data } = await api(`/api/admin/tiers/${encodeURIComponent(name)}`, { method: 'PATCH', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not save tier', 'error'); return false; }
+  showToast(`${name} tier updated`, 'success');
+  await refreshAdmin('memberships');
+  return true;
+}
+
+async function remindRenewals(email) {
+  const { ok, data } = await api('/api/admin/renewals/remind', { method: 'POST', body: email ? { email } : {} });
+  if (!ok) { showToast(data?.error || 'Could not send reminders', 'error'); return; }
+  showToast(data.reminded ? `${data.reminded} reminder(s) queued` : 'Nobody is due a reminder', data.reminded ? 'success' : 'info');
+  await refreshAdmin('memberships');
+}
+
+/* ---------- Tickets ---------- */
+async function issueTicket(fields) {
+  const { ok, data } = await api('/api/admin/tickets', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not issue ticket', 'error'); return false; }
+  showToast(`Ticket issued to ${data.ticket.buyer}`, 'success');
+  await refreshAdmin('tickets');
+  return true;
+}
+
+async function refundTicket(id) {
+  const { ok, data } = await api(`/api/admin/tickets/${id}/refund`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Could not refund', 'error'); return; }
+  showToast('Ticket refunded', 'warn');
+  await refreshAdmin('tickets');
+}
+
+/* ---------- Events ---------- */
+async function cancelEvent(id) {
+  const { ok, data } = await api(`/api/admin/events/${id}`, { method: 'PATCH', body: { status: 'Cancelled' } });
+  if (!ok) { showToast(data?.error || 'Could not cancel event', 'error'); return; }
+  closeDrawer();
+  showToast('Event cancelled — ticket holders notified', 'warn');
+  await refreshAdmin('events');
+}
+
+async function saveEvent(id, fields) {
+  const { ok, data } = await api(`/api/admin/events/${id}`, { method: 'PATCH', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not save event', 'error'); return false; }
+  showToast('Event updated', 'success');
+  await refreshAdmin('events');
+  return true;
+}
+
+/* ---------- Sponsors ---------- */
+async function createSponsor(fields) {
+  const { ok, data } = await api('/api/admin/sponsors', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not create contract', 'error'); return false; }
+  showToast(`${data.sponsor.name} onboarded as ${data.sponsor.tier} sponsor`, 'success');
+  await refreshAdmin('sponsors');
+  return true;
+}
+
+/* ---------- Campaigns ---------- */
+async function createCampaign(fields) {
+  const { ok, data } = await api('/api/admin/campaigns', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not save campaign', 'error'); return false; }
+  showToast(`Campaign ${data.campaign.status.toLowerCase()}`, 'success');
+  await refreshAdmin('email');
+  return true;
+}
+
+async function sendCampaign(id) {
+  const { ok, data } = await api(`/api/admin/campaigns/${id}/send`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Could not send campaign', 'error'); return; }
+  showToast(`Audience of ${data.sent} — ${data.delivery}`, 'success');
+  await refreshAdmin('email');
+}
+
+/* ---------- Networking ---------- */
+async function decideIntro(id, status) {
+  const { ok, data } = await api(`/api/admin/intros/${id}`, { method: 'PATCH', body: { status } });
+  if (!ok) { showToast(data?.error || 'Could not update intro', 'error'); return; }
+  showToast(status === 'matched' ? 'Introduction made' : 'Intro declined', status === 'matched' ? 'success' : 'info');
+  await loadNetworking();
+  await loadNotifications();
+  render('networking');
+}
+
+async function requestNetworkIntro(fields) {
+  const { ok, data } = await api('/api/networking/intros', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not send request', 'error'); return false; }
+  showToast(`Intro to ${data.intro.to} requested`, 'success');
+  await loadNetworking();
+  render('networking');
+  return true;
+}
+
+/* ---------- Member membership ---------- */
+async function requestTierChange(tier) {
+  const { ok, data } = await api('/api/me/membership/upgrade', { method: 'POST', body: { tier } });
+  if (!ok) { showToast(data?.error || 'Could not send request', 'error'); return; }
+  showToast(`${tier} requested — our team will confirm`, 'success');
+  await loadNotifications();
+}
+
+/* ---------- Users ---------- */
+async function removeUser(email) {
+  const { ok, data } = await api(`/api/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Could not remove user', 'error'); return; }
+  showToast('User removed', 'info');
+  await refreshAdmin('settings');
+}
+
+async function setUserStatus(email, status) {
+  const { ok, data } = await api(`/api/admin/users/${encodeURIComponent(email)}/status`, { method: 'PATCH', body: { status } });
+  if (!ok) { showToast(data?.error || 'Could not update account', 'error'); return; }
+  showToast(status === 'suspended' ? 'Account suspended' : 'Account reactivated', status === 'suspended' ? 'warn' : 'success');
+  await refreshAdmin('settings');
+}
+
+async function setTaskStatus(id, status) {
+  const { ok, data } = await api(`/api/admin/tasks/${id}`, { method: 'PATCH', body: { status } });
+  if (!ok) { showToast(data?.error || 'Could not update task', 'error'); return; }
+  showToast(status === 'done' ? 'Task complete' : 'Task reopened', status === 'done' ? 'success' : 'info');
+  await refreshAdmin();
+}
+
 async function createEvent(fields) {
   const { ok, data } = await api('/api/admin/events', { method: 'POST', body: fields });
   if (!ok) { showToast(data?.error || 'Could not create event', 'error'); return false; }
@@ -1304,26 +1423,11 @@ async function createEvent(fields) {
 }
 
 /* ---------- Sponsor data (hydrated from the API in loadSponsorData) ---------- */
-let sponsorProfile = {
-  name: 'Acme Corp', tier: 'Gold', value: '£15,000 / year', renews: 'Jun 2027', since: 'Jun 2023',
-  inclusions: ['Logo on all events', 'Keynote slot at flagship event', 'Dedicated booth at 6 events', 'Member directory feature', 'Quarterly leads report']
-};
-let sponsorStats = [['Impressions', '184,200'], ['Logo placements', '46'], ['Leads generated', '128'], ['Meetings booked', '23']];
-let sponsorLeads = [
-  { name: 'Sarah Johnson', company: 'Global Bank Ltd.', interest: 'Treasury services', when: '2d ago' },
-  { name: 'Lukas Meyer', company: 'TechVision Ltd.', interest: 'Cloud migration', when: '3d ago' },
-  { name: 'Amina Hassan', company: 'Emirates Chamber', interest: 'Trade finance', when: '5d ago' },
-  { name: 'Olivia Watson', company: 'City Finance', interest: 'Advisory retainer', when: '1w ago' }
-];
-let sponsoredEventsData = [
-  { ...eventsCatalog[0], booth: 'Booth A1', reach: '120 reach' },
-  { ...eventsCatalog[1], booth: 'Main stage', reach: '250 reach' },
-  { ...eventsCatalog[4], booth: 'Booth B3', reach: '60 reach' }
-];
-let sponsorInvoices = [
-  { id: 'INV-SP-2026-014', desc: 'Gold sponsorship — annual', amount: '£15,000', issued: '01 Jun', status: 'paid' },
-  { id: 'INV-SP-2026-022', desc: 'Additional booth — Trade Conference', amount: '£2,400', issued: '10 May', status: 'due' }
-];
+let sponsorProfile = { name: '', tier: '—', value: '—', renews: '—', since: '—', inclusions: [] };
+let sponsorStats = [];
+let sponsorLeads = [];
+let sponsoredEventsData = [];
+let sponsorInvoices = [];
 
 async function loadSponsorData() {
   const [ov, ld, ev, inv] = await Promise.all([
@@ -1337,13 +1441,14 @@ async function loadSponsorData() {
   if (ld.ok && ld.data?.leads) sponsorLeads = ld.data.leads;
   if (ev.ok && ev.data?.events) sponsoredEventsData = ev.data.events;
   if (inv.ok && inv.data?.invoices) sponsorInvoices = inv.data.invoices;
+  await Promise.all([loadNotifications(), loadNetworking()]);
 }
 
 /* ---------- Member pages ---------- */
 function memberDashboardPage() {
   return `
     <div class="cards-grid">
-      ${[['Membership', 'Premium'], ['Renews', '12 Jan 2027'], ['Events booked', memberTickets.length], ['Member since', 'Jan 2024']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+      ${[['Membership', memberProfile.tier], ['Renews', memberProfile.renews], ['Events booked', memberTickets.length], ['Member since', memberProfile.since]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="myMembership"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <div class="dashboard-grid">
       <section class="card">
@@ -1352,7 +1457,7 @@ function memberDashboardPage() {
       </section>
       <section class="card">
         <div class="card-title"><h2>My membership</h2><button class="link-button" data-page-link="myMembership">Manage</button></div>
-        <div class="tier-card gold" style="margin:0"><span class="chip">${memberProfile.tier}</span><h3>${memberProfile.tier} Member</h3><div class="price">${memberProfile.price}</div><ul>${memberProfile.benefits.slice(0, 4).map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-toast="Upgrade options opened">Upgrade plan</button></div>
+        <div class="tier-card gold" style="margin:0"><span class="chip">${memberProfile.tier}</span><h3>${memberProfile.tier} Member</h3><div class="price">${memberProfile.price}</div><ul>${memberProfile.benefits.slice(0, 4).map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-page-link="myMembership">Change plan</button></div>
       </section>
       <section class="card">
         <div class="card-title"><h2>My tickets</h2><button class="link-button" data-page-link="myEvents">View</button></div>
@@ -1363,20 +1468,29 @@ function memberDashboardPage() {
 
 function myMembershipPage() {
   const p = memberProfile;
+  const options = p.options || [];
   return `
     <div class="cards-grid">
-      ${[['Current tier', p.tier], ['Annual fee', p.price], ['Renews', p.renews]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+      ${[['Current tier', p.tier], ['Annual fee', p.price], ['Renews', p.renews]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="myMembership"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <div class="tier-grid">
-      <div class="tier-card gold"><span class="chip">Current</span><h3>Premium</h3><div class="price">£480/yr</div><ul>${p.benefits.map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-toast="You're already on Premium">Current plan</button></div>
-      <div class="tier-card silver"><span class="chip">Upgrade</span><h3>Executive</h3><div class="price">£960/yr</div><ul><li>✓ Everything in Premium</li><li>✓ VIP event access</li><li>✓ 6 guest passes per year</li><li>✓ 1:1 intro concierge</li></ul><button class="secondary-action" type="button" data-toast="Upgrade to Executive requested" data-toast-variant="success">Upgrade</button></div>
-      <div class="tier-card bronze"><span class="chip">Downgrade</span><h3>Associate</h3><div class="price">£180/yr</div><ul><li>✓ Core events</li><li>✓ Member directory</li></ul><button class="secondary-action" type="button" data-toast="Downgrade requested">Switch</button></div>
+      ${options.length ? options.map((t) => {
+        const current = t.name === p.tier;
+        return `<div class="tier-card ${t.color}">
+          <span class="chip">${current ? 'Current' : 'Switch'}</span>
+          <h3>${t.name}</h3>
+          <div class="price">${t.price}</div>
+          <ul>${(t.perks || []).map((perk) => `<li>✓ ${perk}</li>`).join('')}</ul>
+          ${current ? '<button class="secondary-action" type="button" disabled>Current plan</button>' : `<button class="secondary-action" type="button" data-upgrade-tier="${t.name}">Request ${t.name}</button>`}
+        </div>`;
+      }).join('') : emptyState('No plans published', 'Membership tiers appear here once the team publishes them.')}
     </div>
     <section class="card">
       <div class="card-title"><h2>Membership details</h2><button class="link-button" data-page-link="myInvoices">Billing history</button></div>
       <table class="table"><tbody>
         <tr><td><strong>Member since</strong></td><td>${p.since}</td></tr>
         <tr><td><strong>Next renewal</strong></td><td>${p.renews}</td></tr>
+        <tr><td><strong>Tier</strong></td><td>${p.tier}</td></tr>
         <tr><td><strong>Status</strong></td><td>${statusPill('Active')}</td></tr>
       </tbody></table>
     </section>`;
@@ -1394,7 +1508,7 @@ function myEventsPage() {
           <div class="body">
             <h3>${e.title}</h3>
             <div class="meta">${e.date} · ${e.time} · ${e.city}</div>
-            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip" style="margin-right:8px">Booked</span><button class="control" type="button" data-cancel="${e.id}" onclick="event.stopPropagation()">Cancel</button>` : (e.source === 'eventbrite' && e.url) ? `<a class="primary-action" href="${e.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Book on Eventbrite ↗</a>` : `<button class="primary-action" type="button" data-book="${e.id}" onclick="event.stopPropagation()">Book</button>`}</footer>
+            <footer><span>${e.attendees}/${e.capacity} attending</span>${booked ? `<span class="chip" style="margin-right:8px">Booked</span><button class="control" type="button" data-cancel="${e.id}">Cancel</button>` : (e.source === 'eventbrite' && e.url) ? `<a class="primary-action" href="${e.url}" target="_blank" rel="noopener">Book on Eventbrite ↗</a>` : `<button class="primary-action" type="button" data-book="${e.id}">Book</button>`}</footer>
           </div>
         </article>`;
       }).join('')}
@@ -1404,7 +1518,7 @@ function myEventsPage() {
 function memberInvoicesPage() {
   return `
     <div class="cards-grid">
-      ${[['Paid', '£730'], ['Outstanding', '£60'], ['Invoices', memberInvoices.length]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+      ${[['Paid', sumInvoices(memberInvoices, ['paid'])], ['Outstanding', sumInvoices(memberInvoices, ['due', 'sent', 'overdue'])], ['Invoices', memberInvoices.length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="myInvoices"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <section class="card">
       <div class="card-title"><h2>My invoices</h2><span class="chip">${memberProfile.tier} member</span></div>
@@ -1419,12 +1533,12 @@ function memberInvoicesPage() {
 function sponsorDashboardPage() {
   return `
     <div class="cards-grid">
-      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#f2aa00')}</button>`).join('')}
+      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsorOverview"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#f2aa00')}</button>`).join('')}
     </div>
     <div class="dashboard-grid">
       <section class="card">
         <div class="card-title"><h2>Sponsorship package</h2><button class="link-button" data-page-link="sponsorOverview">Details</button></div>
-        <div class="tier-card gold" style="margin:0"><span class="chip">${sponsorProfile.tier} tier</span><h3>${sponsorProfile.value}</h3><ul>${sponsorProfile.inclusions.slice(0, 4).map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-toast="Package details opened">View package</button></div>
+        <div class="tier-card gold" style="margin:0"><span class="chip">${sponsorProfile.tier} tier</span><h3>${sponsorProfile.value}</h3><ul>${sponsorProfile.inclusions.slice(0, 4).map((b) => `<li>✓ ${b}</li>`).join('')}</ul><button class="secondary-action" type="button" data-page-link="sponsorOverview">View package</button></div>
       </section>
       <section class="card">
         <div class="card-title"><h2>Recent leads</h2><button class="link-button" data-page-link="brandVisibility">View all</button></div>
@@ -1441,7 +1555,7 @@ function sponsorOverviewPage() {
   const p = sponsorProfile;
   return `
     <div class="cards-grid">
-      ${[['Tier', p.tier], ['Contract value', p.value], ['Renews', p.renews]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+      ${[['Tier', p.tier], ['Contract value', p.value], ['Renews', p.renews]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsorOverview"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <div class="page-grid">
       <section class="card">
@@ -1456,7 +1570,7 @@ function sponsorOverviewPage() {
           <tr><td><strong>Annual value</strong></td><td>${p.value}</td></tr>
           <tr><td><strong>Status</strong></td><td>${statusPill('Active')}</td></tr>
         </tbody></table>
-        <button class="primary-action" type="button" data-toast="Renewal enquiry sent" data-toast-variant="success" style="width:100%;margin-top:12px">Discuss renewal</button>
+        <button class="primary-action" type="button" data-renewal-enquiry style="width:100%;margin-top:12px">Discuss renewal</button>
       </aside>
     </div>`;
 }
@@ -1464,7 +1578,7 @@ function sponsorOverviewPage() {
 function brandVisibilityPage() {
   return `
     <div class="cards-grid">
-      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#1f3a73')}</button>`).join('')}
+      ${sponsorStats.map(([l, v]) => `<button class="compact-card" type="button" data-page-link="brandVisibility"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2>${spark('#1f3a73')}</button>`).join('')}
     </div>
     <div class="reports-grid">
       <section class="card full">
@@ -1481,7 +1595,7 @@ function brandVisibilityPage() {
       <div class="card-title"><h2>Leads generated</h2><span class="chip">${sponsorLeads.length} this quarter</span></div>
       <table class="table">
         <thead><tr><th>Contact</th><th>Company</th><th>Interest</th><th>When</th><th></th></tr></thead>
-        <tbody>${sponsorLeads.length ? sponsorLeads.map((l) => `<tr><td><strong>${l.name}</strong></td><td>${l.company}</td><td>${l.interest}</td><td>${l.when}</td><td>${l.id ? `<button class="link-button" data-intro="${l.id}">Request intro</button>` : `<button class="link-button" data-toast="Intro requested">Request intro</button>`}</td></tr>`).join('') : `<tr><td colspan="5">${emptyState('No open leads', 'New leads from your sponsorship appear here.')}</td></tr>`}</tbody>
+        <tbody>${sponsorLeads.length ? sponsorLeads.map((l) => `<tr><td><strong>${l.name}</strong></td><td>${l.company}</td><td>${l.interest}</td><td>${l.when}</td><td>${l.id ? `<button class="link-button" data-lead-intro="${l.id}">Request intro</button>` : '<span class="muted">—</span>'}</td></tr>`).join('') : `<tr><td colspan="5">${emptyState('No open leads', 'New leads from your sponsorship appear here.')}</td></tr>`}</tbody>
       </table>
     </section>`;
 }
@@ -1489,7 +1603,7 @@ function brandVisibilityPage() {
 function sponsoredEventsPage() {
   return `
     <div class="cards-grid">
-      ${[['Sponsored', sponsoredEventsData.length], ['Total reach', '430'], ['Booths', '6']].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+      ${[['Sponsored', sponsoredEventsData.length], ['Total attendees', sponsoredEventsData.reduce((n, e) => n + (Number(e.attendees) || 0), 0)], ['Booths', sponsoredEventsData.filter((e) => e.booth).length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsoredEvents"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <div class="event-grid">
       ${sponsoredEventsData.map((e) => `
@@ -1507,7 +1621,7 @@ function sponsoredEventsPage() {
 function sponsorInvoicesPage() {
   return `
     <div class="cards-grid">
-      ${[['Paid', '£15,000'], ['Outstanding', '£2,400'], ['Invoices', sponsorInvoices.length]].map(([l, v]) => `<button class="compact-card" type="button" data-toast="${l}"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
+      ${[['Paid', sumInvoices(sponsorInvoices, ['paid'])], ['Outstanding', sumInvoices(sponsorInvoices, ['due', 'sent', 'overdue'])], ['Invoices', sponsorInvoices.length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="myInvoices"><span class="muted">${l}</span><h2 style="font-size:22px">${v}</h2></button>`).join('')}
     </div>
     <section class="card">
       <div class="card-title"><h2>Sponsorship invoices</h2><span class="chip">${sponsorProfile.tier} sponsor</span></div>
@@ -1620,30 +1734,43 @@ function showToast(text, variant = 'info') {
 function openModal(title, body, footer) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalBody').innerHTML = body;
-  document.getElementById('modalFoot').innerHTML = footer || `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-modal-submit>Save</button>`;
+  document.getElementById('modalFoot').innerHTML = footer || '<button class="control" type="button" data-modal-close>Close</button>';
   const overlay = document.getElementById('modalOverlay');
   overlay.hidden = false;
   initIcons(overlay);
   overlay.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', closeModal));
-  overlay.querySelectorAll('[data-modal-submit]').forEach((b) => b.addEventListener('click', () => { closeModal(); showToast('Saved successfully', 'success'); }));
+  overlay.querySelectorAll('[data-modal-submit]').forEach((b) => b.addEventListener('click', closeModal));
 }
 function closeModal() { document.getElementById('modalOverlay').hidden = true; }
 
 const modalForms = {
   'new-contact': () => openModal('Add contact',
-    `<div class="form-row"><label>Full name<input type="text" placeholder="Jane Smith" required /></label><label>Email<input type="email" placeholder="jane@example.com" /></label><label>Company<input type="text" /></label><label>City<input type="text" /></label><label>Tier<select><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Status<select><option>Active</option><option>Warm</option><option>New</option></select></label></div>`),
+    `<div class="form-row"><label>Full name<input type="text" data-ct="name" placeholder="Jane Smith" required /></label><label>Email<input type="email" data-ct="email" placeholder="jane@example.com" /></label><label>Company<input type="text" data-ct="company" /></label><label>City<input type="text" data-ct="city" /></label><label>Phone<input type="text" data-ct="phone" /></label><label>Tier<select data-ct="tier"><option>Gold</option><option>Silver</option><option selected>Bronze</option></select></label><label>Status<select data-ct="status"><option>Active</option><option>Warm</option><option selected>New</option><option>Cold</option></select></label><label>Owner<input type="text" data-ct="owner" placeholder="Relationship manager" /></label></div>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-contact>Add contact</button>`),
   'new-event': () => openModal('Create event',
-    `<label>Event title<input type="text" data-field="title" placeholder="Networking Dinner" /></label><div class="form-row"><label>Date<input type="text" data-field="date_label" placeholder="Aug 12" /></label><label>Time<input type="text" data-field="time_label" placeholder="6 PM" /></label><label>City<input type="text" data-field="city" placeholder="London, UK" /></label><label>Capacity<input type="number" data-field="capacity" placeholder="120" /></label></div><label>Description<textarea placeholder="Brief overview…"></textarea></label>`,
+    `<label>Event title<input type="text" data-field="title" placeholder="Networking Dinner" /></label><div class="form-row"><label>Date<input type="text" data-field="date_label" placeholder="Aug 12" /></label><label>Time<input type="text" data-field="time_label" placeholder="6 PM" /></label><label>City<input type="text" data-field="city" placeholder="London, UK" /></label><label>Capacity<input type="number" data-field="capacity" placeholder="120" /></label></div>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-event>Create event</button>`),
   'new-ticket': () => openModal('Issue ticket',
-    `<div class="form-row"><label>Event<select>${eventsCatalog.map((e) => `<option>${e.title}</option>`).join('')}</select></label><label>Buyer<input type="text" /></label><label>Tier<select><option>VIP</option><option>Standard</option></select></label><label>Price<input type="number" placeholder="250" /></label></div>`),
+    eventsCatalog.length
+      ? `<div class="form-row"><label>Event<select data-tk="event">${eventsCatalog.filter((e) => e.status !== 'Cancelled').map((e) => `<option value="${e.id}">${e.title}</option>`).join('')}</select></label><label>Attendee email<input type="email" data-tk="email" list="memberEmails" placeholder="member@example.com" /><datalist id="memberEmails">${memberDirectory.map((m) => `<option value="${m.email}">${m.name}</option>`).join('')}</datalist></label><label>Tier<select data-tk="tier"><option>Standard</option><option>VIP</option></select></label></div>
+         <p class="muted" style="font-size:12px;margin:8px 0 0">The attendee needs an account — invite them from Settings first if they have none.</p>`
+      : '<p class="muted">Create an event before issuing tickets.</p>',
+    eventsCatalog.length
+      ? `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-issue-ticket>Issue ticket</button>`
+      : '<button class="control" type="button" data-modal-close>Close</button>'),
   'new-sponsor': () => openModal('New sponsor',
-    `<label>Sponsor name<input type="text" /></label><div class="form-row"><label>Tier<select><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Amount<input type="number" /></label><label>Renewal date<input type="date" /></label><label>Primary contact<input type="text" /></label></div>`),
+    `<label>Sponsor name<input type="text" data-sp="name" placeholder="Global Bank Ltd." /></label><div class="form-row"><label>Contact email<input type="email" data-sp="email" placeholder="partnerships@globalbank.co.uk" /></label><label>Contact name<input type="text" data-sp="contact" placeholder="Sarah Johnson" /></label><label>Tier<select data-sp="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Amount (£)<input type="number" data-sp="amount" placeholder="15000" /></label><label>Renewal<input type="text" data-sp="renewal" placeholder="Jun 2027" /></label></div>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-sponsor>Create contract</button>`),
   'new-task': () => openModal('New task',
-    `<label>Task<input type="text" data-field="title" placeholder="What needs doing?" /></label><div class="form-row"><label>Assignee<select data-field="assignee">${contacts.slice(0,5).map((c) => `<option>${c.name}</option>`).join('')}</select></label><label>Due<input type="text" data-field="due" placeholder="Fri" /></label><label>Priority<select data-field="priority"><option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option></select></label></div>`,
+    `<label>Task<input type="text" data-field="title" placeholder="What needs doing?" /></label><div class="form-row"><label>Assignee<select data-field="assignee"><option value="">Unassigned</option>${adminUsers.map((u) => `<option>${u.name}</option>`).join('')}</select></label><label>Due<input type="text" data-field="due" placeholder="Fri" /></label><label>Priority<select data-field="priority"><option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option></select></label></div>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-task>Add task</button>`),
-  'new-campaign': () => openModal('New campaign',
-    `<label>Campaign name<input type="text" /></label><label>Subject line<input type="text" /></label><div class="form-row"><label>Audience<select><option>All members</option><option>Gold tier</option><option>Expiring soon</option></select></label><label>Send time<input type="datetime-local" /></label></div>`),
+  'new-campaign': (preset = '') => openModal('New campaign',
+    `<label>Campaign name<input type="text" data-cp="name" value="${preset}" placeholder="May newsletter" /></label><label>Subject line<input type="text" data-cp="subject" placeholder="What lands in the inbox" /></label><div class="form-row"><label>Audience<select data-cp="segment">${(campaignAudiences.length ? campaignAudiences : [{ segment: 'All members', size: 0 }]).map((a) => `<option value="${a.segment}">${a.segment} (${a.size})</option>`).join('')}</select></label><label>Send time<input type="datetime-local" data-cp="scheduled_for" /></label></div>
+     <p class="muted" style="font-size:12px;margin:8px 0 0">Scheduling records the campaign now; delivery runs once an email provider is connected.</p>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-campaign>Save campaign</button>`),
+  'new-intro': () => openModal('Request an introduction',
+    `<label>Who would you like to meet?<input type="text" data-in="to" list="networkPeople" placeholder="Name or company" /><datalist id="networkPeople">${networkPeople.map((n) => `<option value="${n.name}"></option>`).join('')}</datalist></label><label>Why<textarea data-in="reason" placeholder="What you would like to explore together…"></textarea></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-intro>Request intro</button>`),
   'new-invoice': () => openInvoiceForm(),
   'new-deal': () => openModal('New deal',
     `<label>Deal title<input type="text" data-df="title" placeholder="Acme sponsorship" /></label><div class="form-row"><label>Value (£)<input type="number" data-df="value" placeholder="10000" /></label><label>Owner<input type="text" data-df="owner" placeholder="Sarah Johnson" /></label><label>Tier<select data-df="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Stage<select data-df="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="won">Won</option></select></label></div>`,
@@ -1652,6 +1779,25 @@ const modalForms = {
     `<label>Full name<input type="text" data-iu="full_name" placeholder="Jane Cole" /></label><label>Email<input type="email" data-iu="email" placeholder="jane@company.com" /></label><label>Role<select data-iu="role"><option value="member">Member</option><option value="sponsor">Sponsor</option><option value="admin">Admin</option></select></label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-invite-user>Send invite</button>`)
 };
+
+function openTierForm(name) {
+  const tier = membershipTiers.find((t) => t.name === name);
+  if (!tier) return;
+  openModal(`Manage ${tier.name} tier`,
+    `<div class="form-row"><label>Annual price (£)<input type="number" data-tr="price" value="${(tier.price_cents / 100).toFixed(2)}" step="0.01" /></label></div>
+     <label>Benefits (one per line)<textarea data-tr="perks" rows="5">${(tier.perks || []).join('\n')}</textarea></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-save-tier="${tier.name}">Save tier</button>`);
+}
+
+function openEventForm(id) {
+  const e = eventsCatalog.find((x) => x.id === id);
+  if (!e) return;
+  openModal(`Edit ${e.title}`,
+    `<label>Event title<input type="text" data-ef="title" value="${e.title}" /></label>
+     <div class="form-row"><label>Date<input type="text" data-ef="date_label" value="${e.date || ''}" /></label><label>Time<input type="text" data-ef="time_label" value="${e.time || ''}" /></label><label>City<input type="text" data-ef="city" value="${e.city || ''}" /></label><label>Capacity<input type="number" data-ef="capacity" value="${e.capacity || 0}" /></label></div>
+     <label>Status<select data-ef="status">${['Confirmed', 'Selling', 'Draft', 'Cancelled'].map((st) => `<option${st === e.status ? ' selected' : ''}>${st}</option>`).join('')}</select></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-save-event="${e.id}">Save event</button>`);
+}
 
 /* ===================== DRAWER ===================== */
 function openDrawer(title, body) {
@@ -1665,35 +1811,54 @@ function closeDrawer() { document.getElementById('drawerOverlay').hidden = true;
 
 function contactDrawer(i) {
   const c = contacts[i];
+  if (!c) return;
   return openDrawer(c.name, `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><span class="presence ${c.presence}"><img class="avatar" src="${c.avatar}" style="width:62px;height:62px;border-radius:50%" alt="" /></span>
-    <div><h2 style="margin:0">${c.name}</h2><small class="muted">${c.company} · ${c.city}</small></div></div>
-    <div class="drawer-section"><h3>Contact</h3><dl class="drawer-kv"><dt>Email</dt><dd>${c.email}</dd><dt>Phone</dt><dd>${c.phone}</dd><dt>Tier</dt><dd>${c.tier}</dd><dt>Status</dt><dd>${statusPill(c.status)}</dd><dt>Open deals</dt><dd>${c.deals}</dd><dt>Last activity</dt><dd>${c.last}</dd></dl></div>
-    <div class="drawer-section"><h3>Recent activity</h3>${activities.slice(0, 3).map(([t, b, time, tone]) => `<div class="activity"><span class="activity-icon" style="background:var(--${tone === 'purple' ? 'purple' : tone})">${icons.users}</span><div><h3>${t}</h3><span>${b}</span></div><small class="muted">${time}</small></div>`).join('')}</div>
-    <div style="display:flex;gap:10px"><button class="primary-action" type="button" data-toast="Email composer opened"><span data-icon="mail"></span>Email</button><button class="control" type="button" data-toast="Call started"><span data-icon="message"></span>Call</button><button class="control" type="button" data-confirm="delete-contact"><span data-icon="trash"></span></button></div>
+    <div><h2 style="margin:0">${c.name}</h2><small class="muted">${c.company || '—'} · ${c.city || '—'}</small></div></div>
+    <div class="drawer-section"><h3>Contact</h3><dl class="drawer-kv"><dt>Email</dt><dd>${c.email}</dd><dt>Phone</dt><dd>${c.phone || '—'}</dd><dt>Tier</dt><dd>${c.tier}</dd><dt>Status</dt><dd>${statusPill(c.status)}</dd><dt>Owner</dt><dd>${c.owner || 'Unassigned'}</dd><dt>Open deals</dt><dd>${c.deals}</dd><dt>Last activity</dt><dd>${c.last}</dd></dl></div>
+    ${c.notes ? `<div class="drawer-section"><h3>Notes</h3><p>${c.notes}</p></div>` : ''}
+    <div style="display:flex;gap:10px">
+      <a class="primary-action" href="mailto:${c.email}" data-log-contact="${c.id}:email"><span data-icon="mail"></span>Email</a>
+      <button class="control" type="button" data-log-contact="${c.id}:call"><span data-icon="message"></span>Log call</button>
+      <button class="control" type="button" data-delete-contact="${c.id}" aria-label="Delete contact"><span data-icon="trash"></span></button>
+    </div>
   `);
 }
 
 function invoiceDrawer(i) {
   const inv = invoices[i];
+  if (!inv) return;
   return openDrawer(inv.id, `
-    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:18px"><div><h2 style="margin:0;font-size:30px">${inv.amount}</h2><small class="muted">Issued ${inv.issued} · Due ${inv.due}</small></div><span class="invoice-status ${inv.status}">${inv.status}</span></div>
-    <div class="drawer-section"><h3>Client</h3><strong>${inv.client}</strong><p class="muted" style="margin:2px 0 0;font-size:13px">Billing contact pending</p></div>
-    <div class="drawer-section"><h3>Line items</h3>
-      <table class="table"><thead><tr><th>Item</th><th>Qty</th><th>Total</th></tr></thead>
-      <tbody><tr><td>Gold sponsorship — annual</td><td>1</td><td>${inv.amount}</td></tr></tbody></table>
+    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:18px"><div><h2 style="margin:0;font-size:30px">${inv.amount}</h2><small class="muted">Issued ${inv.issued || '—'} · Due ${inv.due || '—'}</small></div><span class="invoice-status ${inv.status === 'void' ? 'draft' : inv.status}">${cap(inv.status)}</span></div>
+    <div class="drawer-section"><h3>Client</h3><strong>${inv.client || '—'}</strong></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="primary-action" type="button" data-view-invoice="${inv.id}"><span data-icon="file"></span>Open invoice</button>
+      ${inv.status !== 'paid' && inv.status !== 'void' ? `<button class="control" type="button" data-remind-invoice="${inv.id}"><span data-icon="send"></span>Send reminder</button><button class="control" type="button" data-mark-paid="${inv.id}">Mark paid</button>` : ''}
     </div>
-    <div style="display:flex;gap:10px"><button class="primary-action" type="button" data-toast="Reminder sent" data-toast-variant="info"><span data-icon="send"></span>Send reminder</button><button class="control" type="button" data-toast="PDF downloaded"><span data-icon="download"></span>PDF</button>${inv.status !== 'paid' ? `<button class="control" type="button" data-confirm="mark-paid" data-id="${inv.id}">Mark paid</button>` : ''}</div>
   `);
 }
 
 function eventDrawer(id) {
-  const e = eventsCatalog.find((x) => x.id === id) || eventsCatalog[0];
+  const e = eventsCatalog.find((x) => x.id === id);
+  if (!e) return;
+  const isAdmin = currentRole === 'admin';
+  const booked = memberTickets.some((t) => t.event === e.title);
   return openDrawer(e.title, `
-    <img src="${e.img}" alt="" style="width:100%;height:180px;object-fit:cover;border-radius:12px;margin-bottom:14px" />
-    <div class="drawer-section"><h3>Details</h3><dl class="drawer-kv"><dt>Date</dt><dd>${e.date} · ${e.time}</dd><dt>Venue</dt><dd>${e.city}</dd><dt>Status</dt><dd>${statusPill(e.status)}</dd><dt>Attendees</dt><dd>${e.attendees}/${e.capacity}</dd></dl></div>
-    <div class="drawer-section"><h3>Attendees preview</h3>${avatarGroup(avatars, e.attendees - avatars.length)}</div>
-    <div style="display:flex;gap:10px"><button class="primary-action" type="button" data-toast="Invites sent" data-toast-variant="success"><span data-icon="send"></span>Send invites</button><button class="control" type="button" data-toast="Edit opened"><span data-icon="edit"></span>Edit</button><button class="control" type="button" data-confirm="cancel-event"><span data-icon="trash"></span></button></div>
+    ${e.img ? `<img src="${e.img}" alt="" style="width:100%;height:180px;object-fit:cover;border-radius:12px;margin-bottom:14px" />` : ''}
+    <div class="drawer-section"><h3>Details</h3><dl class="drawer-kv"><dt>Date</dt><dd>${e.date} · ${e.time}</dd><dt>Venue</dt><dd>${e.city}</dd><dt>Status</dt><dd>${statusPill(e.status)}</dd><dt>Attendees</dt><dd>${e.attendees}/${e.capacity}</dd>${e.source === 'eventbrite' ? '<dt>Source</dt><dd>Eventbrite</dd>' : ''}</dl></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${isAdmin
+        ? `<button class="primary-action" type="button" data-modal="new-ticket"><span data-icon="ticket"></span>Issue ticket</button>
+           <button class="control" type="button" data-edit-event="${e.id}"><span data-icon="edit"></span>Edit</button>
+           ${e.status !== 'Cancelled' ? `<button class="control" type="button" data-cancel-event="${e.id}"><span data-icon="trash"></span>Cancel event</button>` : ''}`
+        : e.status === 'Cancelled'
+          ? '<span class="chip">This event was cancelled</span>'
+          : booked
+            ? `<button class="control" type="button" data-cancel="${e.id}">Cancel my booking</button>`
+            : (e.source === 'eventbrite' && e.url)
+              ? `<a class="primary-action" href="${e.url}" target="_blank" rel="noopener">Book on Eventbrite ↗</a>`
+              : `<button class="primary-action" type="button" data-book="${e.id}">Book this event</button>`}
+    </div>
   `);
 }
 
@@ -1710,29 +1875,31 @@ function openConfirm(title, body, onOk) {
 function closeConfirm() { document.getElementById('confirmOverlay').hidden = true; confirmHandler = null; }
 
 const confirmConfig = {
-  refund: { title: 'Refund ticket?', body: 'This will refund the ticket and notify the buyer.', toast: ['Ticket refunded', 'warn'] },
-  'mark-paid': { title: 'Mark invoice as paid?', body: 'This action records a manual payment for the invoice.', toast: ['Invoice marked paid', 'success'] },
-  'cancel-event': { title: 'Cancel this event?', body: 'All confirmed attendees will be notified and refunds may apply.', toast: ['Event cancelled', 'error'] },
-  'delete-contact': { title: 'Delete contact?', body: 'This permanently removes the contact and unlinks their data.', toast: ['Contact deleted', 'error'] },
-  'remove-user': { title: 'Remove team member?', body: 'They will lose access to the workspace immediately.', toast: ['User removed', 'error'] }
+  refund: { title: 'Refund this ticket?', body: 'The booking is marked refunded, the seat is released and the attendee is notified.' },
+  'cancel-event': { title: 'Cancel this event?', body: 'The event is marked cancelled and everyone holding a ticket is notified.' },
+  'delete-contact': { title: 'Delete contact?', body: 'This permanently removes the contact from the CRM.' },
+  'remove-user': { title: 'Remove team member?', body: 'They lose access to the workspace immediately.' }
 };
 
 /* ===================== NOTIFICATIONS ===================== */
 function renderNotifPanel() {
-  const unread = notifications.filter((n) => n.unread).length;
-  document.getElementById('notifPanel').innerHTML = `
-    <div class="notif-head"><h3>Notifications</h3><button class="link-button" data-mark-read>Mark all read</button></div>
+  const panel = document.getElementById('notifPanel');
+  panel.innerHTML = `
+    <div class="notif-head"><h3>Notifications</h3>${notifications.some((n) => n.unread) ? '<button class="link-button" data-mark-read>Mark all read</button>' : ''}</div>
     <div class="notif-list">
-      ${notifications.map((n) => `<div class="notif-item ${n.unread ? 'unread' : ''}"><span class="${n.unread ? 'notif-dot' : ''}"></span><div><h4>${n.title}</h4><p>${n.body}</p></div><small>${n.time}</small></div>`).join('')}
+      ${notifications.length ? notifications.map((n) => `<div class="notif-item ${n.unread ? 'unread' : ''}"><span class="${n.unread ? 'notif-dot' : ''}"></span><div><h4>${n.title}</h4><p>${n.body}</p></div><small>${n.time}</small></div>`).join('') : emptyState('All clear', 'Activity on your account shows up here.')}
     </div>
-    <div class="notif-foot"><button class="link-button" data-toast="All notifications opened">View all</button></div>
   `;
-  document.getElementById('notifPanel').querySelector('[data-mark-read]').addEventListener('click', () => {
-    notifications.forEach((n) => n.unread = false);
-    document.querySelector('.has-badge i').textContent = '0';
-    renderNotifPanel();
-    showToast('All notifications marked read', 'success');
-  });
+  const mark = panel.querySelector('[data-mark-read]');
+  if (mark) {
+    mark.addEventListener('click', async () => {
+      const { ok } = await api('/api/notifications/read', { method: 'POST' });
+      if (!ok) { showToast('Could not mark as read', 'error'); return; }
+      await loadNotifications();
+      renderNotifPanel();
+      showToast('All notifications marked read', 'success');
+    });
+  }
 }
 
 /* ===================== PROFILE MENU ===================== */
@@ -1744,8 +1911,8 @@ function renderProfileMenu() {
   document.getElementById('profileMenu').innerHTML = `
     <div style="padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><strong>${name}</strong><br /><small class="muted">${email}</small></div>
     ${settingsItem}
-    <button class="menu-item" type="button" data-toast="Profile opened"><span data-icon="users"></span>Profile</button>
-    <button class="menu-item" type="button" data-toast="Help center opened"><span data-icon="message"></span>Help</button>
+    ${currentRole === 'admin' ? '' : '<button class="menu-item" type="button" data-page-link="support"><span data-icon="users"></span>My account</button>'}
+    <button class="menu-item" type="button" data-page-link="support"><span data-icon="message"></span>Help & support</button>
     <button class="menu-item" type="button" data-toggle-theme><span data-icon="moon"></span>Toggle theme</button>
     <div class="menu-divider"></div>
     <button class="menu-item" type="button" data-logout style="color:var(--red)"><span data-icon="logout"></span>Sign out</button>
@@ -1954,8 +2121,8 @@ function installDelegate() {
     const voidInv = find('[data-void-invoice]');
     if (voidInv) { ev.stopPropagation(); voidInvoice(voidInv.dataset.voidInvoice); return; }
 
-    const introBtn = find('[data-intro]');
-    if (introBtn) { ev.stopPropagation(); requestIntro(introBtn.dataset.intro); return; }
+    const leadIntroBtn = find('[data-lead-intro]');
+    if (leadIntroBtn) { ev.stopPropagation(); requestIntro(leadIntroBtn.dataset.leadIntro); return; }
 
     const checkinBtn = find('[data-checkin]');
     if (checkinBtn) { ev.stopPropagation(); checkInTicket(checkinBtn.dataset.checkin); return; }
@@ -1978,6 +2145,174 @@ function installDelegate() {
       saveProfile({ full_name: get('full_name'), org: get('org') });
       return;
     }
+
+    const val = (sel, attr) => {
+      const box = document.getElementById(sel);
+      return (field) => box?.querySelector(`[${attr}="${field}"]`)?.value?.trim() || '';
+    };
+
+    if (find('[data-create-contact]')) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-ct');
+      createContact({
+        name: get('name'), email: get('email'), company: get('company'), city: get('city'),
+        phone: get('phone'), tier: get('tier'), status: get('status'), owner: get('owner')
+      }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    if (find('[data-issue-ticket]')) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-tk');
+      issueTicket({ event: get('event'), email: get('email'), tier: get('tier') })
+        .then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    if (find('[data-create-sponsor]')) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-sp');
+      createSponsor({
+        name: get('name'), email: get('email'), contact: get('contact'),
+        tier: get('tier'), amount: get('amount'), renewal: get('renewal')
+      }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    if (find('[data-create-campaign]')) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-cp');
+      createCampaign({
+        name: get('name'), subject: get('subject'), segment: get('segment'), scheduled_for: get('scheduled_for') || null
+      }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    if (find('[data-create-intro]')) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-in');
+      requestNetworkIntro({ to: get('to'), reason: get('reason') }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    const saveTierBtn = find('[data-save-tier]');
+    if (saveTierBtn) {
+      ev.stopPropagation();
+      const body = document.getElementById('modalBody');
+      const price = Number(body.querySelector('[data-tr="price"]')?.value || 0);
+      const perks = (body.querySelector('[data-tr="perks"]')?.value || '').split('\n').map((x) => x.trim()).filter(Boolean);
+      saveTier(saveTierBtn.dataset.saveTier, { price_cents: Math.round(price * 100), perks })
+        .then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    const saveEventBtn = find('[data-save-event]');
+    if (saveEventBtn) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-ef');
+      saveEvent(saveEventBtn.dataset.saveEvent, {
+        title: get('title'), date_label: get('date_label'), time_label: get('time_label'),
+        city: get('city'), capacity: Number(get('capacity')) || 0, status: get('status')
+      }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    const tierBtn = find('[data-tier-manage]');
+    if (tierBtn) { ev.stopPropagation(); openTierForm(tierBtn.dataset.tierManage); return; }
+
+    const editEventBtn = find('[data-edit-event]');
+    if (editEventBtn) { ev.stopPropagation(); closeDrawer(); openEventForm(editEventBtn.dataset.editEvent); return; }
+
+    if (find('[data-remind-renewals]')) { ev.stopPropagation(); remindRenewals(); return; }
+    const nudgeBtn = find('[data-nudge]');
+    if (nudgeBtn) { ev.stopPropagation(); remindRenewals(nudgeBtn.dataset.nudge); return; }
+
+    const sendCampaignBtn = find('[data-send-campaign]');
+    if (sendCampaignBtn) { ev.stopPropagation(); sendCampaign(sendCampaignBtn.dataset.sendCampaign); return; }
+
+    const templateCard = find('[data-template]');
+    if (templateCard) { ev.stopPropagation(); modalForms['new-campaign'](`${templateCard.dataset.template} campaign`); return; }
+
+    const introBtn = find('[data-intro]');
+    if (introBtn) {
+      ev.stopPropagation();
+      const [id, status] = introBtn.dataset.intro.split(':');
+      decideIntro(id, status);
+      return;
+    }
+
+    const upgradeBtn = find('[data-upgrade-tier]');
+    if (upgradeBtn) { ev.stopPropagation(); requestTierChange(upgradeBtn.dataset.upgradeTier); return; }
+
+    const logBtn = find('[data-log-contact]');
+    if (logBtn) {
+      const [id, kind] = logBtn.dataset.logContact.split(':');
+      logContactTouch(id, kind);
+      if (kind !== 'email') ev.stopPropagation();
+      return;
+    }
+
+    const delContact = find('[data-delete-contact]');
+    if (delContact) {
+      ev.stopPropagation();
+      const cfg = confirmConfig['delete-contact'];
+      openConfirm(cfg.title, cfg.body, () => deleteContact(delContact.dataset.deleteContact));
+      return;
+    }
+
+    const refundBtn = find('[data-refund]');
+    if (refundBtn) {
+      ev.stopPropagation();
+      const cfg = confirmConfig.refund;
+      openConfirm(cfg.title, cfg.body, () => refundTicket(refundBtn.dataset.refund));
+      return;
+    }
+
+    const cancelEventBtn = find('[data-cancel-event]');
+    if (cancelEventBtn) {
+      ev.stopPropagation();
+      const cfg = confirmConfig['cancel-event'];
+      openConfirm(cfg.title, cfg.body, () => cancelEvent(cancelEventBtn.dataset.cancelEvent));
+      return;
+    }
+
+    const removeUserBtn = find('[data-remove-user]');
+    if (removeUserBtn) {
+      ev.stopPropagation();
+      const cfg = confirmConfig['remove-user'];
+      openConfirm(cfg.title, cfg.body, () => removeUser(removeUserBtn.dataset.removeUser));
+      return;
+    }
+
+    const statusBtn = find('[data-user-status]');
+    if (statusBtn) {
+      ev.stopPropagation();
+      const [email, status] = statusBtn.dataset.userStatus.split('|');
+      setUserStatus(email, status);
+      return;
+    }
+
+    if (find('[data-renewal-enquiry]')) {
+      ev.stopPropagation();
+      api('/api/support/tickets', { method: 'POST', body: {
+        subject: 'Sponsorship renewal enquiry',
+        message: `Please get in touch about renewing our ${sponsorProfile.tier} sponsorship (renews ${sponsorProfile.renews}).`
+      } }).then(async ({ ok, data }) => {
+        if (!ok) { showToast(data?.error || 'Could not send enquiry', 'error'); return; }
+        showToast('Renewal enquiry sent — our team will reply in Support', 'success');
+        await loadSupport();
+      });
+      return;
+    }
+
+    const remindInvBtn = find('[data-remind-invoice]');
+    if (remindInvBtn) { ev.stopPropagation(); remindInvoice(remindInvBtn.dataset.remindInvoice); return; }
+
+    const markPaidBtn = find('[data-mark-paid]');
+    if (markPaidBtn) { ev.stopPropagation(); payInvoice(markPaidBtn.dataset.markPaid); return; }
+
+    const crmChip = find('[data-crm-filter]');
+    if (crmChip) { ev.stopPropagation(); crmFilter = crmChip.dataset.crmFilter; render('crm'); return; }
 
     const modalBtn = find('[data-modal]');
     if (modalBtn) { ev.stopPropagation(); modalForms[modalBtn.dataset.modal]?.(); return; }
@@ -2018,6 +2353,8 @@ function installDelegate() {
     if (chip) {
       chip.parentElement.querySelectorAll('.filter-chip').forEach((x) => x.classList.remove('is-active'));
       chip.classList.add('is-active');
+      const label = chip.textContent.replace(/\d+$/, '').trim();
+      filterVisibleRows(/^all$/i.test(label) ? '' : label);
       return;
     }
 
@@ -2051,10 +2388,12 @@ function installDelegate() {
     const rangeBtn = find('[data-range]');
     if (rangeBtn) {
       ev.stopPropagation();
+      const label = rangeBtn.dataset.range;
+      statsRange = { label, days: RANGE_DAYS[label] ?? null };
       const lbl = document.getElementById('rangeLabel');
-      if (lbl) lbl.textContent = rangeBtn.dataset.range;
-      document.querySelectorAll('.dropdown').forEach((d) => d.hidden = true);
-      showToast(`Showing: ${rangeBtn.dataset.range}`, 'info');
+      if (lbl) lbl.textContent = label;
+      document.querySelectorAll('.dropdown').forEach((d) => { d.hidden = true; });
+      refreshAdmin().then(() => showToast(`Showing ${label.toLowerCase()}`, 'info'));
       return;
     }
 
@@ -2070,11 +2409,13 @@ function installDelegate() {
   });
 
   document.body.addEventListener('change', (ev) => {
-    const cb = ev.target.closest('.task-item input[type="checkbox"]');
-    if (cb) showToast(cb.checked ? 'Task complete' : 'Task reopened', cb.checked ? 'success' : 'info');
+    const cb = ev.target.closest('.task-item input[type="checkbox"][data-task-done]');
+    if (cb) setTaskStatus(cb.dataset.taskDone, cb.checked ? 'done' : 'todo');
   });
   document.body.addEventListener('input', (ev) => {
     if (ev.target.closest('.inv-item') || ev.target.matches('[data-iv="vat"]')) recalcInvoice();
+    const search = ev.target.closest('.filterbar .search-input');
+    if (search) filterVisibleRows(search.value);
   });
 }
 
@@ -2186,8 +2527,9 @@ document.querySelectorAll('[data-demo]').forEach((b) => b.addEventListener('clic
   form.querySelectorAll('input').forEach((i) => i.dispatchEvent(new Event('blur')));
 }));
 document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('is-open'));
+document.getElementById('globalSearch').addEventListener('input', (e) => filterVisibleRows(e.currentTarget.value));
 document.getElementById('globalSearch').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') showToast(`Searching for "${e.currentTarget.value || 'everything'}"`, 'info');
+  if (e.key === 'Enter') { e.preventDefault(); openCommand(); }
 });
 
 /* dropdowns */

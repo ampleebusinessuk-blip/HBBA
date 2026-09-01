@@ -7,6 +7,7 @@ import { authRouter } from './routes/auth.js';
 import { dataRouter } from './routes/data.js';
 import { invoicesRouter } from './routes/invoices.js';
 import { supportRouter } from './routes/support.js';
+import { crmRouter } from './routes/crm.js';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -48,6 +49,7 @@ export function createApp() {
   app.use('/api/auth', rateLimit({ windowMs: 60000, max: 30 }), authRouter);
   app.use('/api', invoicesRouter);
   app.use('/api', supportRouter);
+  app.use('/api', crmRouter);
   app.use('/api', dataRouter);
 
   // Unknown API routes should 404 as JSON, not fall through to the SPA.

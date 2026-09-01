@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth } from '../auth.js';
+import { logActivity } from '../activity.js';
 
 export const supportRouter = Router();
 supportRouter.use(requireAuth);
@@ -69,6 +70,7 @@ supportRouter.post('/support/tickets', async (req, res, next) => {
       'INSERT INTO support_messages (ticket_id, author_id, author_name, author_role, body) VALUES ($1,$2,$3,$4,$5)',
       [t.rows[0].id, req.auth.sub, me.full_name, me.role, message]
     );
+    await logActivity({ kind: 'support', title: 'New support ticket', body: `${subject} — ${me.full_name}`, tone: 'orange' });
     res.status(201).json({ id: t.rows[0].id });
   } catch (err) { next(err); }
 });

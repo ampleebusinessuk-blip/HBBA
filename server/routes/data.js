@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { ebConfigured, listOrgEvents, eventAttendeeCount, createOrgEvent } from '../eventbrite.js';
+import { logActivity } from '../activity.js';
 
 const STOCK_AVATAR = 'https://i.pravatar.cc/96?img=12';
 
@@ -36,19 +37,14 @@ function invoiceDTO(row) {
     id: row.number,
     desc: row.description,
     amount: money(row.amount_cents, row.currency),
+    amount_cents: row.amount_cents,
     issued: row.issued_on,
     status: row.status,
     pdf: row.pdf_url || null
   };
 }
 
-/* Membership tiers are static reference data for now (no billing yet). */
-const MEMBERSHIP = {
-  member: {
-    tier: 'Premium', price: '£480 / year', renews: '12 Jan 2027', since: 'Jan 2024',
-    benefits: ['All member events', 'Priority event booking', 'Member directory access', 'Quarterly business briefings', '2 guest passes per year']
-  }
-};
+
 
 dataRouter.use(requireAuth);
 
@@ -80,6 +76,7 @@ dataRouter.post('/events/:code/book', async (req, res, next) => {
        ON CONFLICT (user_id, event_id) DO UPDATE SET tier = EXCLUDED.tier`,
       [req.auth.sub, ev.rows[0].id, tier]
     );
+    await logActivity({ kind: 'booking', title: 'Event booked', body: `${ev.rows[0].title} · ${tier}`, tone: 'green' });
     res.status(201).json({ ok: true, event: ev.rows[0].title });
   } catch (err) { next(err); }
 });
@@ -119,9 +116,46 @@ dataRouter.get('/me/invoices', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Membership summary for the current member.
-dataRouter.get('/me/membership', (req, res) => {
-  res.json({ membership: MEMBERSHIP.member });
+// Membership summary for the current member, from their own record + tier table.
+dataRouter.get('/me/membership', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT u.tier, u.renews_on, u.created_at, t.price_cents, t.perks
+         FROM users u LEFT JOIN membership_tiers t ON t.name = u.tier
+        WHERE u.id = $1`, [req.auth.sub]);
+    const u = rows[0] || {};
+    const tiers = await query('SELECT name, price_cents, perks, color FROM membership_tiers ORDER BY sort');
+    res.json({ membership: {
+      tier: u.tier || 'Unassigned',
+      price: u.price_cents ? `${money(u.price_cents)} / year` : 'No plan yet',
+      renews: u.renews_on ? new Date(u.renews_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+      since: u.created_at ? new Date(u.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '—',
+      benefits: u.perks || [],
+      options: tiers.rows.map((t) => ({ name: t.name, price: `${money(t.price_cents)}/yr`, perks: t.perks, color: t.color }))
+    } });
+  } catch (err) { next(err); }
+});
+
+// A member asks to move tier. Admins action it from Memberships.
+dataRouter.post('/me/membership/upgrade', async (req, res, next) => {
+  try {
+    const wanted = String(req.body?.tier || '').trim();
+    if (!wanted) return res.status(400).json({ error: 'Choose a tier' });
+    const { rows: tier } = await query('SELECT name FROM membership_tiers WHERE name = $1', [wanted]);
+    if (!tier[0]) return res.status(404).json({ error: 'Unknown tier' });
+    const { rows: me } = await query('SELECT full_name, tier FROM users WHERE id = $1', [req.auth.sub]);
+    if (me[0]?.tier === wanted) return res.status(409).json({ error: `You are already on ${wanted}` });
+    await logActivity({
+      kind: 'membership', title: 'Tier change requested',
+      body: `${me[0]?.full_name || 'A member'} → ${wanted}`, tone: 'orange'
+    });
+    await logActivity({
+      kind: 'membership', title: 'Tier change requested',
+      body: `We have your request to move to ${wanted}. Our team will confirm.`,
+      tone: 'blue', role: 'all', userId: req.auth.sub
+    });
+    res.status(201).json({ ok: true, requested: wanted });
+  } catch (err) { next(err); }
 });
 
 // Update the current user's own profile (name / org).
@@ -205,15 +239,24 @@ dataRouter.get('/sponsor/events', async (req, res, next) => {
 const adminOnly = requireRole('admin');
 
 // Org-wide metrics for the admin dashboard.
-dataRouter.get('/admin/stats', adminOnly, async (_req, res, next) => {
+// `range` (in days) narrows every count to what was created inside the window.
+function rangeDays(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 && n <= 3650 ? Math.round(n) : null;
+}
+
+dataRouter.get('/admin/stats', adminOnly, async (req, res, next) => {
   try {
+    const days = rangeDays(req.query.range);
+    const since = days ? `now() - INTERVAL '${days} days'` : null;
+    const win = (col) => (since ? ` AND ${col} >= ${since}` : '');
     const r = await query(`SELECT
-      (SELECT count(*) FROM users WHERE role='member')  AS members,
-      (SELECT count(*) FROM users WHERE role='sponsor') AS sponsors,
-      (SELECT count(*) FROM events)                     AS events,
-      (SELECT count(*) FROM event_bookings)             AS bookings,
-      (SELECT coalesce(sum(amount_cents),0) FROM invoices WHERE status='paid') AS revenue_cents`);
-    res.json({ stats: r.rows[0] });
+      (SELECT count(*) FROM users WHERE role='member'${win('created_at')})  AS members,
+      (SELECT count(*) FROM users WHERE role='sponsor'${win('created_at')}) AS sponsors,
+      (SELECT count(*) FROM events WHERE true${win('created_at')})          AS events,
+      (SELECT count(*) FROM event_bookings WHERE true${win('created_at')})  AS bookings,
+      (SELECT coalesce(sum(amount_cents),0) FROM invoices WHERE status='paid'${win('created_at')}) AS revenue_cents`);
+    res.json({ stats: r.rows[0], range: days });
   } catch (err) { next(err); }
 });
 
@@ -253,24 +296,37 @@ dataRouter.patch('/admin/users/:email/status', adminOnly, async (req, res, next)
       [status, req.params.email]
     );
     if (!rowCount) return res.status(404).json({ error: 'User not found' });
+    await logActivity({
+      kind: 'user', title: status === 'suspended' ? 'Account suspended' : 'Account reactivated',
+      body: req.params.email, tone: status === 'suspended' ? 'red' : 'green'
+    });
     res.json({ ok: true, status });
   } catch (err) { next(err); }
 });
 
 // Real aggregates for admin charts.
-dataRouter.get('/admin/charts', adminOnly, async (_req, res, next) => {
+dataRouter.get('/admin/charts', adminOnly, async (req, res, next) => {
   try {
-    const [rev, roles, perEvent] = await Promise.all([
-      query(`SELECT status, coalesce(sum(amount_cents),0)::bigint AS total FROM invoices GROUP BY status`),
-      query(`SELECT role, count(*)::int AS count FROM users GROUP BY role`),
+    const days = rangeDays(req.query.range);
+    const win = (col) => (days ? ` AND ${col} >= now() - INTERVAL '${days} days'` : '');
+    const [rev, roles, perEvent, monthly] = await Promise.all([
+      query(`SELECT status, coalesce(sum(amount_cents),0)::bigint AS total FROM invoices WHERE true${win('created_at')} GROUP BY status`),
+      query(`SELECT role, count(*)::int AS count FROM users WHERE true${win('created_at')} GROUP BY role`),
       query(`SELECT e.title, count(b.id)::int AS count
-               FROM events e LEFT JOIN event_bookings b ON b.event_id = e.id
-              GROUP BY e.title ORDER BY count DESC, e.title LIMIT 6`)
+               FROM events e LEFT JOIN event_bookings b ON b.event_id = e.id${days ? ` AND b.created_at >= now() - INTERVAL '${days} days'` : ''}
+              GROUP BY e.title ORDER BY count DESC, e.title LIMIT 6`),
+      query(`SELECT to_char(m.month, 'Mon YYYY') AS label,
+                    (SELECT count(*)::int FROM users u WHERE date_trunc('month', u.created_at) = m.month) AS signups,
+                    (SELECT count(*)::int FROM event_bookings b WHERE date_trunc('month', b.created_at) = m.month) AS bookings
+               FROM generate_series(date_trunc('month', now()) - INTERVAL '11 months',
+                                    date_trunc('month', now()), INTERVAL '1 month') AS m(month)
+              ORDER BY m.month`)
     ]);
     res.json({
       revenueByStatus: rev.rows.map((r) => ({ status: r.status, total: Number(r.total) })),
       usersByRole: roles.rows.map((r) => ({ role: r.role, count: r.count })),
-      bookingsPerEvent: perEvent.rows.map((r) => ({ title: r.title, count: r.count }))
+      bookingsPerEvent: perEvent.rows.map((r) => ({ title: r.title, count: r.count })),
+      activityByMonth: monthly.rows.map((r) => ({ label: r.label, signups: r.signups, bookings: r.bookings }))
     });
   } catch (err) { next(err); }
 });
@@ -302,7 +358,38 @@ dataRouter.post('/admin/users', adminOnly, async (req, res, next) => {
       if (err.code === '23505') return res.status(409).json({ error: 'A user with that email already exists' });
       throw err;
     }
+    await logActivity({ kind: 'user', title: 'User invited', body: `${name} · ${role}`, tone: 'blue' });
     res.status(201).json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Remove a user account (never an admin; use suspend for reversible changes).
+dataRouter.delete('/admin/users/:email', adminOnly, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `DELETE FROM users WHERE lower(email) = lower($1) AND role <> 'admin' RETURNING full_name, email`,
+      [req.params.email]);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found (admins cannot be removed here)' });
+    await logActivity({ kind: 'user', title: 'User removed', body: rows[0].email, tone: 'red' });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Move a member onto a membership tier and set the renewal date.
+dataRouter.patch('/admin/users/:email/tier', adminOnly, async (req, res, next) => {
+  try {
+    const tier = String(req.body?.tier || '').trim();
+    const { rows: known } = await query('SELECT name FROM membership_tiers WHERE name = $1', [tier]);
+    if (!known[0]) return res.status(400).json({ error: 'Unknown tier' });
+    const renews = req.body?.renews_on ? String(req.body.renews_on) : null;
+    const { rows } = await query(
+      `UPDATE users SET tier = $1,
+              renews_on = COALESCE($2::date, renews_on, CURRENT_DATE + INTERVAL '1 year')
+        WHERE lower(email) = lower($3) RETURNING full_name, email, tier, renews_on`,
+      [tier, renews, req.params.email]);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    await logActivity({ kind: 'membership', title: 'Membership tier set', body: `${rows[0].full_name} → ${tier}`, tone: 'green' });
+    res.json({ user: rows[0] });
   } catch (err) { next(err); }
 });
 
@@ -338,6 +425,7 @@ dataRouter.patch('/admin/tickets/:id/checkin', adminOnly, async (req, res, next)
       'UPDATE event_bookings SET checked_in = $1, checked_in_at = CASE WHEN $1 THEN now() ELSE NULL END WHERE id = $2',
       [checked, req.params.id]);
     if (!rowCount) return res.status(404).json({ error: 'Ticket not found' });
+    if (checked) await logActivity({ kind: 'ticket', title: 'Attendee checked in', body: 'Ticket desk', tone: 'green' });
     res.json({ ok: true, checked_in: checked });
   } catch (err) { next(err); }
 });
@@ -367,6 +455,7 @@ dataRouter.post('/admin/deals', adminOnly, async (req, res, next) => {
     const st = ['lead', 'qualified', 'proposal', 'won', 'lost'].includes(stage) ? stage : 'lead';
     const { rows } = await query('INSERT INTO deals (title, value_cents, owner, tier, stage) VALUES ($1,$2,$3,$4,$5) RETURNING id',
       [String(title).trim(), cents, owner || null, tier || 'Silver', st]);
+    await logActivity({ kind: 'deal', title: 'Deal created', body: `${String(title).trim()} · ${money(cents)}`, tone: 'blue' });
     res.status(201).json({ id: rows[0].id });
   } catch (err) { next(err); }
 });
@@ -375,8 +464,11 @@ dataRouter.patch('/admin/deals/:id', adminOnly, async (req, res, next) => {
   try {
     const stage = ['lead', 'qualified', 'proposal', 'won', 'lost'].includes(req.body?.stage) ? req.body.stage : null;
     if (!stage) return res.status(400).json({ error: 'Valid stage required' });
-    const { rowCount } = await query('UPDATE deals SET stage = $1 WHERE id = $2', [stage, req.params.id]);
-    if (!rowCount) return res.status(404).json({ error: 'Deal not found' });
+    const { rows } = await query('UPDATE deals SET stage = $1 WHERE id = $2 RETURNING title, value_cents', [stage, req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Deal not found' });
+    if (stage === 'won') {
+      await logActivity({ kind: 'deal', title: 'Deal won', body: `${rows[0].title} · ${money(rows[0].value_cents)}`, tone: 'green' });
+    }
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
@@ -400,6 +492,7 @@ dataRouter.post('/admin/tasks', adminOnly, async (req, res, next) => {
       `INSERT INTO tasks (title, assignee, priority, status, due) VALUES ($1,$2,$3,'todo',$4) RETURNING id`,
       [String(title).trim(), assignee || null, p, due || null]
     );
+    await logActivity({ kind: 'task', title: 'Task created', body: String(title).trim(), tone: 'blue' });
     res.status(201).json({ id: rows[0].id });
   } catch (err) { next(err); }
 });
@@ -441,6 +534,7 @@ dataRouter.post('/admin/events', adminOnly, async (req, res, next) => {
       [code, String(title).trim(), date_label || 'TBC', time_label || 'TBC', city || 'TBC',
        Number(capacity) || 100, ebId, url, ebId ? 'eventbrite' : 'local']
     );
+    await logActivity({ kind: 'event', title: 'Event created', body: rows[0].title, tone: 'blue' });
     res.status(201).json({ event: rows[0], pushed: Boolean(ebId) });
   } catch (err) { next(err); }
 });
@@ -472,5 +566,125 @@ dataRouter.post('/admin/eventbrite/sync', adminOnly, async (_req, res, next) => 
       imported++;
     }
     res.json({ ok: true, imported });
+  } catch (err) { next(err); }
+});
+
+// Issue a ticket on a member's behalf (admin ticket desk).
+dataRouter.post('/admin/tickets', adminOnly, async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const code = String(req.body?.event || '').trim();
+    const tier = req.body?.tier === 'VIP' ? 'VIP' : 'Standard';
+    const buyer = await query('SELECT id, full_name FROM users WHERE lower(email) = $1', [email]);
+    if (!buyer.rows[0]) return res.status(404).json({ error: 'No account with that email' });
+    const ev = await query('SELECT id, title, capacity FROM events WHERE code = $1 OR title = $1', [code]);
+    if (!ev.rows[0]) return res.status(404).json({ error: 'Event not found' });
+    const sold = await query('SELECT count(*)::int AS n FROM event_bookings WHERE event_id = $1', [ev.rows[0].id]);
+    if (sold.rows[0].n >= ev.rows[0].capacity) return res.status(409).json({ error: 'That event is sold out' });
+    const { rows } = await query(
+      `INSERT INTO event_bookings (user_id, event_id, tier, status)
+       VALUES ($1,$2,$3,'Confirmed')
+       ON CONFLICT (user_id, event_id) DO UPDATE SET tier = EXCLUDED.tier, status = 'Confirmed'
+       RETURNING id`,
+      [buyer.rows[0].id, ev.rows[0].id, tier]);
+    await logActivity({ kind: 'ticket', title: 'Ticket issued', body: `${ev.rows[0].title} · ${buyer.rows[0].full_name}`, tone: 'green' });
+    await logActivity({
+      kind: 'ticket', title: 'You have a new ticket', body: `${ev.rows[0].title} · ${tier}`,
+      tone: 'green', role: 'all', userId: buyer.rows[0].id
+    });
+    res.status(201).json({ ticket: { id: rows[0].id, event: ev.rows[0].title, buyer: buyer.rows[0].full_name, tier } });
+  } catch (err) { next(err); }
+});
+
+// Refund a ticket: the booking stays on file, marked refunded, and frees capacity.
+dataRouter.post('/admin/tickets/:id/refund', adminOnly, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `UPDATE event_bookings b SET status = 'Refunded', checked_in = false
+         WHERE b.id = $1 AND b.status <> 'Refunded'
+       RETURNING b.id, b.user_id, (SELECT title FROM events e WHERE e.id = b.event_id) AS event`,
+      [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Ticket not found or already refunded' });
+    await logActivity({ kind: 'ticket', title: 'Ticket refunded', body: rows[0].event, tone: 'orange' });
+    await logActivity({
+      kind: 'ticket', title: 'Your ticket was refunded', body: rows[0].event,
+      tone: 'orange', role: 'all', userId: rows[0].user_id
+    });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// Update an event (status changes, including cancellation).
+dataRouter.patch('/admin/events/:code', adminOnly, async (req, res, next) => {
+  try {
+    const allowed = ['Confirmed', 'Selling', 'Draft', 'Cancelled'];
+    const fields = [];
+    const values = [];
+    if (req.body?.status !== undefined) {
+      if (!allowed.includes(req.body.status)) return res.status(400).json({ error: `status must be one of ${allowed.join(', ')}` });
+      values.push(req.body.status); fields.push(`status = $${values.length}`);
+    }
+    for (const key of ['title', 'date_label', 'time_label', 'city']) {
+      if (req.body?.[key] !== undefined) { values.push(String(req.body[key])); fields.push(`${key} = $${values.length}`); }
+    }
+    if (req.body?.capacity !== undefined) { values.push(Number(req.body.capacity) || 0); fields.push(`capacity = $${values.length}`); }
+    if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
+    values.push(req.params.code);
+    const { rows } = await query(
+      `UPDATE events SET ${fields.join(', ')} WHERE code = $${values.length} RETURNING code, title, status`, values);
+    if (!rows[0]) return res.status(404).json({ error: 'Event not found' });
+    if (rows[0].status === 'Cancelled') {
+      const attendees = await query(
+        'SELECT user_id FROM event_bookings WHERE event_id = (SELECT id FROM events WHERE code = $1)', [req.params.code]);
+      for (const a of attendees.rows) {
+        await logActivity({
+          kind: 'event', title: 'Event cancelled', body: `${rows[0].title} — refunds will follow`,
+          tone: 'red', role: 'all', userId: a.user_id
+        });
+      }
+      await logActivity({
+        kind: 'event', title: 'Event cancelled',
+        body: `${rows[0].title} · ${attendees.rows.length} attendee(s) notified`, tone: 'red'
+      });
+    }
+    res.json({ event: rows[0] });
+  } catch (err) { next(err); }
+});
+
+// Create a sponsor contract: the sponsor account plus its sponsorship package.
+dataRouter.post('/admin/sponsors', adminOnly, async (req, res, next) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const contact = String(req.body?.contact || '').trim() || name;
+    const tier = ['Gold', 'Silver', 'Bronze'].includes(req.body?.tier) ? req.body.tier : 'Gold';
+    const amount = Math.max(0, Math.round(Number(req.body?.amount || 0) * 100));
+    if (!name) return res.status(400).json({ error: 'Sponsor name required' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Valid contact email required' });
+
+    const existing = await query('SELECT id, role FROM users WHERE lower(email) = $1', [email]);
+    let userId = existing.rows[0]?.id;
+    if (!userId) {
+      const { randomBytes } = await import('node:crypto');
+      const { hashPassword } = await import('../auth.js');
+      const hash = await hashPassword(randomBytes(12).toString('hex'));
+      const created = await query(
+        `INSERT INTO users (email, password_hash, role, full_name, org, status)
+         VALUES ($1,$2,'sponsor',$3,$4,'pending') RETURNING id`,
+        [email, hash, contact, name]);
+      userId = created.rows[0].id;
+    } else if (existing.rows[0].role !== 'sponsor') {
+      return res.status(409).json({ error: 'That email already belongs to a non-sponsor account' });
+    }
+
+    await query(
+      `INSERT INTO sponsorships (user_id, tier, value_cents, renews, since, inclusions)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (user_id) DO UPDATE SET tier = EXCLUDED.tier, value_cents = EXCLUDED.value_cents, renews = EXCLUDED.renews`,
+      [userId, tier, amount, String(req.body?.renewal || '').trim() || null,
+        new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+        JSON.stringify(req.body?.inclusions || [])]);
+    await logActivity({ kind: 'sponsor', title: 'Sponsor onboarded', body: `${name} — ${tier} sponsor`, tone: 'purple' });
+    res.status(201).json({ sponsor: { name, tier, amount: money(amount), contact, email } });
   } catch (err) { next(err); }
 });

@@ -179,6 +179,62 @@ async function seed() {
     }
   }
 
+  // --- CRM contacts ---
+  const contactCount = await pool.query('SELECT count(*)::int AS n FROM contacts');
+  if (contactCount.rows[0].n === 0) {
+    const contacts = [
+      ['Sarah Johnson', 'sarah@globalbank.co.uk', 'Global Bank Ltd.', 'London', '+44 20 7946 0991', 'Gold', 'Active'],
+      ['Lukas Meyer', 'l.meyer@techvision.de', 'TechVision Ltd.', 'Berlin', '+49 30 1234 5678', 'Silver', 'Warm'],
+      ['Amina Hassan', 'amina@emiratesch.ae', 'Emirates Chamber', 'Dubai', '+971 4 200 3000', 'Gold', 'Active'],
+      ['Peter Novak', 'pnovak@tradepartners.hu', 'Trade Partners', 'Budapest', '+36 1 555 0123', 'Bronze', 'New'],
+      ['Elena Rossi', 'erossi@italtrade.it', 'Italtrade SRL', 'Milan', '+39 02 1234 5678', 'Silver', 'Active'],
+      ['Marcus Chen', 'marcus@chenholdings.sg', 'Chen Holdings', 'Singapore', '+65 6789 0123', 'Gold', 'Warm'],
+      ['Olivia Watson', 'olivia@cityfin.co.uk', 'City Finance', 'London', '+44 20 7946 7711', 'Silver', 'Active'],
+      ['Daniel Park', 'd.park@koreabiz.kr', 'Korea Biz Group', 'Seoul', '+82 2 555 1234', 'Bronze', 'Cold']
+    ];
+    for (const [name, email, company, city, phone, tier, status] of contacts) {
+      await pool.query(
+        `INSERT INTO contacts (name, email, company, city, phone, tier, status, owner, avatar)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'John Doe',$8) ON CONFLICT (email) DO NOTHING`,
+        [name, email, company, city, phone, tier, status, `https://i.pravatar.cc/96?u=${encodeURIComponent(email)}`]);
+    }
+    console.log(`seeded ${contacts.length} contacts`);
+  }
+
+  // --- Member tier + renewal date so Memberships has something to show ---
+  await pool.query(
+    `UPDATE users SET tier = COALESCE(tier, 'Gold'), renews_on = COALESCE(renews_on, CURRENT_DATE + INTERVAL '21 days')
+      WHERE email = 'member@hbbaglobal.co.uk'`);
+  await pool.query(
+    `UPDATE users SET renews_on = COALESCE(renews_on, CURRENT_DATE + INTERVAL '45 days')
+      WHERE email = 'sponsor@hbbaglobal.co.uk'`);
+
+  // --- Campaigns ---
+  const campaignCount = await pool.query('SELECT count(*)::int AS n FROM campaigns');
+  if (campaignCount.rows[0].n === 0) {
+    const campaigns = [
+      ['May Newsletter', 'What happened in May', 'All members', 'Sent', 1, 1, 0],
+      ['Renewal Reminder', 'Your membership renews soon', 'Expiring soon', 'Draft', 0, 0, 0],
+      ['Sponsor Update Q2', 'Your Q2 sponsorship report', 'Sponsors', 'Draft', 0, 0, 0]
+    ];
+    for (const [name, subject, segment, status, sent, open, click] of campaigns) {
+      await pool.query(
+        `INSERT INTO campaigns (name, subject, segment, status, sent_count, open_count, click_count)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`, [name, subject, segment, status, sent, open, click]);
+    }
+    console.log(`seeded ${campaigns.length} campaigns`);
+  }
+
+  // --- One open introduction request ---
+  const introCount = await pool.query('SELECT count(*)::int AS n FROM intro_requests');
+  if (introCount.rows[0].n === 0 && memU.rows[0]) {
+    await pool.query(
+      `INSERT INTO intro_requests (requester_id, from_name, to_name, reason)
+       VALUES ($1,$2,'Marcus Chen','Looking to expand into the Singapore market.')`,
+      [memU.rows[0].id, memU.rows[0].full_name]);
+    console.log('seeded 1 intro request');
+  }
+
   console.log(`demo password: ${DEMO_PASSWORD}`);
 }
 

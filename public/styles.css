@@ -2068,8 +2068,8 @@ body[data-theme="dark"] .brand-logo {
 }
 
 /* ===================== Role portals ===================== */
-body[data-role="member"] .head-actions,
-body[data-role="sponsor"] .head-actions { display: none; }
+body[data-role="member"] .content > .page-head .head-actions,
+body[data-role="sponsor"] .content > .page-head .head-actions { display: none; }
 
 .demo-hint {
   margin-top: 14px;
@@ -2189,3 +2189,6 @@ body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
   #modalOverlay .modal { box-shadow: none; max-width: 100%; width: 100%; border: 0; }
   #modalOverlay .modal-head, #modalOverlay .modal-foot { display: none !important; }
 }
+
+/* rows hidden by the search box or a filter chip */
+.filtered-out { display: none !important; }

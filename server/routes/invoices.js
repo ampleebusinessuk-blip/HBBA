@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
+import { logActivity } from '../activity.js';
 import { paymentsConfigured, createInvoiceCheckout } from '../payments.js';
 
 export const invoicesRouter = Router();
@@ -123,6 +124,13 @@ invoicesRouter.post('/admin/invoices', adminOnly, async (req, res, next) => {
       await query('INSERT INTO invoice_items (invoice_id, description, qty, unit_cents, sort) VALUES ($1,$2,$3,$4,$5)',
         [invId, items[i].description, items[i].qty, items[i].unit_cents, i]);
     }
+    await logActivity({ kind: 'invoice', title: 'Invoice created', body: `${number} · ${money(total)}`, tone: 'blue' });
+    if (userId) {
+      await logActivity({
+        kind: 'invoice', title: 'New invoice', body: `${number} · ${money(total)}`,
+        tone: 'blue', role: 'all', userId
+      });
+    }
     res.status(201).json({ number });
   } catch (err) { next(err); }
 });
@@ -191,6 +199,7 @@ invoicesRouter.post('/invoices/:number/pay', async (req, res, next) => {
     if (row.status === 'paid') return res.status(400).json({ error: 'Invoice already paid' });
     if (!paymentsConfigured()) return res.status(503).json({ error: 'Online payments are not connected yet' });
     const url = await createInvoiceCheckout(row);
+    await logActivity({ kind: 'invoice', title: 'Payment started', body: row.number, tone: 'green' });
     res.json({ url });
   } catch (err) { next(err); }
 });
