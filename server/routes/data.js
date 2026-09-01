@@ -422,6 +422,35 @@ dataRouter.delete('/admin/users/:email', adminOnly, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Generate a password-reset link for an existing user. Emailed when a provider
+// is connected; otherwise handed back so the admin can pass it on themselves.
+dataRouter.post('/admin/users/:email/reset-link', adminOnly, async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT id, email, full_name FROM users WHERE lower(email) = lower($1)', [req.params.email]);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    const { link } = await createResetLink(rows[0].id, 'reset');
+    const out = await sendEmail({
+      to: rows[0].email,
+      subject: 'Reset your HBBA Global password',
+      kind: 'password-reset',
+      html: layout({
+        heading: 'Reset your password',
+        body: `<p>Hi ${rows[0].full_name},</p><p>An HBBA Global admin started a password reset for you. The link expires in an hour.</p>`,
+        cta: { url: link, label: 'Choose a new password' }
+      }),
+      text: `Reset your HBBA Global password: ${link}`
+    });
+    await logActivity({
+      kind: 'auth', title: 'Password reset link issued',
+      body: `${rows[0].email} — ${out.sent ? 'emailed' : 'handed to the admin'}`, tone: 'orange'
+    });
+    res.json({
+      ok: true, emailed: out.sent, emailConnected: emailConfigured(),
+      link: out.sent ? undefined : link, user: rows[0].full_name
+    });
+  } catch (err) { next(err); }
+});
+
 // Move a member onto a membership tier and set the renewal date.
 dataRouter.patch('/admin/users/:email/tier', adminOnly, async (req, res, next) => {
   try {

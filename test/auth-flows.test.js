@@ -173,6 +173,23 @@ test('an invited user gets a pending account and a working set-password link', a
   assert.equal(after.rows[0].status, 'active');
 });
 
+test('an admin can issue a reset link for an existing user', async () => {
+  const res = await req(`/api/admin/users/${encodeURIComponent(userEmail)}/reset-link`, { method: 'POST', cookie: adminCookie });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.emailConnected, emailConfigured());
+
+  if (!emailConfigured()) {
+    assert.ok(data.link, 'the link is handed back when it cannot be emailed');
+    const token = new URL(data.link.replace('/#reset?', '/reset?')).searchParams.get('token');
+    const used = await req('/api/auth/reset', { method: 'POST', body: { token, password: 'admin-issued-password' } });
+    assert.equal(used.status, 200);
+  }
+
+  const missing = await req('/api/admin/users/nobody@example.com/reset-link', { method: 'POST', cookie: adminCookie });
+  assert.equal(missing.status, 404);
+});
+
 test('every send is recorded, and is skipped while no provider is connected', async () => {
   const { sendEmail } = await import('../server/email.js');
   const out = await sendEmail({ to: userEmail, subject: 'Flow test', kind: 'test', text: 'hello' });

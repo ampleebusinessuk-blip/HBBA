@@ -783,7 +783,7 @@ function settingsBody(tab) {
           <div style="display:flex;align-items:center;gap:10px"><span class="sponsor-mark">${(u.name || '?').charAt(0)}</span><div><strong>${u.name}</strong><br /><small class="muted">${u.email}</small></div></div>
           <span class="chip">${ROLES[u.role]?.label || cap(u.role)}</span>
           <span class="invoice-status ${u.status === 'active' ? 'paid' : 'due'}">${cap(u.status)}</span>
-          ${u.email === currentUser?.email ? '<span class="muted" style="font-size:12px">You</span>' : `<span style="display:flex;gap:8px"><button class="link-button" data-user-status="${u.email}|${u.status === 'suspended' ? 'active' : 'suspended'}">${u.status === 'suspended' ? 'Reactivate' : 'Suspend'}</button>${u.role === 'admin' ? '' : `<button class="link-button" data-remove-user="${u.email}" style="color:var(--red)">Remove</button>`}</span>`}
+          <span style="display:flex;gap:8px"><button class="link-button" data-reset-link="${u.email}">${u.status === 'pending' ? 'Set-up link' : 'Reset link'}</button>${u.email === currentUser?.email ? '<span class="muted" style="font-size:12px">You</span>' : `<button class="link-button" data-user-status="${u.email}|${u.status === 'suspended' ? 'active' : 'suspended'}">${u.status === 'suspended' ? 'Reactivate' : 'Suspend'}</button>${u.role === 'admin' ? '' : `<button class="link-button" data-remove-user="${u.email}" style="color:var(--red)">Remove</button>`}`}</span>
         </div>
       `).join('') : emptyState('No users yet', 'Invite your first user.')}
     </section>`;
@@ -1093,10 +1093,28 @@ async function loadNetworking() {
 async function inviteUser(fields) {
   const { ok, data } = await api('/api/admin/users', { method: 'POST', body: fields });
   if (!ok) { showToast(data?.error || 'Could not invite user', 'error'); return false; }
-  showToast('User invited', 'success');
+  showToast(data.emailConnected ? 'Invite emailed' : 'User created — share the set-up link', 'success');
   await loadAdminData();
   if ((location.hash.replace('#', '')) === 'settings') render('settings');
+  // With no email provider connected the link has to reach them some other way,
+  // so show it rather than stranding the account.
+  if (data.invite_link) showLinkModal('Invite link', `${fields.full_name} can set their password with this link. It is valid for 7 days.`, data.invite_link);
   return true;
+}
+
+/* A one-off link the admin has to pass on by hand (no email provider). */
+function showLinkModal(title, note, link) {
+  openModal(title,
+    `<p class="muted" style="font-size:13px;margin:0 0 10px">${note}</p>
+     <input type="text" id="linkValue" value="${link}" readonly style="width:100%" />`,
+    '<button class="control" type="button" data-modal-close>Close</button><button class="primary-action" type="button" data-copy-link>Copy link</button>');
+}
+
+async function issueResetLink(email) {
+  const { ok, data } = await api(`/api/admin/users/${encodeURIComponent(email)}/reset-link`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Could not create a reset link', 'error'); return; }
+  if (data.emailed) { showToast(`Reset link emailed to ${email}`, 'success'); return; }
+  showLinkModal('Password reset link', `${data.user} can set a new password with this link. It expires in an hour.`, data.link);
 }
 
 async function checkInTicket(spec) {
@@ -2128,8 +2146,11 @@ function installDelegate() {
       ev.stopPropagation();
       const m = document.getElementById('modalBody');
       const get = (f) => m.querySelector(`[data-iu="${f}"]`)?.value || '';
-      inviteUser({ full_name: get('full_name'), email: get('email'), role: get('role') })
-        .then((ok) => { if (ok) closeModal(); });
+      const fields = { full_name: get('full_name'), email: get('email'), role: get('role') };
+      // Close first: a successful invite may open the set-up link modal, and
+      // closing afterwards would take that link straight back off the screen.
+      closeModal();
+      inviteUser(fields).then((ok) => { if (!ok) modalForms['new-user'](); });
       return;
     }
     if (find('[data-create-deal]')) {
@@ -2321,6 +2342,19 @@ function installDelegate() {
       openConfirm(cfg.title, cfg.body, () => removeUser(removeUserBtn.dataset.removeUser));
       return;
     }
+
+    if (find('[data-copy-link]')) {
+      ev.stopPropagation();
+      const field = document.getElementById('linkValue');
+      field.select();
+      navigator.clipboard?.writeText(field.value)
+        .then(() => showToast('Link copied', 'success'))
+        .catch(() => showToast('Select the link and copy it manually', 'info'));
+      return;
+    }
+
+    const resetLinkBtn = find('[data-reset-link]');
+    if (resetLinkBtn) { ev.stopPropagation(); issueResetLink(resetLinkBtn.dataset.resetLink); return; }
 
     const statusBtn = find('[data-user-status]');
     if (statusBtn) {
