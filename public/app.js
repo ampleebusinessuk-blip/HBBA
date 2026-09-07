@@ -55,6 +55,7 @@ const pageMeta = {
   support:      ['Support Tickets', 'Resolve member questions and operational issues.'],
   invoices:     ['Invoices & Payments', 'Monitor billing, collections and payment status.'],
   reports:      ['Reports & Analytics', 'Review organization performance and trends.'],
+  products:     ['Products', 'The GTIN-identified catalogue members can browse.'],
   settings:     ['Settings', 'Configure workspace, users, permissions and integrations.']
 };
 
@@ -90,6 +91,10 @@ let membershipStats = { members: 0, renewalsDue: 0, applications: 0 };
 let campaignStats = { campaigns: 0, openRate: '—', clicks: 0 };
 let campaignAudiences = [];
 let outbox = [];
+let products = [];
+let productCategories = [];
+let productStats = { products: 0, categories: 0, withImages: 0 };
+let productFilter = 'All';
 let networkStats = { introductions: 0, meetings: 0, matchRate: '—' };
 let networkPeople = [];
 let memberDirectory = [];
@@ -757,6 +762,50 @@ function reportsPage() {
   `;
 }
 
+/* --- Product catalogue --- */
+function productsPage() {
+  const isAdmin = currentRole === 'admin';
+  const shown = productFilter === 'All' ? products : products.filter((p) => p.category === productFilter);
+  const counts = { All: products.length };
+  products.forEach((p) => { counts[p.category] = (counts[p.category] || 0) + 1; });
+  const chips = ['All', ...productCategories].map((label) => ({
+    label, count: counts[label] || 0, active: productFilter === label, filter: label
+  }));
+
+  return `
+    <div class="cards-grid">
+      ${[['Products', productStats.products], ['Categories', productStats.categories], ['With photography', `${productStats.withImages}/${productStats.products}`]]
+        .map(([l, v]) => `<button class="compact-card" type="button" data-page-link="products"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
+    </div>
+    ${filterBar('Search products, GTINs, categories…', chips)}
+    <section class="card">
+      <div class="card-title"><h2>Catalogue</h2>${isAdmin ? '<button class="primary-action" type="button" data-modal="new-product"><span data-icon="plus"></span>Add product</button>' : ''}</div>
+      ${shown.length ? `<div class="event-grid">
+        ${shown.map((p) => `
+          <article class="event-card" data-product="${p.id}">
+            ${p.image ? `<img src="${p.image}" alt="${p.name}" />` : '<div class="event-thumb-empty" aria-hidden="true"></div>'}
+            <div class="body">
+              <h3>${p.name}</h3>
+              <div class="meta">${p.brand || '—'} · ${p.category}</div>
+              <div class="meta"><code>${p.gtin}</code></div>
+              ${p.description ? `<p class="muted" style="font-size:13px;margin:6px 0 0">${p.description}</p>` : ''}
+              <footer>
+                <span>${p.status === 'draft' ? '<span class="invoice-status draft">Draft</span>' : '<span class="invoice-status paid">Listed</span>'}</span>
+                <span style="display:flex;gap:8px">
+                  <a class="link-button" href="${p.verify_url}" target="_blank" rel="noopener">Verify GTIN ↗</a>
+                  ${isAdmin ? `<button class="link-button" type="button" data-edit-product="${p.id}">Edit</button><button class="link-button" type="button" data-archive-product="${p.id}" style="color:var(--red)">Archive</button>` : ''}
+                </span>
+              </footer>
+            </div>
+          </article>`).join('')}
+      </div>` : emptyState('Nothing in the catalogue', isAdmin ? 'Add a product and it appears here.' : 'Products appear here once the team lists them.')}
+    </section>
+    ${isAdmin && productStats.withImages < productStats.products
+      ? `<p class="muted" style="font-size:12px;margin-top:12px">${productStats.products - productStats.withImages} product(s) have no photography yet — add an image URL from the Edit action.</p>`
+      : ''}
+  `;
+}
+
 /* --- Settings (tabs) --- */
 let settingsTab = 'profile';
 function settingsPage() {
@@ -871,7 +920,7 @@ const ROLES = {
       ['events', 'calendar', 'Events'], ['tickets', 'ticket', 'Tickets'], ['sponsors', 'star', 'Sponsors'],
       ['networking', 'network', 'Networking'], ['tasks', 'check', 'Tasks & Activities'], ['email', 'mail', 'Email Marketing'],
       ['support', 'headset', 'Support Tickets'], ['invoices', 'file', 'Invoices & Payments'], ['reports', 'chart', 'Reports & Analytics'],
-      ['settings', 'settings', 'Settings']
+      ['products', 'gem', 'Products'], ['settings', 'settings', 'Settings']
     ],
     bottomNav: [['dashboard', 'home', 'Home'], ['crm', 'users', 'CRM'], ['events', 'calendar', 'Events'], ['tasks', 'check', 'Tasks'], ['settings', 'settings', 'More']]
   },
@@ -881,7 +930,8 @@ const ROLES = {
     profile: { name: 'Jane Cole', role: 'Premium Member', email: 'member@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=96&q=80' },
     nav: [
       ['dashboard', 'home', 'Dashboard'], ['myMembership', 'crown', 'My Membership'], ['myEvents', 'calendar', 'Events & Tickets'],
-      ['networking', 'network', 'Networking'], ['myInvoices', 'file', 'My Invoices'], ['support', 'headset', 'Support']
+      ['networking', 'network', 'Networking'], ['products', 'gem', 'Products'], ['myInvoices', 'file', 'My Invoices'],
+      ['support', 'headset', 'Support']
     ],
     bottomNav: [['dashboard', 'home', 'Home'], ['myEvents', 'calendar', 'Events'], ['networking', 'network', 'Network'], ['myInvoices', 'file', 'Invoices'], ['support', 'headset', 'Help']]
   },
@@ -891,7 +941,8 @@ const ROLES = {
     profile: { name: 'Acme Corp', role: 'Gold Sponsor', email: 'sponsor@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&w=96&q=80' },
     nav: [
       ['dashboard', 'home', 'Dashboard'], ['sponsorOverview', 'star', 'Sponsorship'], ['brandVisibility', 'chart', 'Brand & Leads'],
-      ['sponsoredEvents', 'calendar', 'Sponsored Events'], ['myInvoices', 'file', 'My Invoices'], ['support', 'headset', 'Support']
+      ['sponsoredEvents', 'calendar', 'Sponsored Events'], ['products', 'gem', 'Products'],
+      ['myInvoices', 'file', 'My Invoices'], ['support', 'headset', 'Support']
     ],
     bottomNav: [['dashboard', 'home', 'Home'], ['sponsorOverview', 'star', 'Package'], ['brandVisibility', 'chart', 'Leads'], ['sponsoredEvents', 'calendar', 'Events'], ['support', 'headset', 'Help']]
   }
@@ -923,7 +974,7 @@ async function loadMemberData() {
   if (tk.ok && tk.data?.tickets) memberTickets = tk.data.tickets;
   if (inv.ok && inv.data?.invoices) memberInvoices = inv.data.invoices;
   if (mem.ok && mem.data?.membership) memberProfile = mem.data.membership;
-  await Promise.all([loadNotifications(), loadNetworking()]);
+  await Promise.all([loadNotifications(), loadNetworking(), loadProducts()]);
 }
 
 async function bookEvent(code) {
@@ -973,6 +1024,7 @@ function exportCSV() {
     crm: [['Name', 'Email', 'Company', 'Status'], contacts.map((c) => [c.name, c.email, c.company, c.status])],
     sponsors: [['Sponsor', 'Tier', 'Amount', 'Renewal', 'Contact'], sponsorList.map((s) => [s.name, s.tier, s.amount, s.renewal, s.contact])],
     myInvoices: [['Invoice', 'Description', 'Amount', 'Issued', 'Status'], (currentRole === 'sponsor' ? sponsorInvoices : memberInvoices).map((i) => [i.id, i.desc, i.amount, i.issued, i.status])],
+    products: [['GTIN', 'Product', 'Brand', 'Category', 'Status', 'Image'], products.map((p) => [p.gtin, p.name, p.brand, p.category, p.status, p.image || ''])],
     brandVisibility: [['Contact', 'Company', 'Interest', 'When'], sponsorLeads.map((l) => [l.name, l.company, l.interest, l.when])],
     sponsoredEvents: [['Event', 'Date', 'City', 'Booth', 'Attendees'], sponsoredEventsData.map((e) => [e.title, e.date, e.city, e.booth || '', e.attendees])],
     memberships: [['Member', 'Tier', 'Renews in (days)', 'Email'], renewals.map((r) => [r.name, r.tier, r.days, r.email])],
@@ -1077,6 +1129,7 @@ async function loadAdminData() {
   if (nw.ok && nw.data?.intros) { introRequests = nw.data.intros; networkPeople = nw.data.people; networkStats = nw.data.stats; }
   const ob = await api('/api/admin/outbox');
   if (ob.ok && ob.data?.messages) outbox = ob.data.messages;
+  await loadProducts();
   if (act.ok && act.data?.activity) activities = act.data.activity;
   await loadNotifications();
 }
@@ -1088,6 +1141,14 @@ async function loadNotifications() {
   notifications = data.notifications;
   const badge = document.querySelector('.has-badge i');
   if (badge) badge.textContent = String(data.unread);
+}
+
+async function loadProducts() {
+  const { ok, data } = await api('/api/products');
+  if (!ok || !data?.products) return;
+  products = data.products;
+  productCategories = data.categories || [];
+  productStats = data.stats || productStats;
 }
 
 async function loadNetworking() {
@@ -1350,6 +1411,30 @@ async function deleteContact(id) {
   await refreshAdmin('crm');
 }
 
+/* ---------- Products ---------- */
+async function createProduct(fields) {
+  const { ok, data } = await api('/api/admin/products', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not add product', 'error'); return false; }
+  showToast(`${data.product.name} added to the catalogue`, 'success');
+  await refreshAdmin('products');
+  return true;
+}
+
+async function saveProduct(id, fields) {
+  const { ok, data } = await api(`/api/admin/products/${id}`, { method: 'PATCH', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not save product', 'error'); return false; }
+  showToast('Product updated', 'success');
+  await refreshAdmin('products');
+  return true;
+}
+
+async function archiveProduct(id) {
+  const { ok, data } = await api(`/api/admin/products/${id}`, { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Could not archive product', 'error'); return; }
+  showToast('Product archived', 'info');
+  await refreshAdmin('products');
+}
+
 /* ---------- Memberships ---------- */
 async function saveTier(name, fields) {
   const { ok, data } = await api(`/api/admin/tiers/${encodeURIComponent(name)}`, { method: 'PATCH', body: fields });
@@ -1504,7 +1589,7 @@ async function loadSponsorData() {
   if (ev.ok && ev.data?.events) sponsoredEventsData = ev.data.events;
   if (inv.ok && inv.data?.invoices) sponsorInvoices = inv.data.invoices;
   if (ch.ok && ch.data) sponsorCharts = ch.data;
-  await Promise.all([loadNotifications(), loadNetworking()]);
+  await Promise.all([loadNotifications(), loadNetworking(), loadProducts()]);
 }
 
 /* ---------- Member pages ---------- */
@@ -1698,7 +1783,7 @@ function sponsorInvoicesPage() {
 
 /* ---------- Per-role page maps + meta ---------- */
 const roleRenderers = {
-  member: { dashboard: memberDashboardPage, myMembership: myMembershipPage, myEvents: myEventsPage, networking: networkingPage, myInvoices: memberInvoicesPage, support: supportPage },
+  member: { dashboard: memberDashboardPage, myMembership: myMembershipPage, myEvents: myEventsPage, networking: networkingPage, products: productsPage, myInvoices: memberInvoicesPage, support: supportPage },
   sponsor: { dashboard: sponsorDashboardPage, sponsorOverview: sponsorOverviewPage, brandVisibility: brandVisibilityPage, sponsoredEvents: sponsoredEventsPage, myInvoices: sponsorInvoicesPage, support: supportPage }
 };
 
@@ -1743,6 +1828,7 @@ const pageRenderers = {
   support: supportPage,
   invoices: invoicesPage,
   reports: reportsPage,
+  products: productsPage,
   settings: settingsPage
 };
 
@@ -1835,6 +1921,7 @@ const modalForms = {
   'new-intro': () => openModal('Request an introduction',
     `<label>Who would you like to meet?<input type="text" data-in="to" list="networkPeople" placeholder="Name or company" /><datalist id="networkPeople">${networkPeople.map((n) => `<option value="${n.name}"></option>`).join('')}</datalist></label><label>Why<textarea data-in="reason" placeholder="What you would like to explore together…"></textarea></label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-intro>Request intro</button>`),
+  'new-product': () => openProductForm(),
   'new-invoice': () => openInvoiceForm(),
   'new-deal': () => openModal('New deal',
     `<label>Deal title<input type="text" data-df="title" placeholder="Acme sponsorship" /></label><div class="form-row"><label>Value (£)<input type="number" data-df="value" placeholder="10000" /></label><label>Owner<input type="text" data-df="owner" placeholder="Sarah Johnson" /></label><label>Tier<select data-df="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Stage<select data-df="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="won">Won</option></select></label></div>`,
@@ -1843,6 +1930,22 @@ const modalForms = {
     `<label>Full name<input type="text" data-iu="full_name" placeholder="Jane Cole" /></label><label>Email<input type="email" data-iu="email" placeholder="jane@company.com" /></label><label>Role<select data-iu="role"><option value="member">Member</option><option value="sponsor">Sponsor</option><option value="admin">Admin</option></select></label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-invite-user>Send invite</button>`)
 };
+
+function openProductForm(id) {
+  const p = id ? products.find((x) => x.id === id) : null;
+  const categories = [...new Set([...productCategories, 'Cheesecakes', 'Waffle cups', 'Cream cups'])];
+  openModal(p ? `Edit ${p.name}` : 'Add product',
+    `<label>Product name<input type="text" data-pd="name" value="${p?.name || ''}" placeholder="Biscoff Cheesecake" /></label>
+     <div class="form-row">
+       <label>GTIN<input type="text" data-pd="gtin" value="${p?.gtin || ''}" placeholder="5065027203013" /></label>
+       <label>Brand<input type="text" data-pd="brand" value="${p?.brand || ''}" placeholder="New York Cheesecake Co." /></label>
+       <label>Category<input type="text" data-pd="category" list="productCategories" value="${p?.category && p.category !== 'Uncategorised' ? p.category : ''}" /><datalist id="productCategories">${categories.map((c) => `<option value="${c}"></option>`).join('')}</datalist></label>
+       <label>Status<select data-pd="status">${['active', 'draft'].map((st) => `<option value="${st}"${p?.status === st ? ' selected' : ''}>${cap(st)}</option>`).join('')}</select></label>
+     </div>
+     <label>Image URL<input type="url" data-pd="image" value="${p?.image || ''}" placeholder="https://…/product.jpg" /></label>
+     <label>Description<textarea data-pd="description" placeholder="What it is, pack size, allergens…">${p?.description || ''}</textarea></label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" ${p ? `data-save-product="${p.id}"` : 'data-create-product'}>${p ? 'Save product' : 'Add product'}</button>`);
+}
 
 function openTierForm(name) {
   const tier = membershipTiers.find((t) => t.name === name);
@@ -2284,6 +2387,38 @@ function installDelegate() {
       return;
     }
 
+    if (find('[data-create-product]')) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-pd');
+      createProduct({
+        name: get('name'), gtin: get('gtin'), brand: get('brand'), category: get('category'),
+        status: get('status'), image: get('image'), description: get('description')
+      }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    const saveProductBtn = find('[data-save-product]');
+    if (saveProductBtn) {
+      ev.stopPropagation();
+      const get = val('modalBody', 'data-pd');
+      saveProduct(saveProductBtn.dataset.saveProduct, {
+        name: get('name'), gtin: get('gtin'), brand: get('brand'), category: get('category'),
+        status: get('status'), image: get('image'), description: get('description')
+      }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    const editProductBtn = find('[data-edit-product]');
+    if (editProductBtn) { ev.stopPropagation(); openProductForm(editProductBtn.dataset.editProduct); return; }
+
+    const archiveProductBtn = find('[data-archive-product]');
+    if (archiveProductBtn) {
+      ev.stopPropagation();
+      openConfirm('Archive this product?', 'It disappears from the catalogue. Nothing is deleted.',
+        () => archiveProduct(archiveProductBtn.dataset.archiveProduct));
+      return;
+    }
+
     const tierBtn = find('[data-tier-manage]');
     if (tierBtn) { ev.stopPropagation(); openTierForm(tierBtn.dataset.tierManage); return; }
 
@@ -2394,7 +2529,13 @@ function installDelegate() {
     if (markPaidBtn) { ev.stopPropagation(); payInvoice(markPaidBtn.dataset.markPaid); return; }
 
     const crmChip = find('[data-crm-filter]');
-    if (crmChip) { ev.stopPropagation(); crmFilter = crmChip.dataset.crmFilter; render('crm'); return; }
+    if (crmChip) {
+      ev.stopPropagation();
+      if (activePage() === 'products') { productFilter = crmChip.dataset.crmFilter; render('products'); return; }
+      crmFilter = crmChip.dataset.crmFilter;
+      render('crm');
+      return;
+    }
 
     const modalBtn = find('[data-modal]');
     if (modalBtn) { ev.stopPropagation(); modalForms[modalBtn.dataset.modal]?.(); return; }
