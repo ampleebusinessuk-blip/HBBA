@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    container_name: hbba-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hbba
+      POSTGRES_PASSWORD: hbba
+      POSTGRES_DB: hbba
+    ports:
+      - "5544:5432"
+    volumes:
+      - hbba-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hbba -d hbba"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hbba-pgdata:

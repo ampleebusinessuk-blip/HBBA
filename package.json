@@ -1,0 +1,26 @@
+{
+  "name": "hbba-global",
+  "version": "1.0.0",
+  "description": "HBBA Global — member/sponsor/admin portals (Phase 1: real auth + Postgres)",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "migrate": "node migrations/run.js",
+    "seed": "node seed.js",
+    "bootstrap:admin": "node scripts/bootstrap-admin.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
+  }
+}

@@ -3,10 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HBBA Global Prototype</title>
+    <title>HBBA Global — UK Business Network</title>
+    <meta name="description" content="HBBA Global workspace — manage memberships, events, sponsors, invoicing and member services in one place." />
+    <meta name="theme-color" content="#1f3a73" />
+    <meta property="og:title" content="HBBA Global — UK Business Network" />
+    <meta property="og:description" content="Members, sponsors and admin in one HBBA workspace." />
+    <meta property="og:type" content="website" />
+    <link rel="apple-touch-icon" href="logo.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -39,35 +45,39 @@
             <h2>Welcome back</h2>
             <p>Sign in to continue to your HBBA Global dashboard.</p>
           </div>
-          <label>Email address<input type="email" value="john.doe@hbbaglobal.co.uk" autocomplete="email" /></label>
-          <label>Password<input type="password" value="hbbaglobal" autocomplete="current-password" /></label>
+          <label>Email address<input type="email" placeholder="you@company.com" autocomplete="email" /></label>
+          <label>Password<input type="password" placeholder="Your password" autocomplete="current-password" /></label>
           <div class="auth-options">
-            <label><input type="checkbox" checked /> Remember me</label>
-            <button type="button" class="text-button">Forgot password?</button>
+            <label><input type="checkbox" id="rememberMe" checked /> Remember me</label>
+            <button type="button" class="text-button" id="forgotPassword">Forgot password?</button>
           </div>
           <button class="auth-submit" type="submit">Login</button>
-          <button class="auth-secondary" type="button">Continue with Google</button>
-          <div class="demo-hint">
-            <span>Demo logins — click to fill, then Login:</span>
-            <div class="demo-chips">
-              <button type="button" data-demo="john.doe@hbbaglobal.co.uk">Admin</button>
-              <button type="button" data-demo="member@hbbaglobal.co.uk">Member</button>
-              <button type="button" data-demo="sponsor@hbbaglobal.co.uk">Sponsor</button>
-            </div>
-          </div>
+          <a class="auth-secondary" id="googleSignIn" href="/api/auth/google" hidden>Continue with Google</a>
         </form>
 
         <form class="auth-form" id="signupForm">
           <div>
             <h2>Create account</h2>
-            <p>Start a new HBBA Global admin profile.</p>
+            <p>Join HBBA Global as a member or sponsor.</p>
           </div>
-          <label>Full name<input type="text" value="John Doe" autocomplete="name" /></label>
-          <label>Work email<input type="email" value="john.doe@hbbaglobal.co.uk" autocomplete="email" /></label>
-          <label>Password<input type="password" value="hbbaglobal" autocomplete="new-password" /></label>
-          <label>Organisation<input type="text" value="HBBA Global" /></label>
+          <label>Account type<select data-field="role"><option value="member">Member</option><option value="sponsor">Sponsor</option></select></label>
+          <label>Full name<input type="text" placeholder="Jane Cole" autocomplete="name" /></label>
+          <label>Work email<input type="email" placeholder="you@company.com" autocomplete="email" /></label>
+          <label>Password<input type="password" placeholder="At least 8 characters" autocomplete="new-password" /></label>
+          <label>Organisation<input type="text" placeholder="Your company" data-field="org" /></label>
           <button class="auth-submit" type="submit">Create Account</button>
           <p class="auth-small">By continuing, you agree to HBBA Global workspace terms.</p>
+        </form>
+
+        <form class="auth-form" id="resetForm">
+          <div>
+            <h2>Choose a new password</h2>
+            <p>Set a password for your HBBA Global account.</p>
+          </div>
+          <label>New password<input type="password" autocomplete="new-password" placeholder="At least 8 characters" /></label>
+          <label>Confirm password<input type="password" autocomplete="new-password" placeholder="Repeat it" data-field="confirm" /></label>
+          <button class="auth-submit" type="submit">Save password and sign in</button>
+          <button class="text-button" type="button" data-auth-tab="login">Back to login</button>
         </form>
       </div>
     </section>
@@ -99,11 +109,10 @@
       <main class="main">
         <header class="topbar">
           <button class="icon-button menu-toggle" id="menuToggle" type="button" aria-label="Toggle menu"><span data-icon="menu"></span></button>
-          <button class="tenant-switch" type="button">
+          <div class="tenant-switch" aria-label="Workspace">
             <span class="tenant-avatar">H</span>
             <span><strong>HBBA Global</strong><small>London, United Kingdom</small></span>
-            <span data-icon="chevron"></span>
-          </button>
+          </div>
           <label class="search">
             <span data-icon="search"></span>
             <input id="globalSearch" type="search" placeholder="Search anything..." />
@@ -135,8 +144,18 @@
               <p id="pageSubtitle">Here's what's happening with your organization today.</p>
             </div>
             <div class="head-actions">
-              <button class="control" type="button"><span data-icon="calendar"></span>May 16 - May 23, 2024<span data-icon="chevron"></span></button>
-              <button class="control" type="button"><span data-icon="filter"></span>Export</button>
+              <div class="dropdown-wrap">
+                <button class="control" id="rangeToggle" type="button"><span data-icon="calendar"></span><span id="rangeLabel">This month</span><span data-icon="chevron"></span></button>
+                <div class="dropdown" id="rangePanel" hidden>
+                  <button class="menu-item" type="button" data-range="Today">Today</button>
+                  <button class="menu-item" type="button" data-range="This week">This week</button>
+                  <button class="menu-item" type="button" data-range="This month">This month</button>
+                  <button class="menu-item" type="button" data-range="This quarter">This quarter</button>
+                  <button class="menu-item" type="button" data-range="This year">This year</button>
+                  <button class="menu-item" type="button" data-range="All time">All time</button>
+                </div>
+              </div>
+              <button class="control" type="button" data-export><span data-icon="filter"></span>Export</button>
               <button class="primary-action" type="button" data-modal="new-event"><span data-icon="plus"></span>New Event</button>
             </div>
           </div>

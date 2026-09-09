@@ -1,1 +1,8 @@
 prototype-*.png
+.superpowers/
+node_modules/
+.env
+.env.*
+!.env.example
+
+.vercel
