@@ -446,17 +446,19 @@ function sponsorsPage() {
   const pipeline = sponsorList.reduce((n, sp) => n + cents(sp.amount), 0);
   const byTier = { Gold: 0, Silver: 0, Bronze: 0 };
   sponsorList.forEach((sp) => { byTier[sp.tier] = (byTier[sp.tier] || 0) + 1; });
-  const tiers = [
-    ['gold', 'Gold Tier', 'Logo on all events', 'Keynote slot', 'Dedicated activations'],
-    ['silver', 'Silver Tier', 'Logo on tier events', 'Workshop slot', 'Member directory feature'],
-    ['bronze', 'Bronze Tier', 'Logo on materials', '4 event passes', 'Newsletter mention']
-  ];
+  // Tier cards summarise the contracts on file; the inclusions live on each
+  // sponsorship, so nothing here is invented copy.
+  const valueByTier = {};
+  sponsorList.forEach((sp) => { valueByTier[sp.tier] = (valueByTier[sp.tier] || 0) + cents(sp.amount); });
+  const tiers = Object.keys(byTier)
+    .filter((name) => byTier[name])
+    .map((name) => [name.toLowerCase(), name, byTier[name], valueByTier[name] || 0]);
   return `
     <div class="cards-grid">
       ${[['Sponsors', sponsorList.length], ['Contract value', '£' + pipeline.toLocaleString('en-GB')], ['Renewals tracked', sponsorList.filter((sp) => sp.renewal && sp.renewal !== '—').length]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="sponsors"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
     <div class="tier-grid">
-      ${tiers.map(([color, name, ...perks]) => `<div class="tier-card ${color}"><span class="chip">${byTier[name.split(' ')[0]] || 0} sponsor(s)</span><h3>${name}</h3><ul>${perks.map((perk) => `<li>✓ ${perk}</li>`).join('')}</ul></div>`).join('')}
+      ${tiers.length ? tiers.map(([color, name, count, value]) => `<div class="tier-card ${color}"><span class="chip">${count} sponsor(s)</span><h3>${name}</h3><div class="price">£${value.toLocaleString('en-GB')}</div></div>`).join('') : ''}
     </div>
     <section class="card">
       <div class="card-title"><h2>Sponsor contracts</h2><button class="primary-action" type="button" data-modal="new-sponsor"><span data-icon="plus"></span>New sponsor</button></div>
@@ -576,9 +578,10 @@ function emailPage() {
           <div class="activity"><span class="activity-icon" style="background:var(--${m.status === 'sent' ? 'green' : m.status === 'failed' ? 'red' : 'orange'})">${icons.mail}</span><div><h3>${m.subject}</h3><span>${m.to} · ${m.kind}</span></div><small class="muted">${m.time}</small></div>
         `).join('') : emptyState('Nothing queued yet', 'Invites, reminders and campaigns show up here.')}
 
-        <div class="card-title" style="margin-top:18px"><h2>Templates</h2></div>
+        <div class="card-title" style="margin-top:18px"><h2>Start a campaign</h2></div>
+        <p class="muted" style="font-size:12px;margin:0 0 10px">Opens the campaign form with the name filled in — the content is yours to write.</p>
         <div class="template-grid">
-          ${['Welcome', 'Renewal', 'Event Invite', 'Newsletter'].map((n) => `<div class="template-card" data-template="${n}"><div class="template-thumb">${n}</div><strong style="font-size:13px">${n}</strong><p class="muted" style="font-size:12px;margin:4px 0 0">Start a campaign</p></div>`).join('')}
+          ${['Welcome', 'Renewal', 'Event invite', 'Newsletter'].map((n) => `<div class="template-card" data-template="${n}"><div class="template-thumb">${n}</div><strong style="font-size:13px">${n}</strong></div>`).join('')}
         </div>
         <div class="card-title" style="margin-top:18px"><h2>Audiences</h2></div>
         ${campaignAudiences.map((a) => `<div class="task-item"><label>${a.segment}</label><span class="muted" style="font-size:12px">${a.size}</span></div>`).join('')}
