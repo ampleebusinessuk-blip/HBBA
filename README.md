@@ -12,11 +12,11 @@ HBBA Global is a member, sponsor, and admin portal built with a vanilla frontend
 6. Start app: `npm run dev`
 7. Open `http://localhost:3000`
 
-Local demo accounts use password `hbbaglobal`:
-
-- `admin@hbbaglobal.co.uk`
-- `member@hbbaglobal.co.uk`
-- `sponsor@hbbaglobal.co.uk`
+`npm run seed` loads demo fixtures for local work only: it refuses to run
+unless `DATABASE_URL` points at localhost. It creates three throwaway accounts
+(`admin@`, `member@` and `sponsor@hbbaglobal.co.uk`) sharing the password in
+`seed.js`. Never run it against a deployed database, and never reuse those
+credentials outside your machine.
 
 ## Tests
 

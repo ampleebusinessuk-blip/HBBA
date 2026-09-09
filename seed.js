@@ -36,7 +36,23 @@ const invoices = [
   ['INV-SP-2026-022', 'sponsor@hbbaglobal.co.uk', 'Additional booth — Trade Conference', 240000, '10 May', 'due', null]
 ];
 
+/**
+ * Demo fixtures are for local development only. Running them against a real
+ * database would put invented members, events and invoices in front of users,
+ * so refuse anything that is not an explicitly local target.
+ */
+function assertLocalTarget() {
+  const url = process.env.DATABASE_URL || '';
+  const isLocal = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/i.test(url) || url === '';
+  if (process.env.NODE_ENV === 'production' || !isLocal) {
+    console.error('Refusing to seed: this only runs against a local database.');
+    console.error('DATABASE_URL must point at localhost and NODE_ENV must not be production.');
+    process.exit(1);
+  }
+}
+
 async function seed() {
+  assertLocalTarget();
   const hash = await hashPassword(DEMO_PASSWORD);
   for (const a of accounts) {
     await pool.query(

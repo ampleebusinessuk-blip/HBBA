@@ -45,22 +45,14 @@
             <h2>Welcome back</h2>
             <p>Sign in to continue to your HBBA Global dashboard.</p>
           </div>
-          <label>Email address<input type="email" value="admin@hbbaglobal.co.uk" autocomplete="email" /></label>
-          <label>Password<input type="password" value="hbbaglobal" autocomplete="current-password" /></label>
+          <label>Email address<input type="email" placeholder="you@company.com" autocomplete="email" /></label>
+          <label>Password<input type="password" placeholder="Your password" autocomplete="current-password" /></label>
           <div class="auth-options">
             <label><input type="checkbox" id="rememberMe" checked /> Remember me</label>
             <button type="button" class="text-button" id="forgotPassword">Forgot password?</button>
           </div>
           <button class="auth-submit" type="submit">Login</button>
           <a class="auth-secondary" id="googleSignIn" href="/api/auth/google" hidden>Continue with Google</a>
-          <div class="demo-hint">
-            <span>Demo logins — click to fill, then Login:</span>
-            <div class="demo-chips">
-              <button type="button" data-demo="admin@hbbaglobal.co.uk">Admin</button>
-              <button type="button" data-demo="member@hbbaglobal.co.uk">Member</button>
-              <button type="button" data-demo="sponsor@hbbaglobal.co.uk">Sponsor</button>
-            </div>
-          </div>
         </form>
 
         <form class="auth-form" id="signupForm">

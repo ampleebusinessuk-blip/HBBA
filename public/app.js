@@ -2604,12 +2604,6 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   enterApp(data.user, 'Account created');
 });
 
-document.querySelectorAll('[data-demo]').forEach((b) => b.addEventListener('click', () => {
-  const form = document.getElementById('loginForm');
-  form.querySelector('input[type="email"]').value = b.dataset.demo;
-  form.querySelector('input[type="password"]').value = 'hbbaglobal';
-  form.querySelectorAll('input').forEach((i) => i.dispatchEvent(new Event('blur')));
-}));
 document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('is-open'));
 document.getElementById('globalSearch').addEventListener('input', (e) => filterVisibleRows(e.currentTarget.value));
 document.getElementById('globalSearch').addEventListener('keydown', (e) => {
