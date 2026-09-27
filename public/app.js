@@ -559,17 +559,39 @@ function tasksPage() {
 
 /* --- Email marketing --- */
 function emailPage() {
+  const retryable = (status) => status === 'Failed' || status === 'Partially sent';
+  const sendable = (status) => status === 'Draft' || status === 'Scheduled';
+  const when = (value) => (value ? new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '');
+
   return `
     <div class="cards-grid">
-      ${[['Campaigns', campaignStats.campaigns], ['Open rate', campaignStats.openRate], ['Clicks', campaignStats.clicks]].map(([l, v]) => `<button class="compact-card" type="button" data-page-link="email"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
+      ${[['Campaigns', campaignStats.campaigns], ['Delivered', campaignStats.delivered ?? 0],
+    ['Estimated open rate', campaignStats.openRate], ['Clicks', campaignStats.clicks]]
+    .map(([l, v]) => `<button class="compact-card" type="button" data-page-link="email"><span class="muted">${l}</span><h2>${v}</h2></button>`).join('')}
     </div>
+    ${adminIntegrations.email ? '' : '<div class="notice-bar"><strong>No email provider is connected.</strong><span>Campaigns can be written and scheduled, but nothing is delivered until one is configured. Sends are recorded as undelivered.</span><button type="button" data-page-link="settings">Open settings</button></div>'}
     <div class="email-grid">
       <section class="card">
         <div class="card-title"><h2>Campaigns</h2><button class="primary-action" type="button" data-modal="new-campaign"><span data-icon="plus"></span>New campaign</button></div>
         ${campaigns.length ? `<table class="table">
-          <thead><tr><th>Name</th><th>Segment</th><th>Sent</th><th>Open</th><th>Click</th><th>Status</th><th></th></tr></thead>
-          <tbody>${campaigns.map((c) => `<tr><td><strong>${c.name}</strong><small style="display:block;color:var(--muted)">${c.subject || 'No subject line'}</small></td><td>${c.segment}</td><td>${c.sent}</td><td>${c.open}</td><td>${c.click}</td><td>${statusPill(c.status)}</td><td>${c.status === 'Sent' ? '' : `<button class="link-button" data-send-campaign="${c.id}">Send</button>`}</td></tr>`).join('')}</tbody>
-        </table>` : emptyState('No campaigns yet', 'Create one and pick the audience it goes to.')}
+          <thead><tr><th>Campaign</th><th>Audience</th><th>Delivered</th><th>Failed</th><th>Estimated opens</th><th>Clicks</th><th>Status</th><th></th></tr></thead>
+          <tbody>${campaigns.map((c) => `<tr>
+            <td><strong>${c.name}</strong><small style="display:block;color:var(--muted)">${c.subject || 'No subject line'}</small>${c.status === 'Scheduled' && c.scheduled_for ? `<small style="display:block;color:var(--muted)">Sends ${when(c.scheduled_for)}</small>` : ''}${c.last_error ? `<small style="display:block;color:var(--red)">${c.last_error}</small>` : ''}</td>
+            <td>${c.segment}</td>
+            <td>${c.delivered}${c.recipients ? ` <span class="muted">of ${c.recipients}</span>` : ''}</td>
+            <td>${c.failed || '—'}</td>
+            <td>${c.openRate}${c.delivered ? ` <span class="muted">(${c.opened})</span>` : ''}</td>
+            <td>${c.clicked || '—'}</td>
+            <td>${statusPill(c.status)}</td>
+            <td><span class="campaign-actions">
+              ${sendable(c.status) ? `<button class="link-button" data-send-campaign="${c.id}">Send now</button>` : ''}
+              ${retryable(c.status) ? `<button class="link-button" data-retry-campaign="${c.id}">Retry failed</button>` : ''}
+              ${c.status === 'Sending' ? '<span class="muted">Sending…</span>' : ''}
+              ${c.status === 'Sent' ? `<span class="muted">Completed ${when(c.completed_at)}</span>` : ''}
+            </span></td>
+          </tr>`).join('')}</tbody>
+        </table>` : emptyState('No campaigns yet', 'Write one and pick the audience it goes to.')}
+        <p class="muted" style="font-size:12px;margin-top:10px">Open rates are estimated: many mail clients block the tracking pixel. Clicks count distinct recipients.</p>
       </section>
       <aside class="card">
         <div class="card-title"><h2>${adminIntegrations.demo?.email ? 'Demo outbox' : 'Outbox'}</h2><span class="chip">${outbox.length}</span></div>
@@ -584,7 +606,8 @@ function emailPage() {
           ${['Welcome', 'Renewal', 'Event invite', 'Newsletter'].map((n) => `<div class="template-card" data-template="${n}"><div class="template-thumb">${n}</div><strong style="font-size:13px">${n}</strong></div>`).join('')}
         </div>
         <div class="card-title" style="margin-top:18px"><h2>Audiences</h2></div>
-        ${campaignAudiences.map((a) => `<div class="task-item"><label>${a.segment}</label><span class="muted" style="font-size:12px">${a.size}</span></div>`).join('')}
+        <p class="muted" style="font-size:12px;margin:0 0 10px">Only records that opted in to marketing email can be sent to.</p>
+        ${campaignAudiences.map((a) => `<div class="task-item"><label>${a.segment}</label><span class="muted" style="font-size:12px">${a.eligible} eligible of ${a.total}</span></div>`).join('')}
       </aside>
     </div>
   `;
@@ -794,6 +817,7 @@ function settingsBody(tab) {
           <div style="display:flex;align-items:center;gap:10px"><span class="sponsor-mark">${(u.name || '?').charAt(0)}</span><div><strong>${u.name}</strong><br /><small class="muted">${u.email}</small></div></div>
           <span class="chip">${ROLES[u.role]?.label || cap(u.role)}</span>
           <span class="invoice-status ${u.status === 'active' ? 'paid' : 'due'}">${cap(u.status)}</span>
+          <span class="chip" title="Marketing consent">${u.marketing_opt_in ? 'Marketing: on' : 'Marketing: off'}</span>
           <span style="display:flex;gap:8px"><button class="link-button" data-reset-link="${u.email}">${u.status === 'pending' ? 'Set-up link' : 'Reset link'}</button>${u.email === currentUser?.email ? '<span class="muted" style="font-size:12px">You</span>' : `<button class="link-button" data-user-status="${u.email}|${u.status === 'suspended' ? 'active' : 'suspended'}">${u.status === 'suspended' ? 'Reactivate' : 'Suspend'}</button>${u.role === 'admin' ? '' : `<button class="link-button" data-remove-user="${u.email}" style="color:var(--red)">Remove</button>`}`}</span>
         </div>
       `).join('') : emptyState('No users yet', 'Invite your first user.')}
@@ -1337,6 +1361,13 @@ async function createContact(fields) {
   return true;
 }
 
+async function setContactConsent(id, optIn) {
+  const { ok, data } = await api(`/api/admin/contacts/${id}`, { method: 'PATCH', body: { marketing_opt_in: optIn } });
+  if (!ok) { showToast(data?.error || 'Could not update consent', 'error'); return; }
+  showToast(optIn ? 'Marketing consent recorded' : 'Marketing consent withdrawn', optIn ? 'success' : 'info');
+  await refreshAdmin('crm');
+}
+
 async function logContactTouch(id, kind) {
   const { ok, data } = await api(`/api/admin/contacts/${id}/log`, { method: 'POST', body: { kind } });
   if (!ok) { showToast(data?.error || 'Could not log that', 'error'); return; }
@@ -1415,15 +1446,33 @@ async function createSponsor(fields) {
 async function createCampaign(fields) {
   const { ok, data } = await api('/api/admin/campaigns', { method: 'POST', body: fields });
   if (!ok) { showToast(data?.error || 'Could not save campaign', 'error'); return false; }
-  showToast(`Campaign ${data.campaign.status.toLowerCase()}`, 'success');
+  showToast(
+    data.campaign.status === 'Scheduled'
+      ? `Scheduled for ${new Date(data.campaign.scheduled_for).toLocaleString('en-GB')}`
+      : 'Campaign saved as a draft',
+    'success');
   await refreshAdmin('email');
   return true;
 }
 
-async function sendCampaign(id) {
-  const { ok, data } = await api(`/api/admin/campaigns/${id}/send`, { method: 'POST' });
+/** Send and retry share a handler: the server decides what is still outstanding. */
+async function sendCampaign(id, { retry = false } = {}) {
+  const { ok, data } = await api(`/api/admin/campaigns/${id}/${retry ? 'retry' : 'send'}`, { method: 'POST' });
   if (!ok) { showToast(data?.error || 'Could not send campaign', 'error'); return; }
-  showToast(`Audience of ${data.sent} — ${data.delivery}`, 'success');
+
+  // Never celebrate a send that delivered nothing.
+  const undelivered = (data.failed || 0) + (data.skipped || 0);
+  if (data.sent === 0) {
+    showToast(
+      data.emailConnected
+        ? `Nothing delivered — ${undelivered} recipient(s) failed`
+        : 'Nothing delivered: no email provider is connected',
+      'error');
+  } else if (data.status === 'Partially sent') {
+    showToast(`${data.sent} delivered, ${undelivered} failed — retry when ready`, 'warn');
+  } else {
+    showToast(`Delivered to ${data.sent} recipient(s)`, 'success');
+  }
   await refreshAdmin('email');
 }
 
@@ -1812,7 +1861,8 @@ function closeModal() { document.getElementById('modalOverlay').hidden = true; }
 
 const modalForms = {
   'new-contact': () => openModal('Add contact',
-    `<div class="form-row"><label>Full name<input type="text" data-ct="name" placeholder="Jane Smith" required /></label><label>Email<input type="email" data-ct="email" placeholder="jane@example.com" /></label><label>Company<input type="text" data-ct="company" /></label><label>City<input type="text" data-ct="city" /></label><label>Phone<input type="text" data-ct="phone" /></label><label>Tier<select data-ct="tier"><option>Gold</option><option>Silver</option><option selected>Bronze</option></select></label><label>Status<select data-ct="status"><option>Active</option><option>Warm</option><option selected>New</option><option>Cold</option></select></label><label>Owner<input type="text" data-ct="owner" placeholder="Relationship manager" /></label></div>`,
+    `<div class="form-row"><label>Full name<input type="text" data-ct="name" placeholder="Jane Smith" required /></label><label>Email<input type="email" data-ct="email" placeholder="jane@example.com" /></label><label>Company<input type="text" data-ct="company" /></label><label>City<input type="text" data-ct="city" /></label><label>Phone<input type="text" data-ct="phone" /></label><label>Tier<select data-ct="tier"><option>Gold</option><option>Silver</option><option selected>Bronze</option></select></label><label>Status<select data-ct="status"><option>Active</option><option>Warm</option><option selected>New</option><option>Cold</option></select></label><label>Owner<input type="text" data-ct="owner" placeholder="Relationship manager" /></label></div>
+     <label class="consent-row"><input type="checkbox" data-field="marketing_opt_in" /> Marketing emails — they have agreed to receive campaigns</label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-contact>Add contact</button>`),
   'new-event': () => openModal('Create event',
     `<label>Event title<input type="text" data-field="title" placeholder="Networking Dinner" /></label><div class="form-row"><label>Date<input type="text" data-field="date_label" placeholder="Aug 12" /></label><label>Time<input type="text" data-field="time_label" placeholder="6 PM" /></label><label>City<input type="text" data-field="city" placeholder="London, UK" /></label><label>Capacity<input type="number" data-field="capacity" placeholder="120" /></label></div>`,
@@ -1832,8 +1882,18 @@ const modalForms = {
     `<label>Task<input type="text" data-field="title" placeholder="What needs doing?" /></label><div class="form-row"><label>Assignee<select data-field="assignee"><option value="">Unassigned</option>${adminUsers.map((u) => `<option>${u.name}</option>`).join('')}</select></label><label>Due<input type="text" data-field="due" placeholder="Fri" /></label><label>Priority<select data-field="priority"><option value="high">High</option><option value="med" selected>Medium</option><option value="low">Low</option></select></label></div>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-task>Add task</button>`),
   'new-campaign': (preset = '') => openModal('New campaign',
-    `<label>Campaign name<input type="text" data-cp="name" value="${preset}" placeholder="May newsletter" /></label><label>Subject line<input type="text" data-cp="subject" placeholder="What lands in the inbox" /></label><div class="form-row"><label>Audience<select data-cp="segment">${(campaignAudiences.length ? campaignAudiences : [{ segment: 'All members', size: 0 }]).map((a) => `<option value="${a.segment}">${a.segment} (${a.size})</option>`).join('')}</select></label><label>Send time<input type="datetime-local" data-cp="scheduled_for" /></label></div>
-     <p class="muted" style="font-size:12px;margin:8px 0 0">Scheduling records the campaign now; delivery runs once an email provider is connected.</p>`,
+    `<label>Campaign name<input type="text" data-cp="name" value="${preset}" placeholder="May newsletter" /></label>
+     <label>Subject line<input type="text" data-cp="subject" placeholder="What lands in the inbox" /></label>
+     <label>Message<textarea class="campaign-message" data-cp="body_text" placeholder="Write the email. Plain text — we format and brand it."></textarea></label>
+     <div class="form-row">
+       <label>Button label (optional)<input type="text" data-cp="cta_label" placeholder="Read the update" /></label>
+       <label>Button link (optional)<input type="url" data-cp="cta_url" placeholder="https://..." /></label>
+     </div>
+     <div class="form-row">
+       <label>Audience<select data-cp="segment">${(campaignAudiences.length ? campaignAudiences : [{ segment: 'All members', eligible: 0, total: 0 }]).map((a) => `<option value="${a.segment}">${a.segment} — ${a.eligible} eligible of ${a.total}</option>`).join('')}</select></label>
+       <label>Send time (optional)<input type="datetime-local" data-cp="scheduled_for" /></label>
+     </div>
+     <p class="muted" style="font-size:12px;margin:8px 0 0">Leave the send time empty to save a draft you send by hand. A future time schedules it; the scheduler runs every five minutes. Only opted-in records receive marketing email, and every message carries an unsubscribe link.</p>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-campaign>Save campaign</button>`),
   'new-intro': () => openModal('Request an introduction',
     `<label>Who would you like to meet?<input type="text" data-in="to" list="networkPeople" placeholder="Name or company" /><datalist id="networkPeople">${networkPeople.map((n) => `<option value="${n.name}"></option>`).join('')}</datalist></label><label>Why<textarea data-in="reason" placeholder="What you would like to explore together…"></textarea></label>`,
@@ -1843,7 +1903,8 @@ const modalForms = {
     `<label>Deal title<input type="text" data-df="title" placeholder="Acme sponsorship" /></label><div class="form-row"><label>Value (£)<input type="number" data-df="value" placeholder="10000" /></label><label>Owner<input type="text" data-df="owner" placeholder="Sarah Johnson" /></label><label>Tier<select data-df="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Stage<select data-df="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="won">Won</option></select></label></div>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-deal>Create deal</button>`),
   'new-user': () => openModal('Invite user',
-    `<label>Full name<input type="text" data-iu="full_name" placeholder="Jane Cole" /></label><label>Email<input type="email" data-iu="email" placeholder="jane@company.com" /></label><label>Role<select data-iu="role"><option value="member">Member</option><option value="sponsor">Sponsor</option><option value="admin">Admin</option></select></label>`,
+    `<label>Full name<input type="text" data-iu="full_name" placeholder="Jane Cole" /></label><label>Email<input type="email" data-iu="email" placeholder="jane@company.com" /></label><label>Role<select data-iu="role"><option value="member">Member</option><option value="sponsor">Sponsor</option><option value="admin">Admin</option></select></label>
+     <label class="consent-row"><input type="checkbox" data-iu="marketing_opt_in" /> Marketing emails — they have agreed to receive campaigns</label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-invite-user>Send invite</button>`)
 };
 
@@ -1882,7 +1943,8 @@ function contactDrawer(i) {
   return openDrawer(c.name, `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><span class="presence ${c.presence}"><img class="avatar" src="${c.avatar}" style="width:62px;height:62px;border-radius:50%" alt="" /></span>
     <div><h2 style="margin:0">${c.name}</h2><small class="muted">${c.company || '—'} · ${c.city || '—'}</small></div></div>
-    <div class="drawer-section"><h3>Contact</h3><dl class="drawer-kv"><dt>Email</dt><dd>${c.email}</dd><dt>Phone</dt><dd>${c.phone || '—'}</dd><dt>Tier</dt><dd>${c.tier}</dd><dt>Status</dt><dd>${statusPill(c.status)}</dd><dt>Owner</dt><dd>${c.owner || 'Unassigned'}</dd><dt>Open deals</dt><dd>${c.deals}</dd><dt>Last activity</dt><dd>${c.last}</dd></dl></div>
+    <div class="drawer-section"><h3>Contact</h3><dl class="drawer-kv"><dt>Email</dt><dd>${c.email}</dd><dt>Phone</dt><dd>${c.phone || '—'}</dd><dt>Tier</dt><dd>${c.tier}</dd><dt>Status</dt><dd>${statusPill(c.status)}</dd><dt>Owner</dt><dd>${c.owner || 'Unassigned'}</dd><dt>Open deals</dt><dd>${c.deals}</dd><dt>Last activity</dt><dd>${c.last}</dd><dt>Marketing emails</dt><dd>${c.marketing_opt_in ? '<span class="invoice-status paid">Opted in</span>' : '<span class="invoice-status draft">Opted out</span>'}</dd></dl></div>
+    <div class="drawer-section"><label class="consent-row"><input type="checkbox" data-contact-consent="${c.id}" ${c.marketing_opt_in ? 'checked' : ''} /> Send marketing emails to this contact</label></div>
     ${c.notes ? `<div class="drawer-section"><h3>Notes</h3><p>${c.notes}</p></div>` : ''}
     <div style="display:flex;gap:10px">
       <a class="primary-action" href="mailto:${c.email}" data-log-contact="${c.id}:email"><span data-icon="mail"></span>Email</a>
@@ -2157,7 +2219,10 @@ function installDelegate() {
       ev.stopPropagation();
       const m = document.getElementById('modalBody');
       const get = (f) => m.querySelector(`[data-iu="${f}"]`)?.value || '';
-      const fields = { full_name: get('full_name'), email: get('email'), role: get('role') };
+      const fields = {
+        full_name: get('full_name'), email: get('email'), role: get('role'),
+        marketing_opt_in: m.querySelector('[data-iu="marketing_opt_in"]')?.checked === true
+      };
       // Close first: a successful invite may open the set-up link modal, and
       // closing afterwards would take that link straight back off the screen.
       closeModal();
@@ -2226,7 +2291,8 @@ function installDelegate() {
       const get = val('modalBody', 'data-ct');
       createContact({
         name: get('name'), email: get('email'), company: get('company'), city: get('city'),
-        phone: get('phone'), tier: get('tier'), status: get('status'), owner: get('owner')
+        phone: get('phone'), tier: get('tier'), status: get('status'), owner: get('owner'),
+        marketing_opt_in: document.getElementById('modalBody')?.querySelector('[data-field="marketing_opt_in"]')?.checked === true
       }).then((ok) => { if (ok) closeModal(); });
       return;
     }
@@ -2253,7 +2319,9 @@ function installDelegate() {
       ev.stopPropagation();
       const get = val('modalBody', 'data-cp');
       createCampaign({
-        name: get('name'), subject: get('subject'), segment: get('segment'), scheduled_for: get('scheduled_for') || null
+        name: get('name'), subject: get('subject'), body_text: get('body_text'),
+        cta_label: get('cta_label'), cta_url: get('cta_url'),
+        segment: get('segment'), scheduled_for: get('scheduled_for') || null
       }).then((ok) => { if (ok) closeModal(); });
       return;
     }
@@ -2296,6 +2364,9 @@ function installDelegate() {
     if (find('[data-remind-renewals]')) { ev.stopPropagation(); remindRenewals(); return; }
     const nudgeBtn = find('[data-nudge]');
     if (nudgeBtn) { ev.stopPropagation(); remindRenewals(nudgeBtn.dataset.nudge); return; }
+
+    const retryCampaignBtn = find('[data-retry-campaign]');
+    if (retryCampaignBtn) { ev.stopPropagation(); sendCampaign(retryCampaignBtn.dataset.retryCampaign, { retry: true }); return; }
 
     const sendCampaignBtn = find('[data-send-campaign]');
     if (sendCampaignBtn) { ev.stopPropagation(); sendCampaign(sendCampaignBtn.dataset.sendCampaign); return; }
@@ -2496,6 +2567,8 @@ function installDelegate() {
   document.body.addEventListener('change', (ev) => {
     const cb = ev.target.closest('.task-item input[type="checkbox"][data-task-done]');
     if (cb) setTaskStatus(cb.dataset.taskDone, cb.checked ? 'done' : 'todo');
+    const consent = ev.target.closest('[data-contact-consent]');
+    if (consent) setContactConsent(consent.dataset.contactConsent, consent.checked);
   });
   document.body.addEventListener('input', (ev) => {
     if (ev.target.closest('.inv-item') || ev.target.matches('[data-iv="vat"]')) recalcInvoice();

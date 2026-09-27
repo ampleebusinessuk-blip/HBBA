@@ -2193,3 +2193,45 @@ body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
   height: 150px;
   background: linear-gradient(135deg, var(--line), rgba(31, 58, 115, 0.12));
 }
+
+/* ===================== Campaigns ===================== */
+
+/* The message is the point of the form, so give it room that does not collapse. */
+.campaign-message {
+  min-height: 150px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.campaign-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.consent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.consent-row input {
+  width: auto;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  /* Stack the row actions rather than squeezing them off the edge. */
+  .campaign-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .campaign-message {
+    min-height: 120px;
+  }
+}
