@@ -135,6 +135,34 @@ request. `feedFor(userId, role)` returns rows addressed to that user directly or
 broadcast to their role, with an `unread` flag from the `activity_reads`
 left-join. `markFeedRead` inserts read receipts.
 
+### `server/campaigns.js`
+The campaign delivery service — audience resolution, validation and delivery
+state, kept out of the HTTP layer so the admin "Send now" button and the cron
+worker share one implementation.
+
+- `validateCampaignInput` rejects missing content, an unpaired call to action, a
+  non-https CTA outside development, and a send time in the past. It runs before
+  any INSERT, so a rejected campaign leaves nothing behind.
+- `campaignAudience` repeats `marketing_opt_in = true` in every segment branch,
+  normalises with `lower(trim(email))` and de-duplicates, so an address held as
+  both a user and a contact receives one message.
+- `deliverCampaign` claims a campaign with a single conditional UPDATE. The row
+  is locked for that statement and the status predicate excludes anything
+  already `Sending`, which is what makes two racing workers safe without an
+  explicit transaction. Recipients are upserted on `(campaign_id, email)`,
+  keeping existing tokens and delivery state, and only rows that are not already
+  `sent` are processed — that is why a retry contacts failures alone.
+- Terminal state comes from the recipient rows: `Sent`, `Partially sent` or
+  `Failed`. Audience size is never reported as delivery.
+
+### `server/routes/campaigns-public.js`
+Open tracking, click tracking and unsubscribe — the only campaign routes
+reachable without a session, because they are opened from an email client. They
+are mounted ahead of every authenticated router. Opens and clicks use
+`COALESCE(column, now())` so repeated events never move the first-event time,
+the click endpoint redirects only to the CTA stored on the campaign, and known,
+unknown and malformed tokens all get the same answer.
+
 ### `server/eventbrite.js` (94 lines)
 Two-way event sync. Dormant without `EVENTBRITE_TOKEN` + `EVENTBRITE_ORG_ID`.
 
@@ -221,19 +249,20 @@ does not exist.** The token is compared with `timingSafeEqual`.
 
 | Table | Holds | Notes |
 |---|---|---|
-| `users` | accounts | `role` admin/member/sponsor, `status` active/pending/suspended, `tier`, `renews_on`, `nudged_at` |
+| `users` | accounts | `role` admin/member/sponsor, `status` active/pending/suspended, `tier`, `renews_on`, `nudged_at`, `marketing_opt_in` (+ opted in/out timestamps) |
 | `events` | events | `code` is the public id; `source` local or eventbrite; `status` includes `Cancelled` |
 | `event_bookings` | tickets | unique per (user, event); `checked_in` + `checked_in_at`; `status` carries `Refunded` |
 | `invoices` | billing | `subtotal_cents`, `tax_cents`, `vat_rate`, `due_on`, `reminder_count`, `paid_at`, `payment_ref` |
 | `invoice_items` | line items | ordered by `sort` |
 | `sponsorships` | sponsor packages | `inclusions` jsonb, brand metrics |
 | `sponsor_leads`, `sponsored_events` | sponsor portal data | |
-| `contacts` | CRM | `status` Active/Warm/New/Cold, `last_activity_at` |
+| `contacts` | CRM | `status` Active/Warm/New/Cold, `last_activity_at`, `marketing_opt_in` (+ opted in/out timestamps) |
 | `deals` | pipeline | `stage` lead/qualified/proposal/won/lost |
 | `tasks` | kanban | `status` todo/doing/done |
 | `support_tickets`, `support_messages` | helpdesk | |
 | `membership_tiers` | tier reference | `perks` jsonb |
-| `campaigns` | email marketing | counters for sent/open/click |
+| `campaigns` | email marketing | authored body/CTA, delivery timings, `failed_count`, `last_error`; status Draft/Scheduled/Sending/Sent/Partially sent/Failed |
+| `campaign_recipients` | one row per campaign and address | opaque `public_token`, `delivery_status`, provider id, first open/click; unique `(campaign_id, email)` is what makes delivery idempotent |
 | `intro_requests` | networking | pending/matched/declined |
 | `activity_log`, `activity_reads` | feed + read receipts | one feed, two views |
 | `email_log` | every send attempt | sent/skipped/failed |
@@ -313,6 +342,7 @@ status for every one.
 | Stripe | `STRIPE_SECRET_KEY` | demo settlement, labelled, `demo-` payment ref |
 | Stripe webhook | `STRIPE_WEBHOOK_SECRET` | endpoint returns 503 |
 | Google sign-in | `GOOGLE_CLIENT_ID/SECRET` | button hidden |
+| Campaign scheduler | `CRON_SECRET` | `/api/ops/campaigns/run` returns 404 |
 | Eventbrite | `EVENTBRITE_TOKEN`, `EVENTBRITE_ORG_ID` | sync returns a clear 400 |
 | Demo mode | `DEMO_MODE=0` disables | demo paths off entirely |
 
@@ -350,6 +380,19 @@ Postgres — no mocks of our own code.
 | `crm.test.js` | contacts, memberships, campaigns, networking, ticket desk, activity |
 | `demo-mode.test.js` | demo payment, double-settlement, ownership, kill switch, real-keys precedence, outbox |
 | `ops.test.js` | migrate endpoint gating and idempotency |
+| `campaign-schema.test.js` | consent columns, status constraint, recipient uniqueness and cascade |
+| `campaign-service.test.js` | validation, consent-filtered audience, delivery, partial retry, empty audience, scheduling, races |
+| `campaign-public.test.js` | open/click idempotence, redirect safety, multi-record unsubscribe, token neutrality |
+| `campaign-api.test.js` | consent persistence, campaign CRUD, truthful send outcomes, cron auth and claiming |
+| `campaign-interface.test.js` | frontend contract: authoring hooks, consent controls, truthful reporting |
+
+Test files run one at a time (`--test-concurrency=1`): they share a single
+database, and parallel files were changing each other's campaign audiences.
+
+`npm run test:browser` runs the Playwright suite in `e2e/` — it boots the real
+Express app on an ephemeral port and walks the campaign lifecycle, viewport
+overflow at 1440px and 390px, and unsubscribe. It lives outside `test/` because
+`node --test` treats every file in that directory as a Node test.
 
 CI (`.github/workflows/ci.yml`) runs migrations and the suite against a Postgres
 service on every push and PR.

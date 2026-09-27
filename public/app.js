@@ -573,7 +573,7 @@ function emailPage() {
     <div class="email-grid">
       <section class="card">
         <div class="card-title"><h2>Campaigns</h2><button class="primary-action" type="button" data-modal="new-campaign"><span data-icon="plus"></span>New campaign</button></div>
-        ${campaigns.length ? `<table class="table">
+        ${campaigns.length ? `<div class="table-scroll"><table class="table">
           <thead><tr><th>Campaign</th><th>Audience</th><th>Delivered</th><th>Failed</th><th>Estimated opens</th><th>Clicks</th><th>Status</th><th></th></tr></thead>
           <tbody>${campaigns.map((c) => `<tr>
             <td><strong>${c.name}</strong><small style="display:block;color:var(--muted)">${c.subject || 'No subject line'}</small>${c.status === 'Scheduled' && c.scheduled_for ? `<small style="display:block;color:var(--muted)">Sends ${when(c.scheduled_for)}</small>` : ''}${c.last_error ? `<small style="display:block;color:var(--red)">${c.last_error}</small>` : ''}</td>
@@ -590,7 +590,7 @@ function emailPage() {
               ${c.status === 'Sent' ? `<span class="muted">Completed ${when(c.completed_at)}</span>` : ''}
             </span></td>
           </tr>`).join('')}</tbody>
-        </table>` : emptyState('No campaigns yet', 'Write one and pick the audience it goes to.')}
+        </table></div>` : emptyState('No campaigns yet', 'Write one and pick the audience it goes to.')}
         <p class="muted" style="font-size:12px;margin-top:10px">Open rates are estimated: many mail clients block the tracking pixel. Clicks count distinct recipients.</p>
       </section>
       <aside class="card">

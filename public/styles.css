@@ -1905,6 +1905,11 @@ body[data-theme="dark"] .skeleton {
 
 /* === Email marketing === */
 .email-grid { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 14px; }
+/* A grid item defaults to min-width:auto, so a wide table widens its column and
+   slides under the neighbouring panel. Let the columns shrink and scroll the
+   table inside its own card instead. */
+.email-grid > * { min-width: 0; }
+.table-scroll { overflow-x: auto; }
 .template-card {
   border: 1px solid var(--line); border-radius: 12px;
   padding: 12px; cursor: pointer; transition: 0.15s ease;
@@ -2196,8 +2201,9 @@ body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
 
 /* ===================== Campaigns ===================== */
 
-/* The message is the point of the form, so give it room that does not collapse. */
-.campaign-message {
+/* The message is the point of the form, so give it room that does not collapse.
+   Scoped through .modal-body to outrank the generic textarea rule above. */
+.modal-body textarea.campaign-message {
   min-height: 150px;
   resize: vertical;
   line-height: 1.5;
@@ -2231,7 +2237,7 @@ body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
     gap: 6px;
   }
 
-  .campaign-message {
+  .modal-body textarea.campaign-message {
     min-height: 120px;
   }
 }
