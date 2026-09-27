@@ -10,6 +10,7 @@ import { supportRouter } from './routes/support.js';
 import { crmRouter } from './routes/crm.js';
 import { stripeRouter } from './routes/stripe.js';
 import { opsRouter } from './routes/ops.js';
+import { campaignsPublicRouter, unsubscribePageRouter } from './routes/campaigns-public.js';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -56,6 +57,11 @@ export function createApp() {
   app.use('/api', rateLimit({ windowMs: 60000, max: 240 }));
   // Ops routes must sit ahead of the routers that require a session, or their
   // auth middleware answers first.
+  // Campaign tracking and unsubscribe are opened from an email client, so they
+  // sit ahead of every router that demands a session.
+  app.use('/api', campaignsPublicRouter);
+  app.use(unsubscribePageRouter);
+
   app.use('/api', opsRouter);
   app.use('/api/auth', rateLimit({ windowMs: 60000, max: 30 }), authRouter);
   app.use('/api', invoicesRouter);
