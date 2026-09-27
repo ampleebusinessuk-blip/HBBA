@@ -7,6 +7,9 @@
       "includeFiles": "migrations/**"
     }
   },
+  "crons": [
+    { "path": "/api/ops/campaigns/run", "schedule": "*/5 * * * *" }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" }
   ],

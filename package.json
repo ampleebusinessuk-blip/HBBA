@@ -13,7 +13,7 @@
     "migrate": "node migrations/run.js",
     "seed": "node seed.js",
     "bootstrap:admin": "node scripts/bootstrap-admin.js",
-    "test": "node --test"
+    "test": "node --test --test-concurrency=1"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

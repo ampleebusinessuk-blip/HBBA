@@ -126,17 +126,32 @@ test('memberships: tiers, tier edit, and renewal reminders', async () => {
   assert.equal((await reminded.json()).reminded, 1);
 });
 
-test('campaigns: create, send to the real audience, refuse a second send', async () => {
+test('campaigns: authored content, consent-limited audience, truthful outcome', async () => {
+  // The member fixture has to opt in explicitly; consent is never assumed.
+  await pool.query('UPDATE users SET marketing_opt_in = true, marketing_opted_in_at = now() WHERE email = $1', [memberEmail]);
+
   const created = await req('/api/admin/campaigns', {
-    method: 'POST', cookie: adminCookie, body: { name: 'CRM test campaign', subject: 'Hello', segment: 'All members' }
+    method: 'POST', cookie: adminCookie,
+    body: { name: 'CRM test campaign', subject: 'Hello', body_text: 'Body copy.', segment: 'All members' }
   });
   assert.equal(created.status, 201);
   const { campaign } = await created.json();
 
   const sent = await req(`/api/admin/campaigns/${campaign.id}/send`, { method: 'POST', cookie: adminCookie });
   assert.equal(sent.status, 200);
-  assert.ok((await sent.json()).sent >= 1);
+  const result = await sent.json();
+  assert.ok(result.eligible >= 1, 'the opted-in member is in the audience');
+  // No provider is configured in tests, so nothing is delivered and the
+  // campaign says so rather than claiming success from audience size.
+  assert.equal(result.status, 'Failed');
+  assert.equal(result.sent, 0);
 
+  const { rows } = await pool.query(
+    'SELECT count(*)::int AS n FROM campaign_recipients WHERE campaign_id = $1', [campaign.id]);
+  assert.equal(rows[0].n, result.eligible, 'one recipient row per eligible address');
+
+  // A campaign that genuinely finished cannot be sent again.
+  await pool.query("UPDATE campaigns SET status = 'Sent' WHERE id = $1", [campaign.id]);
   const again = await req(`/api/admin/campaigns/${campaign.id}/send`, { method: 'POST', cookie: adminCookie });
   assert.equal(again.status, 409);
 });

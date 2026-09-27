@@ -363,8 +363,11 @@ dataRouter.get('/admin/charts', adminOnly, async (req, res, next) => {
 // All users (admin) for the team/roles settings tabs.
 dataRouter.get('/admin/users', adminOnly, async (_req, res, next) => {
   try {
-    const { rows } = await query('SELECT full_name, email, role, status, created_at FROM users ORDER BY created_at');
-    res.json({ users: rows.map((u) => ({ name: u.full_name, email: u.email, role: u.role, status: u.status })) });
+    const { rows } = await query('SELECT full_name, email, role, status, marketing_opt_in, created_at FROM users ORDER BY created_at');
+    res.json({ users: rows.map((u) => ({
+      name: u.full_name, email: u.email, role: u.role, status: u.status,
+      marketing_opt_in: u.marketing_opt_in === true
+    })) });
   } catch (err) { next(err); }
 });
 
@@ -382,10 +385,12 @@ dataRouter.post('/admin/users', adminOnly, async (req, res, next) => {
     const hash = await hashPassword(temp);
     let created;
     try {
+      const optIn = req.body?.marketing_opt_in === true;
       ({ rows: created } = await query(
-        `INSERT INTO users (email, password_hash, role, full_name, status)
-         VALUES ($1,$2,$3,$4,'pending') RETURNING id`,
-        [email, hash, role, name]));
+        `INSERT INTO users (email, password_hash, role, full_name, status,
+                            marketing_opt_in, marketing_opted_in_at)
+         VALUES ($1,$2,$3,$4,'pending',$5, CASE WHEN $5 THEN now() ELSE NULL END) RETURNING id`,
+        [email, hash, role, name, optIn]));
     } catch (err) {
       if (err.code === '23505') return res.status(409).json({ error: 'A user with that email already exists' });
       throw err;

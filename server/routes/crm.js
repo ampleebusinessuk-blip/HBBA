@@ -3,6 +3,9 @@ import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { logActivity, feedFor, markFeedRead } from '../activity.js';
 import { sendEmail, sendBulk, layout, deliverySummary, emailConfigured, appUrl } from '../email.js';
+import {
+  validateCampaignInput, audienceOptions, campaignSummary, deliverCampaign
+} from '../campaigns.js';
 
 export const crmRouter = Router();
 crmRouter.use(requireAuth);
@@ -23,6 +26,20 @@ function ago(ts) {
   return days === 1 ? 'Yesterday' : `${days}d`;
 }
 
+/**
+ * Marketing consent is only ever changed by an explicit boolean. An absent
+ * field means "leave it alone", so an unrelated edit can never silently opt
+ * somebody in, and the matching timestamp is stamped on each transition.
+ */
+function consentUpdate(value, values) {
+  if (value !== true && value !== false) return null;
+  values.push(value);
+  const n = values.length;
+  return `marketing_opt_in = $${n}, `
+    + `marketing_opted_in_at = CASE WHEN $${n} THEN now() ELSE marketing_opted_in_at END, `
+    + `marketing_opted_out_at = CASE WHEN $${n} THEN marketing_opted_out_at ELSE now() END`;
+}
+
 function contactDTO(row) {
   return {
     id: row.id,
@@ -38,6 +55,7 @@ function contactDTO(row) {
     avatar: row.avatar || AVATAR(row.email),
     presence: row.status === 'Active' ? 'online' : row.status === 'Warm' ? 'away' : row.status === 'Cold' ? 'offline' : 'busy',
     deals: Number(row.deals) || 0,
+    marketing_opt_in: row.marketing_opt_in === true,
     last: ago(row.last_activity_at)
   };
 }
@@ -71,12 +89,14 @@ crmRouter.post('/admin/contacts', adminOnly, async (req, res, next) => {
     const status = ['Active', 'Warm', 'New', 'Cold'].includes(req.body?.status) ? req.body.status : 'New';
     let rows;
     try {
+      const optIn = req.body?.marketing_opt_in === true;
       ({ rows } = await query(
-        `INSERT INTO contacts (name, email, company, city, phone, tier, status, owner, avatar)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        `INSERT INTO contacts (name, email, company, city, phone, tier, status, owner, avatar,
+                               marketing_opt_in, marketing_opted_in_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, CASE WHEN $10 THEN now() ELSE NULL END) RETURNING *`,
         [name, email, String(req.body?.company || '').trim() || null, String(req.body?.city || '').trim() || null,
           String(req.body?.phone || '').trim() || null, tier, status,
-          String(req.body?.owner || '').trim() || null, AVATAR(email)]));
+          String(req.body?.owner || '').trim() || null, AVATAR(email), optIn]));
     } catch (err) {
       if (err.code === '23505') return res.status(409).json({ error: 'A contact with that email already exists' });
       throw err;
@@ -96,6 +116,8 @@ crmRouter.patch('/admin/contacts/:id', adminOnly, async (req, res, next) => {
     for (const key of ['name', 'company', 'city', 'phone', 'tier', 'status', 'owner', 'notes']) {
       if (req.body?.[key] !== undefined) { values.push(String(req.body[key])); fields.push(`${key} = $${values.length}`); }
     }
+    const consent = consentUpdate(req.body?.marketing_opt_in, values);
+    if (consent) fields.push(consent);
     if (!fields.length) return res.status(400).json({ error: 'Nothing to update' });
     values.push(req.params.id);
     const { rows } = await query(
@@ -250,27 +272,55 @@ async function audienceCount(segment) {
 
 crmRouter.get('/admin/campaigns', adminOnly, async (_req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM campaigns ORDER BY created_at DESC');
-    const audiences = [];
-    for (const segment of SEGMENTS) audiences.push({ segment, size: await audienceCount(segment) });
-    const sent = rows.filter((c) => c.status === 'Sent' || c.status === 'Active');
-    const totalSent = sent.reduce((s, c) => s + c.sent_count, 0);
-    const totalOpen = sent.reduce((s, c) => s + c.open_count, 0);
-    const totalClick = sent.reduce((s, c) => s + c.click_count, 0);
+    // Delivery figures come from recipient rows, never from audience size.
+    const { rows } = await query(`
+      SELECT c.*,
+             count(r.id) FILTER (WHERE r.delivery_status = 'sent')::int     AS delivered,
+             count(r.id) FILTER (WHERE r.delivery_status = 'failed')::int   AS failed,
+             count(r.id) FILTER (WHERE r.delivery_status = 'skipped')::int  AS skipped,
+             count(r.id)::int                                               AS recipients,
+             count(r.id) FILTER (WHERE r.first_opened_at IS NOT NULL)::int  AS opened,
+             count(r.id) FILTER (WHERE r.first_clicked_at IS NOT NULL)::int AS clicked
+        FROM campaigns c
+        LEFT JOIN campaign_recipients r ON r.campaign_id = c.id
+       GROUP BY c.id
+       ORDER BY c.created_at DESC`);
+
+    const audiences = await audienceOptions({ query });
+    const totals = rows.reduce((acc, c) => ({
+      delivered: acc.delivered + c.delivered,
+      opened: acc.opened + c.opened,
+      clicked: acc.clicked + c.clicked
+    }), { delivered: 0, opened: 0, clicked: 0 });
+
     res.json({
       campaigns: rows.map((c) => ({
-        id: c.id, name: c.name, subject: c.subject || '', segment: c.segment, status: c.status,
-        sent: c.sent_count ? String(c.sent_count) : '—',
-        open: c.sent_count ? `${Math.round((c.open_count / c.sent_count) * 100)}%` : '—',
-        click: c.sent_count ? `${Math.round((c.click_count / c.sent_count) * 100)}%` : '—',
-        scheduled_for: c.scheduled_for
+        id: c.id,
+        name: c.name,
+        subject: c.subject || '',
+        body_text: c.body_text || '',
+        cta_label: c.cta_label || '',
+        cta_url: c.cta_url || '',
+        segment: c.segment,
+        status: c.status,
+        recipients: c.recipients,
+        delivered: c.delivered,
+        failed: c.failed + c.skipped,
+        opened: c.opened,
+        clicked: c.clicked,
+        openRate: c.delivered ? `${Math.round((c.opened / c.delivered) * 100)}%` : '—',
+        clickRate: c.delivered ? `${Math.round((c.clicked / c.delivered) * 100)}%` : '—',
+        scheduled_for: c.scheduled_for,
+        completed_at: c.completed_at,
+        last_error: c.last_error || ''
       })),
       audiences,
       emailConnected: emailConfigured(),
       stats: {
         campaigns: rows.length,
-        openRate: totalSent ? `${Math.round((totalOpen / totalSent) * 100)}%` : '—',
-        clicks: totalClick
+        delivered: totals.delivered,
+        openRate: totals.delivered ? `${Math.round((totals.opened / totals.delivered) * 100)}%` : '—',
+        clicks: totals.clicked
       }
     });
   } catch (err) { next(err); }
@@ -278,53 +328,79 @@ crmRouter.get('/admin/campaigns', adminOnly, async (_req, res, next) => {
 
 crmRouter.post('/admin/campaigns', adminOnly, async (req, res, next) => {
   try {
-    const name = String(req.body?.name || '').trim();
-    if (!name) return res.status(400).json({ error: 'Campaign name required' });
-    const segment = SEGMENTS.includes(req.body?.segment) ? req.body.segment : 'All members';
-    const scheduled = req.body?.scheduled_for ? new Date(req.body.scheduled_for) : null;
-    const scheduledOk = scheduled && !Number.isNaN(scheduled.getTime());
-    const status = scheduledOk ? 'Scheduled' : 'Draft';
+    let input;
+    try {
+      input = validateCampaignInput(req.body, {});
+    } catch (err) {
+      // Validation runs before any INSERT, so a rejected campaign leaves nothing behind.
+      return res.status(err.status || 400).json({ error: err.message });
+    }
+
     const { rows } = await query(
-      `INSERT INTO campaigns (name, subject, segment, status, scheduled_for)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [name, String(req.body?.subject || '').trim() || null, segment, status,
-        scheduledOk ? scheduled.toISOString() : null]);
-    await logActivity({ kind: 'campaign', title: `Campaign ${status.toLowerCase()}`, body: name, tone: 'blue' });
+      `INSERT INTO campaigns (name, subject, body_text, segment, status, cta_label, cta_url, scheduled_for)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [input.name, input.subject, input.bodyText, input.segment, input.status,
+        input.ctaLabel, input.ctaUrl, input.scheduledFor ? input.scheduledFor.toISOString() : null]);
+
+    await logActivity({
+      kind: 'campaign', title: `Campaign ${input.status.toLowerCase()}`, body: input.name, tone: 'blue'
+    });
     res.status(201).json({
-      campaign: { id: rows[0].id, name: rows[0].name, status: rows[0].status, segment: rows[0].segment }
+      campaign: {
+        id: rows[0].id, name: rows[0].name, status: rows[0].status,
+        segment: rows[0].segment, scheduled_for: rows[0].scheduled_for
+      }
     });
   } catch (err) { next(err); }
 });
 
-// "Send" records the real audience size against the campaign. Actual delivery
-// happens through the email provider once one is connected (RESEND_API_KEY).
-crmRouter.post('/admin/campaigns/:id/send', adminOnly, async (req, res, next) => {
+/**
+ * Manual send and retry are the same operation: hand the campaign to the
+ * delivery service, which decides what is still outstanding. The response is
+ * the real outcome, so a campaign that delivered nothing is never called sent.
+ */
+async function runCampaign(req, res, next) {
+  try {
+    const { rows } = await query('SELECT id, status FROM campaigns WHERE id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Campaign not found' });
+    if (rows[0].status === 'Sending') return res.status(409).json({ error: 'That campaign is already sending' });
+    if (rows[0].status === 'Sent') return res.status(409).json({ error: 'That campaign has already been sent' });
+
+    const result = await deliverCampaign(req.params.id, { query });
+    if (result.empty) {
+      return res.status(400).json({ error: 'No one in that audience has opted in to marketing email' });
+    }
+    if (!result.claimed) {
+      return res.status(409).json({ error: 'That campaign is already sending' });
+    }
+
+    await logActivity({
+      kind: 'campaign',
+      title: result.status === 'Sent' ? 'Campaign sent' : `Campaign ${result.status.toLowerCase()}`,
+      body: `${result.sent} delivered, ${result.failed + result.skipped} undelivered`,
+      tone: result.status === 'Sent' ? 'green' : result.status === 'Failed' ? 'red' : 'orange'
+    });
+
+    res.json({
+      status: result.status,
+      eligible: result.eligible,
+      sent: result.sent,
+      failed: result.failed,
+      skipped: result.skipped,
+      emailConnected: emailConfigured()
+    });
+  } catch (err) { next(err); }
+}
+
+crmRouter.post('/admin/campaigns/:id/send', adminOnly, runCampaign);
+crmRouter.post('/admin/campaigns/:id/retry', adminOnly, runCampaign);
+
+crmRouter.get('/admin/campaigns/:id', adminOnly, async (req, res, next) => {
   try {
     const { rows } = await query('SELECT * FROM campaigns WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Campaign not found' });
-    if (rows[0].status === 'Sent') return res.status(409).json({ error: 'Campaign already sent' });
-    const recipients = await audienceRecipients(rows[0].segment);
-    if (!recipients.length) return res.status(400).json({ error: 'That audience is empty' });
-
-    const campaign = rows[0];
-    const outcome = await sendBulk(recipients, (person) => ({
-      subject: campaign.subject || campaign.name,
-      html: layout({
-        heading: campaign.subject || campaign.name,
-        body: `<p>Hi ${person.name || 'there'},</p><p>${campaign.name} from the HBBA Global team.</p><p>Sign in to your portal for the full detail, upcoming events and your membership benefits.</p>`,
-        cta: { url: appUrl(), label: 'Open your portal' }
-      }),
-      text: `${campaign.name} — sign in at ${appUrl()}`
-    }), 'campaign');
-
-    const { rows: updated } = await query(
-      `UPDATE campaigns SET status = 'Sent', sent_count = $1 WHERE id = $2 RETURNING *`,
-      [recipients.length, req.params.id]);
-    await logActivity({
-      kind: 'campaign', title: 'Campaign sent',
-      body: `${updated[0].name} → ${recipients.length} recipient(s), ${deliverySummary(outcome)}`, tone: 'green'
-    });
-    res.json({ sent: recipients.length, delivered: outcome.sent, delivery: deliverySummary(outcome) });
+    const summary = await campaignSummary(req.params.id, { query });
+    res.json({ campaign: rows[0], summary });
   } catch (err) { next(err); }
 });
 
