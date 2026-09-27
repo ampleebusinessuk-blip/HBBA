@@ -18,8 +18,11 @@ export function appUrl() {
   return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
 
-const esc = (s) => String(s == null ? '' : s)
+/** Escape user-authored text before it reaches an HTML template. */
+export const escapeHtml = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const esc = escapeHtml;
 
 /** Branded wrapper so every message looks like it came from the same product. */
 export function layout({ heading, body, cta }) {
