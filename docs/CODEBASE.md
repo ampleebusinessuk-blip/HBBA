@@ -342,7 +342,7 @@ status for every one.
 | Stripe | `STRIPE_SECRET_KEY` | demo settlement, labelled, `demo-` payment ref |
 | Stripe webhook | `STRIPE_WEBHOOK_SECRET` | endpoint returns 503 |
 | Google sign-in | `GOOGLE_CLIENT_ID/SECRET` | button hidden |
-| Campaign scheduler | `CRON_SECRET` | `/api/ops/campaigns/run` returns 404 |
+| Campaign scheduler | `CRON_SECRET` | `/api/ops/campaigns/run` returns 404. Runs daily on Hobby; Vercel rejects sub-daily crons on that plan. |
 | Eventbrite | `EVENTBRITE_TOKEN`, `EVENTBRITE_ORG_ID` | sync returns a clear 400 |
 | Demo mode | `DEMO_MODE=0` disables | demo paths off entirely |
 

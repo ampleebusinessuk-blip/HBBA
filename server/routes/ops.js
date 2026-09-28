@@ -41,7 +41,8 @@ opsRouter.post('/ops/migrate', async (req, res, next) => {
 });
 
 /**
- * Scheduled campaign delivery, invoked by Vercel Cron every five minutes.
+ * Scheduled campaign delivery, invoked by Vercel Cron on the schedule in
+ * vercel.json (daily on a Hobby plan, which is the only rate it allows).
  *
  * Without CRON_SECRET the route does not exist. The work itself is delegated to
  * the same delivery service the admin button uses, and claiming is atomic, so

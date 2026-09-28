@@ -80,10 +80,15 @@ it claims the campaign, resolves the consent-qualified audience, writes one
 recipient row per address, and sends only to rows that are not already
 delivered.
 
-**Scheduling granularity is five minutes.** Vercel Cron calls
-`/api/ops/campaigns/run` on that interval, so a campaign scheduled for 09:02
-sends at the next run at or after 09:05. One invocation handles at most five due
-campaigns.
+**Scheduling granularity follows the cron schedule.** Vercel Cron calls
+`/api/ops/campaigns/run` on the schedule in `vercel.json`. A Hobby plan allows
+only one run per day, so it is set to `0 8 * * *` and a campaign scheduled for
+any time today goes out at the next 08:00 UTC run. Vercel Pro allows
+`*/5 * * * *` for five-minute granularity; alternatively point any external
+scheduler at the same endpoint with the `CRON_SECRET` bearer token. One
+invocation handles at most five due campaigns.
+
+Send by hand with **Send now** whenever you do not want to wait for the run.
 
 **Outcomes are truthful.** A campaign finishes as `Sent` (everyone delivered),
 `Partially sent` (some delivered, some did not) or `Failed` (nothing delivered).
@@ -124,7 +129,8 @@ Order matters:
 - With no provider connected, confirm the campaign reads `Failed`, delivered 0.
 - Open the campaign email, click the CTA, and confirm the counts move once only.
 - Follow the unsubscribe link; confirm the contact drops out of the audience.
-- Schedule a campaign two minutes ahead and confirm the cron run picks it up.
+- Schedule a campaign, then confirm the next cron run picks it up (or call
+  `/api/ops/campaigns/run` with the bearer token to check without waiting).
 
 ## Optional Integrations
 
@@ -135,7 +141,7 @@ the live status of every row:
   reminders and campaigns. Without it those actions are still recorded in
   `email_log` with status `skipped`, and the UI says so.
 - `CRON_SECRET`: enables `GET /api/ops/campaigns/run`, the scheduled-campaign
-  worker Vercel Cron calls every five minutes. Unset, that route returns 404.
+  worker Vercel Cron calls on the schedule in `vercel.json`. Unset, that route returns 404.
 - `STRIPE_SECRET_KEY`: enables the hosted checkout on an invoice.
 - `STRIPE_WEBHOOK_SECRET`: lets `POST /api/stripe/webhook` mark an invoice paid
   when checkout completes. Point the Stripe endpoint at

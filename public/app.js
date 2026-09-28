@@ -1893,7 +1893,7 @@ const modalForms = {
        <label>Audience<select data-cp="segment">${(campaignAudiences.length ? campaignAudiences : [{ segment: 'All members', eligible: 0, total: 0 }]).map((a) => `<option value="${a.segment}">${a.segment} — ${a.eligible} eligible of ${a.total}</option>`).join('')}</select></label>
        <label>Send time (optional)<input type="datetime-local" data-cp="scheduled_for" /></label>
      </div>
-     <p class="muted" style="font-size:12px;margin:8px 0 0">Leave the send time empty to save a draft you send by hand. A future time schedules it; the scheduler runs every five minutes. Only opted-in records receive marketing email, and every message carries an unsubscribe link.</p>`,
+     <p class="muted" style="font-size:12px;margin:8px 0 0">Leave the send time empty to save a draft you send by hand. A future time schedules it; the scheduler runs once a day, so a scheduled campaign goes out on the next run after its time. Only opted-in records receive marketing email, and every message carries an unsubscribe link.</p>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-campaign>Save campaign</button>`),
   'new-intro': () => openModal('Request an introduction',
     `<label>Who would you like to meet?<input type="text" data-in="to" list="networkPeople" placeholder="Name or company" /><datalist id="networkPeople">${networkPeople.map((n) => `<option value="${n.name}"></option>`).join('')}</datalist></label><label>Why<textarea data-in="reason" placeholder="What you would like to explore together…"></textarea></label>`,
