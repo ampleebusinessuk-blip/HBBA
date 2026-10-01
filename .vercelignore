@@ -1,0 +1,8 @@
+.superpowers/
+docs/
+test/
+docker-compose.yml
+.env
+.env.*
+demo.png
+public/demo.png

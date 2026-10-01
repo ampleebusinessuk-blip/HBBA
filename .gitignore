@@ -1,1 +1,16 @@
 prototype-*.png
+.superpowers/
+node_modules/
+.env
+.env.*
+!.env.example
+
+.vercel
+.worktrees/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Scratch directories and captures from local tooling
+.tmp-*
