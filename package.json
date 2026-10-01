@@ -10,6 +10,7 @@
   "scripts": {
     "start": "node server/index.js",
     "start:prod": "npm run migrate && npm start",
+    "doctor": "node scripts/doctor.js",
     "dev": "node --watch server/index.js",
     "migrate": "node migrations/run.js",
     "seed": "node seed.js",
