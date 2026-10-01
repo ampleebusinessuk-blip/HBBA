@@ -16,7 +16,11 @@ const SIGNUP_ROLES = ['member', 'sponsor'];
 
 
 function publicUser(u) {
-  return { id: u.id, email: u.email, role: u.role, full_name: u.full_name, org: u.org, status: u.status };
+  return {
+    id: u.id, email: u.email, role: u.role, full_name: u.full_name, org: u.org, status: u.status,
+    // The header renders the person's own name and picture.
+    avatar: u.avatar_data || null, job_title: u.job_title || '', city: u.city || ''
+  };
 }
 
 authRouter.post('/signup', async (req, res, next) => {

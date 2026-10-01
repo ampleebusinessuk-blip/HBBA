@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- A client opens this from an email. No account, no password: the token in
+     the URL fragment is the whole credential, and because it lives in the
+     fragment it is never sent in a request line or a referrer header. -->
+<meta name="robots" content="noindex, nofollow">
+<title>Invoice · HBBA Global</title>
+<link rel="icon" href="logo.svg">
+<style>
+  :root {
+    --bg: #f6f7fb; --surface: #fff; --line: #dde2ee; --text: #131a2e;
+    --muted: #667089; --green: #0f9f6e; --red: #e54863; --head: #1f3a73;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 28px 16px 64px;
+  }
+  .sheet {
+    max-width: 860px; margin: 0 auto; background: var(--surface);
+    border-radius: 14px; overflow: hidden; box-shadow: 0 20px 48px rgba(18, 28, 56, .1);
+  }
+  .sheet-head {
+    background: var(--head); color: #fff; padding: 28px 32px;
+    display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  }
+  .sheet-head h1 { margin: 0; font-size: 28px; letter-spacing: .5px; }
+  .sheet-head .num { opacity: .9; font-size: 14px; margin-top: 6px; }
+  .sheet-head .biz { text-align: right; font-size: 13px; line-height: 1.6; opacity: .95; }
+  .body { padding: 28px 32px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .cols h3, .meta h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .cols p { margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-line; }
+  .meta { display: flex; gap: 28px; flex-wrap: wrap; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+  .meta div { font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 8px 8px; }
+  th.r, td.r { text-align: right; }
+  td { padding: 12px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+  td small { display: block; color: var(--muted); margin-top: 3px; }
+  .sums { margin: 20px 0 0 auto; width: 100%; max-width: 320px; font-size: 14px; }
+  .sums div { display: flex; justify-content: space-between; padding: 7px 0; }
+  .sums .grand { border-top: 2px solid var(--text); margin-top: 6px; padding-top: 10px; font-weight: 700; font-size: 17px; }
+  .panel { margin-top: 24px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcff; }
+  .panel h3 { margin: 0 0 10px; font-size: 13px; }
+  .panel dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
+  .panel dt { color: var(--muted); }
+  .panel dd { margin: 0; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input[type=text] { width: 100%; max-width: 320px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; font: inherit; }
+  button {
+    font: inherit; font-weight: 600; padding: 11px 18px; border-radius: 9px;
+    border: 1px solid var(--head); background: var(--head); color: #fff; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--head); }
+  button[disabled] { opacity: .55; cursor: default; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .pill { display: inline-block; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.paid { background: #e3f7ef; color: var(--green); }
+  .pill.overdue { background: #fde8ec; color: var(--red); }
+  .pill.other { background: rgba(255, 255, 255, .22); color: #fff; }
+  .msg { margin-top: 12px; font-size: 14px; padding: 11px 14px; border-radius: 9px; }
+  .msg.ok { background: #e3f7ef; color: #0a6b4a; }
+  .msg.bad { background: #fde8ec; color: #96243a; }
+  .centred { max-width: 520px; margin: 80px auto; text-align: center; color: var(--muted); }
+  @media (max-width: 620px) { .cols { grid-template-columns: 1fr; } .sheet-head .biz { text-align: left; } }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .sheet { box-shadow: none; border-radius: 0; max-width: none; }
+    .no-print { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<main id="root"><div class="centred">Loading invoice…</div></main>
+
+<script>
+const root = document.getElementById('root');
+const token = location.hash.replace(/^#/, '').trim();
+let state = null;
+
+const ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ENTITIES[c]);
+
+async function call(path, body) {
+  const res = await fetch(path, {
+    method: body ? 'POST' : 'GET',
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  let data = null;
+  try { data = await res.json(); } catch (err) { /* empty or non-JSON body */ }
+  return { ok: res.ok, status: res.status, data };
+}
+
+function stop(message) {
+  root.innerHTML = '<div class="centred"><h2>' + esc(message) + '</h2>'
+    + '<p>If you were expecting an invoice, ask the sender for a fresh link.</p></div>';
+}
+
+function address(party) {
+  if (!party) return '—';
+  return [
+    party.name, party.contact, party.address, party.email, party.phone,
+    party.registrationNo ? 'Reg: ' + party.registrationNo : '',
+    party.vatNo ? 'VAT: ' + party.vatNo : ''
+  ].filter(Boolean).map(esc).join('\n');
+}
+
+function render() {
+  const d = state.document;
+  const a = state.actions;
+  const statusClass = d.status === 'paid' ? 'paid' : d.status === 'overdue' ? 'overdue' : 'other';
+
+  const meta = [
+    ['Invoice date', d.issued],
+    ['Due date', d.due || '—'],
+    d.poRef && ['Reference', d.poRef],
+    d.serviceCategory && ['Category', d.serviceCategory],
+    d.locationMode && ['Delivery', d.locationMode],
+    d.deliveryPeriod && ['Period', d.deliveryPeriod]
+  ].filter(Boolean);
+
+  const bankRows = d.bank ? [
+    ['Account name', d.bank.accountName], ['Bank', d.bank.bankName],
+    ['Account number', d.bank.accountNumber], ['Sort code', d.bank.sortCode],
+    ['IBAN', d.bank.iban], ['SWIFT', d.bank.swift], ['Account type', d.bank.accountType]
+  ].filter(([, v]) => v) : [];
+
+  root.innerHTML = `
+    <div class="sheet">
+      <div class="sheet-head" style="background:${esc(d.headerColor)}">
+        <div>
+          <h1>${esc(String(d.documentTitle).toUpperCase())}</h1>
+          <div class="num">${esc(d.number)} &nbsp;<span class="pill ${statusClass}">${esc(d.status)}</span></div>
+        </div>
+        <div class="biz">
+          <strong>${esc(d.billedBy.name)}</strong><br>
+          ${[d.billedBy.address, d.billedBy.email, d.billedBy.phone,
+      d.billedBy.vatNo ? 'VAT: ' + d.billedBy.vatNo : ''].filter(Boolean).map(esc).join('<br>')}
+        </div>
+      </div>
+
+      <div class="body">
+        <div class="cols">
+          <div><h3>Billed by</h3><p>${address(d.billedBy)}</p></div>
+          <div><h3>Billed to</h3><p>${address(d.billedTo)}</p></div>
+        </div>
+
+        <div class="meta">
+          ${meta.map(([k, v]) => `<div><h3>${esc(k)}</h3>${esc(v)}</div>`).join('')}
+        </div>
+
+        <table>
+          <thead><tr>
+            <th>Item</th><th>Unit</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th>
+          </tr></thead>
+          <tbody>
+            ${d.items.map((it) => `<tr>
+              <td><strong>${esc(it.description)}</strong>${it.details ? '<small>' + esc(it.details) + '</small>' : ''}</td>
+              <td>${esc(it.unit)}</td>
+              <td class="r">${esc(it.qty)}</td>
+              <td class="r">${esc(it.rate)}</td>
+              <td class="r">${esc(it.line)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+
+        <div class="sums">
+          <div><span>Subtotal</span><span>${esc(d.totals.subtotal)}</span></div>
+          ${d.totals.discount ? `<div><span>${esc(d.totals.discountLabel)}</span><span>−${esc(d.totals.discount)}</span></div>` : ''}
+          ${d.totals.vatRate ? `<div><span>VAT (${esc(d.totals.vatRate)}%)</span><span>${esc(d.totals.tax)}</span></div>` : ''}
+          ${d.totals.advance ? `<div><span>Already paid</span><span>−${esc(d.totals.advance)}</span></div>` : ''}
+          <div class="grand"><span>${d.totals.advance ? 'Balance due' : 'Total due'}</span><span>${esc(d.totals.due)}</span></div>
+        </div>
+
+        ${d.installments.length ? `<div class="panel"><h3>Payment schedule</h3><dl>
+          ${d.installments.map((p) => `<dt>${esc(p.label)}${p.due ? ' · ' + esc(p.due) : ''}</dt>
+            <dd>${esc(p.amount)} · ${esc(p.status)}</dd>`).join('')}
+        </dl></div>` : ''}
+
+        ${bankRows.length ? `<div class="panel"><h3>Bank transfer</h3><dl>
+          ${bankRows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}
+        </dl></div>` : ''}
+
+        ${d.notes ? `<div class="panel"><h3>Notes</h3><p style="margin:0;white-space:pre-line">${esc(d.notes)}</p></div>` : ''}
+
+        ${d.signature ? `<div class="panel"><h3>Accepted</h3><p style="margin:0">Accepted by
+          <strong>${esc(d.signature.name)}</strong> on ${esc(new Date(d.signature.at).toLocaleString('en-GB'))}.</p></div>` : ''}
+
+        ${a.sign ? `<div class="panel no-print"><h3>Accept this invoice</h3>
+          <label for="sig">Type your full name to confirm you accept these charges</label>
+          <input id="sig" type="text" autocomplete="name" placeholder="Your full name">
+          <div class="actions"><button id="signBtn">Accept invoice</button></div>
+          <p class="note">Your name, the time and your network address are recorded as your acceptance.</p>
+        </div>` : ''}
+
+        <div class="actions no-print">
+          <button class="ghost" id="printBtn">Print or save as PDF</button>
+          ${a.pay ? `<button id="payBtn">Pay ${esc(d.totals.due)} by card</button>` : ''}
+        </div>
+        ${a.pay && a.demoPayments ? '<p class="note">Card payment is in demo mode — no card is charged and no money moves.</p>' : ''}
+        ${!a.pay && d.status !== 'paid' ? '<p class="note">Please pay by bank transfer using the details above.</p>' : ''}
+        <div id="msg"></div>
+      </div>
+    </div>`;
+
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+  const sign = document.getElementById('signBtn');
+  if (sign) sign.addEventListener('click', doSign);
+  const pay = document.getElementById('payBtn');
+  if (pay) pay.addEventListener('click', doPay);
+}
+
+function say(text, kind) {
+  document.getElementById('msg').innerHTML = '<div class="msg ' + kind + '">' + esc(text) + '</div>';
+}
+
+async function doSign() {
+  const input = document.getElementById('sig');
+  const button = document.getElementById('signBtn');
+  const name = input.value.trim();
+  if (name.length < 2) return say('Type your full name to accept.', 'bad');
+  button.disabled = true;
+  const res = await call('/api/public/invoices/' + encodeURIComponent(token) + '/sign', { name });
+  if (!res.ok) {
+    button.disabled = false;
+    return say(res.data?.error || 'That could not be recorded.', 'bad');
+  }
+  await load();
+  say('Thank you — your acceptance has been recorded.', 'ok');
+}
+
+async function doPay() {
+  const button = document.getElementById('payBtn');
+  button.disabled = true;
+  const res = await call('/api/public/invoices/' + encodeURIComponent(token) + '/pay', {});
+  if (!res.ok) {
+    button.disabled = false;
+    return say(res.data?.error || 'Payment could not be started.', 'bad');
+  }
+  if (res.data?.url) { location.href = res.data.url; return; }
+
+  // Demo mode: confirm in words, so nobody can mistake it for a real charge.
+  if (res.data?.demo) {
+    const go = confirm('Demo payment of ' + res.data.amount
+      + '. No card is charged and no money moves. Continue?');
+    if (!go) { button.disabled = false; return; }
+    const done = await call('/api/public/invoices/' + encodeURIComponent(token) + '/pay/demo', {});
+    if (!done.ok) {
+      button.disabled = false;
+      return say(done.data?.error || 'That could not be recorded.', 'bad');
+    }
+    await load();
+    say('Recorded as paid in demo mode (' + done.data.amount + '). No card was charged.', 'ok');
+  }
+}
+
+async function load() {
+  const res = await call('/api/public/invoices/' + encodeURIComponent(token));
+  if (!res.ok) { stop(res.data?.error || 'This invoice link is no longer valid'); return false; }
+  state = res.data;
+  render();
+  document.title = state.document.documentTitle + ' ' + state.document.number
+    + ' · ' + state.document.billedBy.name;
+  return true;
+}
+
+if (!token) stop('This link is incomplete');
+else load();
+</script>
+</body>
+</html>

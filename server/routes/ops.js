@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { timingSafeEqual } from 'node:crypto';
 import { runMigrations } from '../../migrations/run.js';
 import { dueCampaigns, deliverCampaign } from '../campaigns.js';
+import { runRecurringInvoices } from './invoices.js';
 import { query } from '../db.js';
 import { resolve } from '../settings.js';
 
@@ -72,6 +73,15 @@ opsRouter.get('/ops/campaigns/run', async (req, res, next) => {
         processed.push({ campaignId: id, claimed: false, status: 'Failed', error: err.message });
       }
     }
-    res.json({ ok: true, due: ids.length, processed });
+    // The same daily tick issues any repeat invoice that has come due. One
+    // schedule, because Vercel's Hobby plan allows exactly one.
+    let invoices = { issued: [] };
+    try {
+      invoices = await runRecurringInvoices();
+    } catch (err) {
+      invoices = { issued: [], error: err.message };
+    }
+
+    res.json({ ok: true, due: ids.length, processed, invoices });
   } catch (err) { next(err); }
 });

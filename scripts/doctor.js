@@ -46,5 +46,13 @@ try {
   console.log('database      : UNREACHABLE —', err.message);
 }
 
-console.log('--- holding the container open so these logs can be read ---');
-setInterval(() => {}, 60_000);
+// Run as a container's start command, this must not exit: the platform would
+// treat a finished process as a crashed one and the logs would scroll away
+// before anyone read them. Run from a terminal, it should just finish.
+if (process.env.DOCTOR_HOLD_OPEN === '1') {
+  console.log('--- holding the container open so these logs can be read ---');
+  setInterval(() => {}, 60_000);
+} else {
+  const { closePool } = await import('../server/db.js');
+  await closePool().catch(() => { /* nothing to close */ });
+}

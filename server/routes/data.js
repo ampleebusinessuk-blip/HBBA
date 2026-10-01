@@ -162,19 +162,6 @@ dataRouter.post('/me/membership/upgrade', async (req, res, next) => {
 });
 
 // Update the current user's own profile (name / org).
-dataRouter.patch('/me/profile', async (req, res, next) => {
-  try {
-    const { full_name, org } = req.body || {};
-    if (!full_name || !String(full_name).trim()) return res.status(400).json({ error: 'Name required' });
-    const { rows } = await query(
-      `UPDATE users SET full_name = $1, org = $2 WHERE id = $3
-       RETURNING id, email, role, full_name, org, status`,
-      [String(full_name).trim(), org ? String(org).trim() : null, req.auth.sub]
-    );
-    res.json({ user: rows[0] });
-  } catch (err) { next(err); }
-});
-
 // --- Sponsor portal ---
 
 // Sponsorship package + brand stats for the current sponsor.

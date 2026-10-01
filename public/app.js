@@ -55,7 +55,10 @@ const pageMeta = {
   support:      ['Support Tickets', 'Resolve member questions and operational issues.'],
   invoices:     ['Invoices & Payments', 'Monitor billing, collections and payment status.'],
   reports:      ['Reports & Analytics', 'Review organization performance and trends.'],
-  settings:     ['Settings', 'Configure workspace, users, permissions and integrations.']
+  settings:     ['Settings', 'Configure workspace, users, permissions and integrations.'],
+  clients:      ['Clients', 'The companies you bill, with or without a portal account.'],
+  invoiceBuilder: ['Invoice builder', 'Compose the document your client will receive.'],
+  profile:      ['My Profile', 'Your name, picture and contact details.']
 };
 
 /* ---------- Data ---------- */
@@ -100,6 +103,12 @@ const RANGE_DAYS = { Today: 1, 'This week': 7, 'This month': 30, 'This quarter':
 let activeTicket = null;
 
 let invoices = [];
+let adminClients = [];
+/* The signed-in person's own record, as they maintain it. */
+let myProfile = null;
+/* The invoice being composed or revised. Null when the builder is closed. */
+let invoiceDraft = null;
+let invoiceOptions = { clients: [], bankAccounts: [], units: [], business: {} };
 
 let notifications = [];
 
@@ -117,6 +126,28 @@ function eventImage(e, variant = 'row') {
   return variant === 'card'
     ? '<div class="event-thumb-empty" aria-hidden="true"></div>'
     : '<span class="date-tile" style="background:var(--line)"></span>';
+}
+
+/* HTML-escape. Everything a person typed about themselves is rendered through
+   this, so a name containing a tag stays a name. */
+const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function h(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => HTML_ENTITIES[c]);
+}
+
+/* Initials, for a person who has not uploaded a picture. Never a stock photo
+   of somebody else. */
+function initials(name) {
+  return String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('') || '?';
+}
+
+/* A person's picture, or their initials. Used wherever a face belongs. */
+function personAvatar(person, size = 36) {
+  const name = person?.full_name || person?.name || '';
+  if (person?.avatar) {
+    return `<img class="avatar" src="${person.avatar}" alt="${h(name)}" style="width:${size}px;height:${size}px" />`;
+  }
+  return `<span class="avatar avatar-initials" style="width:${size}px;height:${size}px;font-size:${Math.round(size / 2.6)}px" aria-hidden="true">${h(initials(name))}</span>`;
 }
 
 function avatar(src, presence) {
@@ -729,20 +760,26 @@ function invoicesPage() {
     </div>
     ${filterBar('Search invoices…', [{ label: 'All', count: invoices.length }, { label: 'Paid' }, { label: 'Due' }, { label: 'Overdue' }, { label: 'Draft' }])}
     <section class="card">
-      <div class="card-title"><h2>Invoices</h2><button class="primary-action" type="button" data-modal="new-invoice"><span data-icon="plus"></span>New invoice</button></div>
+      <div class="card-title"><h2>Invoices</h2><button class="primary-action" type="button" data-new-invoice><span data-icon="plus"></span>New invoice</button></div>
       <table class="table">
         <thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Issued</th><th>Due</th><th>Status</th><th></th></tr></thead>
         <tbody>
           ${invoices.map((inv) => `
             <tr data-view-invoice="${inv.id}" style="cursor:pointer">
-              <td><strong>${inv.id}</strong></td>
-              <td>${inv.client || '—'}</td>
-              <td><strong>${inv.amount}</strong></td>
+              <td><strong>${inv.id}</strong>${inv.title && inv.title !== 'Invoice' ? `<br /><small class="muted">${h(inv.title)}</small>` : ''}</td>
+              <td>${h(inv.client || '—')}${inv.recurring ? `<br /><small class="muted">Repeats ${h(inv.recurring)}</small>` : ''}</td>
+              <td><strong>${inv.amount}</strong>${inv.signed ? '<br /><small class="muted">Accepted</small>' : ''}</td>
               <td>${inv.issued || '—'}</td>
               <td>${inv.due || '—'}</td>
               <td><span class="invoice-status ${inv.status === 'void' ? 'draft' : inv.status === 'sent' ? 'due' : inv.status}">${cap(inv.status)}</span></td>
               <td style="white-space:nowrap">
-                ${inv.status !== 'paid' && inv.status !== 'void' ? `<button class="link-button" data-pay="${inv.id}">Mark paid</button> · <button class="link-button" data-remind-invoice="${inv.id}">Remind</button> · <button class="link-button" data-void-invoice="${inv.id}">Void</button>` : `<button class="link-button" data-view-invoice="${inv.id}">View</button>`}
+                <button class="link-button" data-share-invoice="${inv.id}">Share</button> ·
+                <button class="link-button" data-duplicate-invoice="${inv.id}">Copy</button>
+                ${inv.status !== 'paid' && inv.status !== 'void' ? ` ·
+                  <button class="link-button" data-edit-invoice="${inv.id}">Edit</button> ·
+                  <button class="link-button" data-pay="${inv.id}">Mark paid</button> ·
+                  <button class="link-button" data-remind-invoice="${inv.id}">Remind</button> ·
+                  <button class="link-button" data-void-invoice="${inv.id}" style="color:var(--red)">Void</button>` : ''}
               </td>
             </tr>
           `).join('')}
@@ -785,9 +822,10 @@ function reportsPage() {
 }
 
 /* --- Settings (tabs) --- */
-let settingsTab = 'profile';
+let settingsTab = 'business';
 function settingsPage() {
-  const tabs = ['profile', 'business', 'team', 'roles', 'billing', 'integrations'];
+  // A person's own details live on the Profile page, which every role has.
+  const tabs = ['business', 'team', 'roles', 'billing', 'integrations'];
   return `
     <div class="tabs">
       ${tabs.map((t) => `<button type="button" data-settings-tab="${t}" class="${t === settingsTab ? 'is-active' : ''}">${t.charAt(0).toUpperCase() + t.slice(1)}</button>`).join('')}
@@ -797,19 +835,6 @@ function settingsPage() {
 }
 
 function settingsBody(tab) {
-  if (tab === 'profile') {
-    return `<div class="settings-grid">
-      <section class="card full">
-        <div class="card-title"><h2>Your profile</h2><button class="primary-action" type="button" data-save-profile>Save changes</button></div>
-        <div class="form-row">
-          <label>Full name<input type="text" data-pf="full_name" value="${currentUser?.full_name || ''}" /></label>
-          <label>Organisation<input type="text" data-pf="org" value="${currentUser?.org || ''}" /></label>
-          <label>Email<input type="email" value="${currentUser?.email || ''}" disabled /></label>
-          <label>Account type<input type="text" value="${ROLES[currentRole].label}" disabled /></label>
-        </div>
-      </section>
-    </div>`;
-  }
   if (tab === 'team') {
     return `<section class="card">
       <div class="card-title"><h2>Team & members</h2><button class="primary-action" type="button" data-modal="new-user"><span data-icon="plus"></span>Invite user</button></div>
@@ -1007,35 +1032,35 @@ const ROLES = {
   admin: {
     label: 'HBBA Admin',
     landing: 'dashboard',
-    profile: { name: 'John Doe', role: 'HBBA Admin', email: 'john.doe@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=96&q=80' },
     nav: [
       ['dashboard', 'home', 'Dashboard'], ['crm', 'users', 'CRM'], ['memberships', 'crown', 'Memberships'],
       ['events', 'calendar', 'Events'], ['tickets', 'ticket', 'Tickets'], ['sponsors', 'star', 'Sponsors'],
       ['networking', 'network', 'Networking'], ['tasks', 'check', 'Tasks & Activities'], ['email', 'mail', 'Email Marketing'],
-      ['support', 'headset', 'Support Tickets'], ['invoices', 'file', 'Invoices & Payments'], ['reports', 'chart', 'Reports & Analytics'],
-      ['settings', 'settings', 'Settings']
+      ['support', 'headset', 'Support Tickets'], ['clients', 'globe', 'Clients'],
+      ['invoices', 'file', 'Invoices & Payments'], ['reports', 'chart', 'Reports & Analytics'],
+      ['profile', 'users', 'My Profile'], ['settings', 'settings', 'Settings']
     ],
     bottomNav: [['dashboard', 'home', 'Home'], ['crm', 'users', 'CRM'], ['events', 'calendar', 'Events'], ['tasks', 'check', 'Tasks'], ['settings', 'settings', 'More']]
   },
   member: {
     label: 'Premium Member',
     landing: 'dashboard',
-    profile: { name: 'Jane Cole', role: 'Premium Member', email: 'member@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=96&q=80' },
     nav: [
       ['dashboard', 'home', 'Dashboard'], ['myMembership', 'crown', 'My Membership'], ['myEvents', 'calendar', 'Events & Tickets'],
-      ['networking', 'network', 'Networking'], ['myInvoices', 'file', 'My Invoices'], ['support', 'headset', 'Support']
+      ['networking', 'network', 'Networking'], ['myInvoices', 'file', 'My Invoices'],
+      ['profile', 'users', 'My Profile'], ['support', 'headset', 'Support']
     ],
-    bottomNav: [['dashboard', 'home', 'Home'], ['myEvents', 'calendar', 'Events'], ['networking', 'network', 'Network'], ['myInvoices', 'file', 'Invoices'], ['support', 'headset', 'Help']]
+    bottomNav: [['dashboard', 'home', 'Home'], ['myEvents', 'calendar', 'Events'], ['networking', 'network', 'Network'], ['myInvoices', 'file', 'Invoices'], ['profile', 'users', 'Profile']]
   },
   sponsor: {
     label: 'Gold Sponsor',
     landing: 'dashboard',
-    profile: { name: 'Acme Corp', role: 'Gold Sponsor', email: 'sponsor@hbbaglobal.co.uk', avatar: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&w=96&q=80' },
     nav: [
       ['dashboard', 'home', 'Dashboard'], ['sponsorOverview', 'star', 'Sponsorship'], ['brandVisibility', 'chart', 'Brand & Leads'],
-      ['sponsoredEvents', 'calendar', 'Sponsored Events'], ['myInvoices', 'file', 'My Invoices'], ['support', 'headset', 'Support']
+      ['sponsoredEvents', 'calendar', 'Sponsored Events'], ['myInvoices', 'file', 'My Invoices'],
+      ['profile', 'users', 'My Profile'], ['support', 'headset', 'Support']
     ],
-    bottomNav: [['dashboard', 'home', 'Home'], ['sponsorOverview', 'star', 'Package'], ['brandVisibility', 'chart', 'Leads'], ['sponsoredEvents', 'calendar', 'Events'], ['support', 'headset', 'Help']]
+    bottomNav: [['dashboard', 'home', 'Home'], ['sponsorOverview', 'star', 'Package'], ['brandVisibility', 'chart', 'Leads'], ['sponsoredEvents', 'calendar', 'Events'], ['profile', 'users', 'Profile']]
   }
 };
 
@@ -1099,6 +1124,12 @@ function sumInvoices(rows, statuses) {
 }
 
 const fmtMoney = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB');
+
+/* Money that will actually be charged, to the penny, formatted exactly as the
+   invoice document formats it. A preview that rounds is a preview that lies. */
+const fmtPence = (cents) => '£' + (Number(cents) / 100).toLocaleString('en-GB', {
+  minimumFractionDigits: 2, maximumFractionDigits: 2
+});
 
 let adminCharts = null;
 let adminUsers = [];
@@ -1230,6 +1261,7 @@ async function loadAdminData() {
     campaignStats = cp.data.stats;
   }
   if (nw.ok && nw.data?.intros) { introRequests = nw.data.intros; networkPeople = nw.data.people; networkStats = nw.data.stats; }
+  await loadClients();
   const ob = await allowed('campaigns.manage', '/api/admin/outbox');
   if (ob.ok && ob.data?.messages) outbox = ob.data.messages;
   if (currentRole === 'admin') {
@@ -1320,98 +1352,79 @@ async function syncEventbrite() {
   render('events');
 }
 
-async function saveProfile(fields) {
-  const { ok, data } = await api('/api/me/profile', { method: 'PATCH', body: fields });
-  if (!ok) { showToast(data?.error || 'Could not save', 'error'); return; }
-  currentUser = data.user;
-  applyRoleIdentity(currentRole);
-  showToast('Profile saved', 'success');
-}
-
 /* ===================== INVOICING ===================== */
-function invoiceItemRow(desc = '', qty = 1, unit = '') {
-  return `<div class="inv-item" style="display:grid;grid-template-columns:1fr 64px 96px 28px;gap:8px;align-items:center;margin-bottom:8px">
-    <input type="text" data-iv="desc" placeholder="Description" value="${desc}" />
-    <input type="number" data-iv="qty" min="1" value="${qty}" />
-    <input type="number" data-iv="unit" step="0.01" placeholder="0.00" value="${unit}" />
-    <button type="button" class="icon-button" data-del-item aria-label="Remove"><span data-icon="trash"></span></button>
-  </div>`;
-}
-
-function recalcInvoice() {
-  const body = document.getElementById('modalBody');
-  if (!body) return;
-  let subtotal = 0;
-  body.querySelectorAll('.inv-item').forEach((row) => {
-    const qty = Number(row.querySelector('[data-iv="qty"]').value) || 0;
-    const unit = Number(row.querySelector('[data-iv="unit"]').value) || 0;
-    subtotal += qty * unit;
-  });
-  const vat = Number(body.querySelector('[data-iv="vat"]')?.value) || 0;
-  const tax = subtotal * vat / 100;
-  const el = body.querySelector('#invTotals');
-  if (el) el.innerHTML = `<span>Subtotal £${subtotal.toFixed(2)}</span><span>VAT (${vat}%) £${tax.toFixed(2)}</span><strong>Total £${(subtotal + tax).toFixed(2)}</strong>`;
-}
-
-function openInvoiceForm() {
-  openModal('New invoice',
-    `<div class="form-row"><label>Client email<input type="email" data-iv="client" placeholder="member@hbbaglobal.co.uk" /></label><label>Due date<input type="date" data-iv="due" /></label><label>VAT %<input type="number" data-iv="vat" value="20" oninput="recalcInvoice()" /></label><label>Status<select data-iv="status"><option value="due">Due</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option></select></label></div>
-     <div class="label" style="margin:8px 0 6px">Line items</div>
-     <div id="invItems">${invoiceItemRow('', 1, '')}</div>
-     <button type="button" class="link-button" data-add-item><span data-icon="plus" style="vertical-align:middle"></span> Add line</button>
-     <label style="margin-top:10px">Notes<textarea data-iv="notes" placeholder="Payment terms, PO number…"></textarea></label>
-     <div id="invTotals" style="display:flex;gap:16px;justify-content:flex-end;margin-top:12px;align-items:baseline"></div>`,
-    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-invoice>Create invoice</button>`);
-  recalcInvoice();
-}
-
-async function createInvoice() {
-  const body = document.getElementById('modalBody');
-  const items = [...body.querySelectorAll('.inv-item')].map((row) => ({
-    description: row.querySelector('[data-iv="desc"]').value,
-    qty: row.querySelector('[data-iv="qty"]').value,
-    unit: row.querySelector('[data-iv="unit"]').value
-  })).filter((it) => it.description.trim() && Number(it.unit) > 0);
-  if (!items.length) { showToast('Add at least one line item', 'error'); return; }
-  const get = (k) => body.querySelector(`[data-iv="${k}"]`)?.value || '';
-  const { ok, data } = await api('/api/admin/invoices', { method: 'POST', body: {
-    client: get('client'), items, vat_rate: get('vat'), due_on: get('due') || null, status: get('status'), notes: get('notes')
-  } });
-  if (!ok) { showToast(data?.error || 'Could not create invoice', 'error'); return; }
-  showToast(`Invoice ${data.number} created`, 'success');
-  closeModal();
-  await loadAdminData();
-  render('invoices');
-}
-
 const STATUS_PILL = (s) => `<span class="invoice-status ${s === 'void' ? 'draft' : s}">${cap(s)}</span>`;
 
 // Branded, printable invoice document.
+/* The branded, printable document — the same one a client sees from a shared
+   link, so a member looking at their own bill is not shown less than a
+   stranger holding a link. */
 async function openInvoice(number) {
   const { ok, data } = await api(`/api/invoices/${number}`);
   if (!ok) { showToast(data?.error || 'Could not load invoice', 'error'); return; }
-  const inv = data.invoice;
-  const c = inv.client || {};
-  const rows = (inv.items || []).map((it) => `<tr><td>${it.description}</td><td style="text-align:center">${it.qty}</td><td style="text-align:right">${it.unit}</td><td style="text-align:right">${it.line}</td></tr>`).join('');
-  openModal(`Invoice ${inv.number}`,
+  const d = data.document;
+  const party = (p) => (p ? [p.name, p.contact, p.address, p.email, p.phone,
+    p.registrationNo ? 'Reg: ' + p.registrationNo : '', p.vatNo ? 'VAT: ' + p.vatNo : '']
+    .filter(Boolean).map(h).join('<br />') : '—');
+
+  const bankRows = d.bank ? [
+    ['Account name', d.bank.accountName], ['Bank', d.bank.bankName],
+    ['Account number', d.bank.accountNumber], ['Sort code', d.bank.sortCode],
+    ['IBAN', d.bank.iban], ['SWIFT', d.bank.swift]
+  ].filter(([, v]) => v) : [];
+
+  const meta = [
+    ['Issued', d.issued], ['Due', d.due || '—'],
+    d.poRef && ['Reference', d.poRef],
+    d.serviceCategory && ['Category', d.serviceCategory],
+    d.deliveryPeriod && ['Period', d.deliveryPeriod]
+  ].filter(Boolean);
+
+  openModal(`${d.documentTitle} ${d.number}`,
     `<div class="invoice-doc">
-      <div class="inv-head">
-        <div><img src="logo.svg" alt="HBBA Global" style="height:34px" /><div class="muted" style="margin-top:6px">HBBA Global · UK Business Network</div></div>
-        <div style="text-align:right"><h2 style="margin:0">INVOICE</h2><div class="muted">${inv.number}</div>${STATUS_PILL(inv.status)}</div>
+      <div class="inv-head" style="border-bottom:4px solid ${h(d.headerColor)}">
+        <div><img src="logo.svg" alt="" style="height:34px" />
+          <div class="muted" style="margin-top:6px">${h(d.billedBy.name)}</div></div>
+        <div style="text-align:right"><h2 style="margin:0">${h(String(d.documentTitle).toUpperCase())}</h2>
+          <div class="muted">${h(d.number)}</div>${STATUS_PILL(d.status)}</div>
       </div>
       <div class="inv-meta">
-        <div><span class="label">Bill to</span><strong>${c.full_name || inv.client?.full_name || '—'}</strong><br /><span class="muted">${c.org || ''}</span><br /><span class="muted">${c.email || ''}</span></div>
-        <div style="text-align:right"><span class="label">Issued</span> ${inv.issued || '—'}<br /><span class="label">Due</span> ${inv.due || '—'}</div>
+        <div><span class="label">Billed to</span>${party(d.billedTo)}</div>
+        <div style="text-align:right">${meta.map(([k, v]) => `<span class="label">${h(k)}</span> ${h(v)}`).join('<br />')}</div>
       </div>
-      <table class="table inv-table"><thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+      <table class="table inv-table">
+        <thead><tr><th>Description</th><th>Unit</th><th style="text-align:center">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>${d.items.map((it) => `<tr>
+          <td>${h(it.description)}${it.details ? `<br /><small class="muted">${h(it.details)}</small>` : ''}</td>
+          <td>${h(it.unit)}</td>
+          <td style="text-align:center">${h(it.qty)}</td>
+          <td style="text-align:right">${h(it.rate)}</td>
+          <td style="text-align:right">${h(it.line)}</td></tr>`).join('')}</tbody>
+      </table>
       <div class="inv-totals">
-        <div><span class="muted">Subtotal</span><span>${inv.subtotal}</span></div>
-        <div><span class="muted">VAT (${inv.vat_rate}%)</span><span>${inv.tax}</span></div>
-        <div class="grand"><strong>Total</strong><strong>${inv.total}</strong></div>
+        <div><span class="muted">Subtotal</span><span>${h(d.totals.subtotal)}</span></div>
+        ${d.totals.discount ? `<div><span class="muted">${h(d.totals.discountLabel)}</span><span>−${h(d.totals.discount)}</span></div>` : ''}
+        ${d.totals.vatRate ? `<div><span class="muted">VAT (${h(d.totals.vatRate)}%)</span><span>${h(d.totals.tax)}</span></div>` : ''}
+        ${d.totals.advance ? `<div><span class="muted">Already paid</span><span>−${h(d.totals.advance)}</span></div>` : ''}
+        <div class="grand"><strong>${d.totals.advance ? 'Balance due' : 'Total'}</strong><strong>${h(d.totals.due)}</strong></div>
       </div>
-      ${inv.notes ? `<div class="inv-notes"><span class="label">Notes</span><p>${inv.notes}</p></div>` : ''}
+      ${d.installments.length ? `<div class="inv-notes"><span class="label">Payment schedule</span>
+        <p>${d.installments.map((pt, i) => {
+      const part = d.edit?.installments?.[i];
+      const settle = can('invoices.manage') && part && part.status !== 'paid'
+        ? ` · <button class="link-button" data-settle-installment="${h(d.number)}|${h(part.id)}">Mark settled</button>`
+        : '';
+      return `${h(pt.label)}${pt.due ? ' · ' + h(pt.due) : ''} — ${h(pt.amount)} (${h(pt.status)})${settle}`;
+    }).join('<br />')}</p></div>` : ''}
+      ${bankRows.length ? `<div class="inv-notes"><span class="label">Bank transfer</span>
+        <p>${bankRows.map(([k, v]) => `${h(k)}: ${h(v)}`).join('<br />')}</p></div>` : ''}
+      ${d.notes ? `<div class="inv-notes"><span class="label">Notes</span><p>${h(d.notes)}</p></div>` : ''}
+      ${d.signature ? `<div class="inv-notes"><span class="label">Accepted</span>
+        <p>By ${h(d.signature.name)} on ${h(new Date(d.signature.at).toLocaleString('en-GB'))}.</p></div>` : ''}
     </div>`,
-    `<button class="control" type="button" data-modal-close>Close</button><button class="control" type="button" data-print-invoice><span data-icon="download"></span>Print / Save PDF</button>${inv.status !== 'paid' && inv.status !== 'void' ? `<button class="primary-action" type="button" data-pay-invoice="${inv.number}">Pay now</button>` : ''}`);
+    `<button class="control" type="button" data-modal-close>Close</button>
+     <button class="control" type="button" data-print-invoice><span data-icon="download"></span>Print / Save PDF</button>
+     ${d.status !== 'paid' && d.status !== 'void' ? `<button class="primary-action" type="button" data-pay-invoice="${h(d.number)}">Pay now</button>` : ''}`);
 }
 
 async function payInvoiceOnline(number) {
@@ -1951,8 +1964,8 @@ function sponsorInvoicesPage() {
 
 /* ---------- Per-role page maps + meta ---------- */
 const roleRenderers = {
-  member: { dashboard: memberDashboardPage, myMembership: myMembershipPage, myEvents: myEventsPage, networking: networkingPage, myInvoices: memberInvoicesPage, support: supportPage },
-  sponsor: { dashboard: sponsorDashboardPage, sponsorOverview: sponsorOverviewPage, brandVisibility: brandVisibilityPage, sponsoredEvents: sponsoredEventsPage, myInvoices: sponsorInvoicesPage, support: supportPage }
+  member: { dashboard: memberDashboardPage, myMembership: myMembershipPage, myEvents: myEventsPage, networking: networkingPage, myInvoices: memberInvoicesPage, support: supportPage, profile: profilePage },
+  sponsor: { dashboard: sponsorDashboardPage, sponsorOverview: sponsorOverviewPage, brandVisibility: brandVisibilityPage, sponsoredEvents: sponsoredEventsPage, myInvoices: sponsorInvoicesPage, support: supportPage, profile: profilePage }
 };
 
 const roleMeta = {
@@ -1962,6 +1975,7 @@ const roleMeta = {
     myEvents: ['Events & Tickets', 'Browse events and manage your tickets.'],
     networking: ['Networking', 'Connect with other HBBA members.'],
     myInvoices: ['My Invoices', 'Your payments and receipts.'],
+    profile: ['My Profile', 'Your name, picture and contact details.'],
     support: ['Support', 'Get help from the HBBA team.']
   },
   sponsor: {
@@ -1970,6 +1984,7 @@ const roleMeta = {
     brandVisibility: ['Brand & Leads', 'Impressions, placements and leads generated.'],
     sponsoredEvents: ['Sponsored Events', 'Events you sponsor and your reach.'],
     myInvoices: ['My Invoices', 'Your sponsorship invoices.'],
+    profile: ['My Profile', 'Your name, picture and contact details.'],
     support: ['Support', 'Get help from the HBBA team.']
   }
 };
@@ -1980,6 +1995,9 @@ function pageRendererFor(role, page) {
   // A delegated page renders with the admin view, limited to what was granted.
   const delegated = DELEGATED_NAV.find(([key]) => key === page);
   if (delegated && currentPermissions.includes(delegated[3]) && pageRenderers[page]) return pageRenderers[page];
+  if (ACTION_PAGES[page] && can(ACTION_PAGES[page])) return pageRenderers[page];
+  // Every role keeps its own profile.
+  if (page === 'profile') return profilePage;
   return null;
 }
 function metaFor(role, page) {
@@ -1998,9 +2016,16 @@ const pageRenderers = {
   email: emailPage,
   support: supportPage,
   invoices: invoicesPage,
+  clients: clientsPage,
+  invoiceBuilder: invoiceBuilderPage,
   reports: reportsPage,
+  profile: profilePage,
   settings: settingsPage
 };
+
+/* Pages reached by a button rather than from the sidebar, each gated on the
+   same capability as the area it belongs to. */
+const ACTION_PAGES = { invoiceBuilder: 'invoices.manage' };
 
 function showSkeleton() {
   document.getElementById('pageRoot').innerHTML = `
@@ -2119,7 +2144,8 @@ const modalForms = {
      </div>
      <label class="consent-row"><input type="checkbox" data-bk-default /> Print this account on invoices by default</label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-bank>Add account</button>`),
-  'new-invoice': () => openInvoiceForm(),
+  'new-invoice': () => openInvoiceBuilder(),
+  'new-client': () => clientForm(null),
   'new-deal': () => openModal('New deal',
     `<label>Deal title<input type="text" data-df="title" placeholder="Acme sponsorship" /></label><div class="form-row"><label>Value (£)<input type="number" data-df="value" placeholder="10000" /></label><label>Owner<input type="text" data-df="owner" placeholder="Sarah Johnson" /></label><label>Tier<select data-df="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Stage<select data-df="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="won">Won</option></select></label></div>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-deal>Create deal</button>`),
@@ -2279,14 +2305,14 @@ function renderNotifPanel() {
 
 /* ===================== PROFILE MENU ===================== */
 function renderProfileMenu() {
-  const p = ROLES[currentRole].profile;
-  const name = currentUser?.full_name || p.name;
-  const email = currentUser?.email || p.email;
+  const person = myProfile || currentUser;
+  const name = person?.full_name || 'Your account';
+  const email = person?.email || '';
   const settingsItem = currentRole === 'admin' ? `<button class="menu-item" type="button" data-page-link="settings"><span data-icon="settings"></span>Settings</button>` : '';
   document.getElementById('profileMenu').innerHTML = `
-    <div style="padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><strong>${name}</strong><br /><small class="muted">${email}</small></div>
+    <div style="padding:10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px"><strong>${h(name)}</strong><br /><small class="muted">${h(email)}</small></div>
+    <button class="menu-item" type="button" data-page-link="profile"><span data-icon="users"></span>My profile</button>
     ${settingsItem}
-    ${currentRole === 'admin' ? '' : '<button class="menu-item" type="button" data-page-link="support"><span data-icon="users"></span>My account</button>'}
     <button class="menu-item" type="button" data-page-link="support"><span data-icon="message"></span>Help & support</button>
     <button class="menu-item" type="button" data-toggle-theme><span data-icon="moon"></span>Toggle theme</button>
     <div class="menu-divider"></div>
@@ -2308,10 +2334,11 @@ function closeCommand() { document.getElementById('commandOverlay').hidden = tru
 
 function renderCommandResults(q) {
   const ql = q.toLowerCase();
-  const navItems = ROLES[currentRole].nav.map(([key, , label]) => ({ group: 'Navigate', label, key, kbd: '↵' }));
+  const navItems = navFor(currentRole).map(([key, , label]) => ({ group: 'Navigate', label, key, kbd: '↵' }));
   const actions = currentRole === 'admin' ? [
     { group: 'Actions', label: 'New event', mod: 'new-event' },
     { group: 'Actions', label: 'New contact', mod: 'new-contact' },
+    { group: 'Actions', label: 'New client', mod: 'new-client' },
     { group: 'Actions', label: 'New invoice', mod: 'new-invoice' },
     { group: 'Actions', label: 'New campaign', mod: 'new-campaign' },
     { group: 'Actions', label: 'Toggle theme', theme: true },
@@ -2390,6 +2417,30 @@ function attachAuthValidation() {
 function attachActions() {
   // dynamic-content wiring per render: drag-and-drop targets need their own listeners
   const root = document.getElementById('pageRoot');
+
+  // The picture is chosen with a file input, which has no click to delegate.
+  const avatarFile = root.querySelector('#avatarFile');
+  if (avatarFile) {
+    avatarFile.addEventListener('change', () => {
+      const file = avatarFile.files && avatarFile.files[0];
+      avatarFile.value = '';
+      uploadAvatar(file);
+    });
+  }
+
+  // The builder keeps its figures live. Only the preview is repainted while
+  // typing, so no field loses focus; a control that reveals another field
+  // redraws the form.
+  const builder = root.querySelector('#invoiceBuilder');
+  if (builder) {
+    const onEdit = (ev) => {
+      const result = syncDraftFromInput(ev.target);
+      if (result.redraw) { render('invoiceBuilder'); return; }
+      if (result.repaint) repaintPreview();
+    };
+    builder.addEventListener('input', onEdit);
+    builder.addEventListener('change', onEdit);
+  }
   root.querySelectorAll('.kanban-card').forEach((card) => {
     card.addEventListener('dragstart', () => card.classList.add('dragging'));
     card.addEventListener('dragend', () => card.classList.remove('dragging'));
@@ -2442,6 +2493,88 @@ function installDelegate() {
     const pageLink = find('[data-page-link]');
     if (pageLink) { render(pageLink.dataset.pageLink); document.querySelectorAll('.dropdown').forEach((d) => d.hidden = true); return; }
 
+    /* --- My profile --- */
+    if (find('[data-pick-avatar]')) { ev.stopPropagation(); document.getElementById('avatarFile')?.click(); return; }
+    if (find('[data-remove-avatar]')) { ev.stopPropagation(); removeAvatar(); return; }
+    if (find('[data-change-password]')) { ev.stopPropagation(); changePassword(); return; }
+
+    /* --- Clients --- */
+    if (find('[data-new-client]')) { ev.stopPropagation(); clientForm(null); return; }
+    const editClient = find('[data-edit-client]');
+    if (editClient) {
+      ev.stopPropagation();
+      clientForm(adminClients.find((c) => c.id === editClient.dataset.editClient));
+      return;
+    }
+    const saveClientBtn = find('[data-save-client]');
+    if (saveClientBtn) { ev.stopPropagation(); saveClient(saveClientBtn.dataset.saveClient || null); return; }
+    const dropClient = find('[data-delete-client]');
+    if (dropClient) { ev.stopPropagation(); deleteClient(dropClient.dataset.deleteClient); return; }
+    const billClient = find('[data-invoice-client]');
+    if (billClient) {
+      ev.stopPropagation();
+      const id = billClient.dataset.invoiceClient;
+      openInvoiceBuilder().then(() => {
+        if (invoiceDraft) { invoiceDraft.client_id = id; render('invoiceBuilder'); }
+      });
+      return;
+    }
+
+    /* --- Invoice builder --- */
+    if (find('[data-new-invoice]')) { ev.stopPropagation(); openInvoiceBuilder(); return; }
+    const editInvoice = find('[data-edit-invoice]');
+    if (editInvoice) { ev.stopPropagation(); openInvoiceBuilder(editInvoice.dataset.editInvoice); return; }
+    if (find('[data-add-line]')) {
+      ev.stopPropagation();
+      invoiceDraft.items.push({ description: '', details: '', unit: 'Service', qty: 1, rate: '' });
+      render('invoiceBuilder');
+      return;
+    }
+    const dropLine = find('[data-drop-item]');
+    if (dropLine) {
+      ev.stopPropagation();
+      if (invoiceDraft.items.length === 1) { showToast('An invoice needs at least one line', 'info'); return; }
+      invoiceDraft.items.splice(Number(dropLine.dataset.dropItem), 1);
+      render('invoiceBuilder');
+      return;
+    }
+    const colour = find('[data-inv-colour]');
+    if (colour) {
+      ev.stopPropagation();
+      invoiceDraft.header_color = colour.dataset.invColour;
+      render('invoiceBuilder');
+      return;
+    }
+    if (find('[data-save-invoice]')) { ev.stopPropagation(); saveInvoiceDraft(); return; }
+
+    /* --- Sharing --- */
+    const shareBtn = find('[data-share-invoice]');
+    if (shareBtn) { ev.stopPropagation(); shareInvoice(shareBtn.dataset.shareInvoice); return; }
+    const rotateBtn = find('[data-rotate-share]');
+    if (rotateBtn) { ev.stopPropagation(); shareInvoice(rotateBtn.dataset.rotateShare, true); return; }
+    if (find('[data-copy-share]')) {
+      ev.stopPropagation();
+      const box = document.getElementById('shareLink');
+      if (box) {
+        box.select();
+        navigator.clipboard?.writeText(box.value)
+          .then(() => showToast('Link copied', 'success'))
+          .catch(() => showToast('Select the link and copy it', 'info'));
+      }
+      return;
+    }
+    const emailBtn = find('[data-email-invoice]');
+    if (emailBtn) { ev.stopPropagation(); emailInvoice(emailBtn.dataset.emailInvoice); return; }
+    const settlePart = find('[data-settle-installment]');
+    if (settlePart) {
+      ev.stopPropagation();
+      const [number, id] = settlePart.dataset.settleInstallment.split('|');
+      settleInstallment(number, id);
+      return;
+    }
+    const copyInv = find('[data-duplicate-invoice]');
+    if (copyInv) { ev.stopPropagation(); duplicateInvoice(copyInv.dataset.duplicateInvoice); return; }
+
     const bookBtn = find('[data-book]');
     if (bookBtn) { ev.stopPropagation(); bookEvent(bookBtn.dataset.book); return; }
 
@@ -2460,7 +2593,6 @@ function installDelegate() {
       return;
     }
 
-    if (find('[data-create-invoice]')) { ev.stopPropagation(); createInvoice(); return; }
     if (find('[data-invite-user]')) {
       ev.stopPropagation();
       const m = document.getElementById('modalBody');
@@ -2483,15 +2615,6 @@ function installDelegate() {
         .then((ok) => { if (ok) closeModal(); });
       return;
     }
-    if (find('[data-add-item]')) {
-      ev.stopPropagation();
-      document.getElementById('invItems').insertAdjacentHTML('beforeend', invoiceItemRow());
-      initIcons(document.getElementById('invItems'));
-      recalcInvoice();
-      return;
-    }
-    const delItem = find('[data-del-item]');
-    if (delItem) { ev.stopPropagation(); delItem.closest('.inv-item').remove(); recalcInvoice(); return; }
     if (find('[data-print-invoice]')) { ev.stopPropagation(); window.print(); return; }
     const payInv = find('[data-pay-invoice]');
     if (payInv) { ev.stopPropagation(); payInvoiceOnline(payInv.dataset.payInvoice); return; }
@@ -2519,13 +2642,7 @@ function installDelegate() {
       return;
     }
 
-    if (find('[data-save-profile]')) {
-      ev.stopPropagation();
-      const root = document.getElementById('pageRoot');
-      const get = (f) => root.querySelector(`[data-pf="${f}"]`)?.value || '';
-      saveProfile({ full_name: get('full_name'), org: get('org') });
-      return;
-    }
+    if (find('[data-save-profile]')) { ev.stopPropagation(); saveMyProfile(); return; }
 
     const val = (sel, attr) => {
       const box = document.getElementById(sel);
@@ -2876,7 +2993,6 @@ function installDelegate() {
     if (consent) setContactConsent(consent.dataset.contactConsent, consent.checked);
   });
   document.body.addEventListener('input', (ev) => {
-    if (ev.target.closest('.inv-item') || ev.target.matches('[data-iv="vat"]')) recalcInvoice();
     const search = ev.target.closest('.filterbar .search-input');
     if (search) filterVisibleRows(search.value);
   });
@@ -2890,19 +3006,23 @@ function setSession(user, permissions = []) {
   currentPermissions = Array.isArray(permissions) ? permissions : [];
 }
 
+/* The header shows the person who is actually signed in: their own name,
+   their own picture, and the job title they gave themselves. */
 function applyRoleIdentity(role) {
-  const p = ROLES[role].profile;
-  const img = document.querySelector('#profileToggle img');
-  if (img) { img.src = p.avatar; img.alt = (currentUser?.full_name || p.name); }
+  const person = myProfile || currentUser;
+  const name = person?.full_name || person?.email || 'Your account';
+  const pic = document.getElementById('profilePic');
+  if (pic) pic.innerHTML = personAvatar(person, 36);
   const strong = document.querySelector('#profileToggle strong');
   const small = document.querySelector('#profileToggle small');
-  if (strong) strong.textContent = currentUser?.full_name || p.name;
-  if (small) small.textContent = p.role;
+  if (strong) strong.textContent = name;
+  if (small) small.textContent = person?.job_title || ROLES[role].label;
 }
 
 /* Admin pages a non-admin may reach, each unlocked by one capability. */
 const DELEGATED_NAV = [
   ['crm', 'users', 'CRM', 'crm.manage'],
+  ['clients', 'globe', 'Clients', 'invoices.manage'],
   ['memberships', 'crown', 'Memberships', 'memberships.manage'],
   ['events', 'calendar', 'Events', 'events.manage'],
   ['tickets', 'ticket', 'Tickets', 'tickets.manage'],
@@ -2942,6 +3062,7 @@ async function showApp(page) {
   renderBottomNav(currentRole);
   showSkeleton();
   try {
+    await loadProfile();
     if (currentRole === 'admin') await loadAdminData();
     else {
       if (currentRole === 'member') await loadMemberData();
@@ -3162,3 +3283,643 @@ async function handlePaymentReturn() {
     if (err === 'suspended') showToast('That account is suspended', 'error');
   }
 })();
+
+/* ===================== MY PROFILE (every role) ===================== */
+/* The account belongs to the person using it, so their name, picture and
+   contact details are theirs to change. Role, status and permissions are not
+   on this page: those belong to an administrator. */
+
+async function loadProfile() {
+  const { ok, data } = await api('/api/profile');
+  if (ok && data?.profile) {
+    myProfile = data.profile;
+    applyRoleIdentity(currentRole);
+    renderProfileMenu();
+  }
+  return myProfile;
+}
+
+const PROFILE_FIELDS = [
+  ['full_name', 'Full name', 'text', 'Jane Smith'],
+  ['job_title', 'Job title', 'text', 'Managing Director'],
+  ['org', 'Organisation', 'text', 'Acme Ltd'],
+  ['phone', 'Phone', 'tel', '+44 7700 900000'],
+  ['city', 'City', 'text', 'Birmingham'],
+  ['website', 'Website', 'url', 'https://example.com']
+];
+
+function profilePage() {
+  const p = myProfile || currentUser || {};
+  return `
+    <div class="settings-grid">
+      <section class="card">
+        <div class="card-title"><h2>Your picture</h2></div>
+        <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+          <span id="avatarPreview">${personAvatar(p, 86)}</span>
+          <div>
+            <input type="file" id="avatarFile" accept="image/png,image/jpeg,image/webp" hidden />
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="primary-action" type="button" data-pick-avatar>Choose a picture</button>
+              ${p.avatar ? '<button class="control" type="button" data-remove-avatar>Remove</button>' : ''}
+            </div>
+            <p class="muted" style="font-size:13px;margin:10px 0 0;max-width:36ch">
+              A square photo works best. Larger images are resized in your browser before upload, so nothing big is sent.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-title"><h2>Account</h2></div>
+        <div class="form-row">
+          <label>Email<input type="email" value="${h(p.email)}" disabled /></label>
+          <label>Account type<input type="text" value="${h(ROLES[p.role] ? ROLES[p.role].label : cap(p.role || ''))}" disabled /></label>
+        </div>
+        <p class="muted" style="font-size:13px">Your email address identifies your account, so only an administrator can change it.</p>
+      </section>
+
+      <section class="card full">
+        <div class="card-title"><h2>About you</h2><button class="primary-action" type="button" data-save-profile>Save changes</button></div>
+        <div class="form-row">
+          ${PROFILE_FIELDS.map(([key, label, type, placeholder]) => `
+            <label>${label}<input type="${type}" data-pf="${key}" value="${h(p[key])}" placeholder="${h(placeholder)}" /></label>
+          `).join('')}
+        </div>
+        <label style="margin-top:12px">Short bio
+          <textarea data-pf="bio" rows="4" placeholder="A couple of lines about you and what you do.">${h(p.bio)}</textarea>
+        </label>
+      </section>
+
+      <section class="card full">
+        <div class="card-title"><h2>Password</h2><button class="primary-action" type="button" data-change-password>Change password</button></div>
+        <div class="form-row">
+          <label>Current password<input type="password" data-pw="current_password" autocomplete="current-password" /></label>
+          <label>New password<input type="password" data-pw="new_password" autocomplete="new-password" /></label>
+          <label>Repeat new password<input type="password" data-pw="confirm" autocomplete="new-password" /></label>
+        </div>
+        <p class="muted" style="font-size:13px">At least 8 characters. You need your current password, so a borrowed session cannot lock you out.</p>
+      </section>
+    </div>`;
+}
+
+/* Resize in the browser: an avatar needs 256px, and sending a 4MB phone photo
+   to resize it server-side would just waste the upload. */
+function resizeImage(file, size = 256) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('That file could not be read'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('That file is not an image'));
+      img.onload = () => {
+        // Crop to a centred square first, so nobody is stretched.
+        const edge = Math.min(img.width, img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, (img.width - edge) / 2, (img.height - edge) / 2, edge, edge, 0, 0, size, size);
+        resolve(canvas.toDataURL('image/jpeg', 0.86));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadAvatar(file) {
+  if (!file) return;
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { showToast('Use a JPEG, PNG or WebP image', 'error'); return; }
+  let dataUrl;
+  try {
+    dataUrl = await resizeImage(file);
+  } catch (err) {
+    showToast(err.message, 'error');
+    return;
+  }
+  const { ok, data } = await api('/api/profile/avatar', { method: 'PUT', body: { avatar: dataUrl } });
+  if (!ok) { showToast(data?.error || 'That picture could not be saved', 'error'); return; }
+  myProfile = data.profile;
+  currentUser = { ...currentUser, avatar: data.profile.avatar };
+  applyRoleIdentity(currentRole);
+  renderProfileMenu();
+  showToast('Picture updated', 'success');
+  render('profile');
+}
+
+async function removeAvatar() {
+  const { ok, data } = await api('/api/profile/avatar', { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Could not remove the picture', 'error'); return; }
+  myProfile = data.profile;
+  currentUser = { ...currentUser, avatar: null };
+  applyRoleIdentity(currentRole);
+  renderProfileMenu();
+  showToast('Picture removed', 'success');
+  render('profile');
+}
+
+async function saveMyProfile() {
+  const root = document.getElementById('pageRoot');
+  const body = {};
+  for (const [key] of PROFILE_FIELDS) body[key] = root.querySelector(`[data-pf="${key}"]`)?.value ?? '';
+  body.bio = root.querySelector('[data-pf="bio"]')?.value ?? '';
+  if (!String(body.full_name).trim()) { showToast('Your name cannot be empty', 'error'); return; }
+
+  const { ok, data } = await api('/api/profile', { method: 'PATCH', body });
+  if (!ok) { showToast(data?.error || 'Could not save', 'error'); return; }
+  myProfile = data.profile;
+  currentUser = { ...currentUser, full_name: data.profile.full_name, org: data.profile.org, job_title: data.profile.job_title };
+  applyRoleIdentity(currentRole);
+  renderProfileMenu();
+  showToast('Profile saved', 'success');
+}
+
+async function changePassword() {
+  const root = document.getElementById('pageRoot');
+  const get = (k) => root.querySelector(`[data-pw="${k}"]`)?.value || '';
+  const next = get('new_password');
+  if (next.length < 8) { showToast('Your new password must be at least 8 characters', 'error'); return; }
+  if (next !== get('confirm')) { showToast('The two new passwords do not match', 'error'); return; }
+
+  const { ok, data } = await api('/api/profile/password', {
+    method: 'POST', body: { current_password: get('current_password'), new_password: next }
+  });
+  if (!ok) { showToast(data?.error || 'Could not change your password', 'error'); return; }
+  showToast('Password changed', 'success');
+  render('profile');
+}
+
+/* ===================== CLIENTS ===================== */
+/* The companies you bill. A client needs no portal account: most of the people
+   you invoice will never log in. */
+
+async function loadClients() {
+  if (!can('invoices.manage') && !can('crm.manage')) return;
+  const { ok, data } = await api('/api/admin/clients');
+  if (ok && data?.clients) adminClients = data.clients;
+}
+
+const CLIENT_FIELDS = [
+  ['name', 'Client name', 'Acme Ltd'],
+  ['contact_name', 'Contact person', 'Jane Smith'],
+  ['email', 'Email', 'accounts@acme.co.uk'],
+  ['phone', 'Phone', '+44 121 000 0000'],
+  ['address', 'Address', '12 High Street'],
+  ['city', 'City', 'Birmingham'],
+  ['postcode', 'Postcode', 'B1 1AA'],
+  ['country', 'Country', 'United Kingdom'],
+  ['registration_no', 'Company number', '12345678'],
+  ['vat_no', 'VAT number', 'GB123456789']
+];
+
+function clientsPage() {
+  const billed = adminClients.reduce((n, c) => n + (c.billed_cents || 0), 0);
+  return `
+    <div class="cards-grid">
+      ${[['Clients', String(adminClients.length)],
+      ['With a portal account', String(adminClients.filter((c) => c.user_id).length)],
+      ['Collected', fmtMoney(billed)]]
+      .map(([l, v]) => `<div class="compact-card"><span class="muted">${l}</span><h2>${v}</h2></div>`).join('')}
+    </div>
+    <section class="card">
+      <div class="card-title"><h2>Clients</h2><button class="primary-action" type="button" data-new-client><span data-icon="plus"></span>Add client</button></div>
+      ${adminClients.length ? `<table class="table">
+        <thead><tr><th>Client</th><th>Contact</th><th>VAT</th><th>Invoices</th><th>Collected</th><th></th></tr></thead>
+        <tbody>${adminClients.map((c) => `
+          <tr>
+            <td><strong>${h(c.name)}</strong>${c.city ? `<br /><small class="muted">${h(c.city)}</small>` : ''}</td>
+            <td>${h(c.contact_name || '—')}${c.email ? `<br /><small class="muted">${h(c.email)}</small>` : ''}</td>
+            <td>${h(c.vat_no || '—')}</td>
+            <td>${c.invoices}</td>
+            <td>${fmtMoney(c.billed_cents)}</td>
+            <td style="white-space:nowrap">
+              <button class="link-button" data-edit-client="${c.id}">Edit</button> ·
+              <button class="link-button" data-invoice-client="${c.id}">Invoice</button> ·
+              <button class="link-button" data-delete-client="${c.id}" style="color:var(--red)">Delete</button>
+            </td>
+          </tr>`).join('')}</tbody>
+      </table>` : emptyState('No clients yet', 'Add the companies you invoice — they do not need a portal account.')}
+    </section>`;
+}
+
+function clientForm(client) {
+  const c = client || {};
+  openModal(client ? `Edit ${c.name}` : 'Add client',
+    `<div class="form-row">
+      ${CLIENT_FIELDS.map(([key, label, placeholder]) => `
+        <label>${label}<input type="text" data-cl="${key}" value="${h(c[key])}" placeholder="${h(placeholder)}" /></label>`).join('')}
+    </div>
+    <label style="margin-top:10px">Notes<textarea data-cl="notes" rows="3" placeholder="Anything worth remembering about this client.">${h(c.notes)}</textarea></label>
+    <p class="muted" style="font-size:13px">If the email matches a portal account, the client is linked to it automatically.</p>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button>
+     <button class="primary-action" type="button" data-save-client="${c.id || ''}">${client ? 'Save changes' : 'Add client'}</button>`);
+}
+
+async function saveClient(id) {
+  const body = document.getElementById('modalBody');
+  const payload = { notes: body.querySelector('[data-cl="notes"]')?.value || '' };
+  for (const [key] of CLIENT_FIELDS) payload[key] = body.querySelector(`[data-cl="${key}"]`)?.value || '';
+  if (!payload.name.trim()) { showToast('A client name is required', 'error'); return; }
+
+  const { ok, data } = await api(id ? `/api/admin/clients/${id}` : '/api/admin/clients',
+    { method: id ? 'PATCH' : 'POST', body: payload });
+  if (!ok) { showToast(data?.error || 'Could not save the client', 'error'); return; }
+  closeModal();
+  await loadClients();
+  showToast(id ? 'Client updated' : 'Client added', 'success');
+  render('clients');
+}
+
+async function deleteClient(id) {
+  const client = adminClients.find((c) => c.id === id);
+  if (!confirm(`Delete ${client ? client.name : 'this client'}? This cannot be undone.`)) return;
+  const { ok, data } = await api(`/api/admin/clients/${id}`, { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Could not delete the client', 'error'); return; }
+  await loadClients();
+  showToast('Client removed', 'success');
+  render('clients');
+}
+
+/* ===================== INVOICE BUILDER ===================== */
+/* One page that composes the whole document: who is billed, what for, what is
+   taken off, what has already been paid, how it may be settled and whether it
+   repeats. The figures beside the form are computed with the same rules the
+   server uses, so what is shown is what will be stored. */
+
+const INVOICE_UNITS = ['Service', 'Hour', 'Day', 'Item', 'Month', 'Session', 'Licence'];
+const SERVICE_CATEGORIES = ['Membership', 'Sponsorship', 'Event', 'Advertising', 'Consultancy', 'Other'];
+const LOCATION_MODES = ['Remote', 'On site', 'Hybrid'];
+const HEADER_COLOURS = ['#1f3a73', '#0f9f6e', '#d4a02a', '#e54863', '#2f57a8', '#131a2e'];
+
+function blankDraft() {
+  return {
+    number: null,
+    document_title: 'Invoice',
+    header_color: '#1f3a73',
+    client_id: '',
+    po_ref: '',
+    service_category: '',
+    location_mode: '',
+    delivery_period: '',
+    issued: new Date().toISOString().slice(0, 10),
+    due_on: '',
+    currency: 'GBP',
+    vat_rate: 20,
+    discount_type: 'percent',
+    discount_value: 0,
+    advance_paid: 0,
+    bank_account_id: '',
+    allow_card_payment: false,
+    status: 'due',
+    notes: '',
+    recurring_interval: '',
+    recurring_until: '',
+    split_installments: false,
+    installment_count: 3,
+    items: [{ description: '', details: '', unit: 'Service', qty: 1, rate: '' }]
+  };
+}
+
+/* The same order of operations as the server: lines, discount, VAT on the
+   discounted amount, then whatever has already been paid. */
+function draftTotals(draft) {
+  const subtotal = draft.items.reduce((sum, item) =>
+    sum + Math.max(1, Math.round(Number(item.qty) || 1)) * Math.max(0, Math.round((Number(item.rate) || 0) * 100)), 0);
+  const discount = draft.discount_type === 'fixed'
+    ? Math.min(subtotal, Math.max(0, Math.round((Number(draft.discount_value) || 0) * 100)))
+    : Math.round(subtotal * Math.min(100, Math.max(0, Number(draft.discount_value) || 0)) / 100);
+  const net = Math.max(0, subtotal - discount);
+  const tax = Math.round(net * Math.max(0, Number(draft.vat_rate) || 0) / 100);
+  const gross = net + tax;
+  const advance = Math.min(gross, Math.max(0, Math.round((Number(draft.advance_paid) || 0) * 100)));
+  return { subtotal, discount, net, tax, gross, advance, due: gross - advance };
+}
+
+async function openInvoiceBuilder(number) {
+  const options = await api('/api/admin/invoices/options');
+  if (options.ok && options.data) invoiceOptions = options.data;
+
+  if (number) {
+    const { ok, data } = await api(`/api/admin/invoices/${number}/document`);
+    if (!ok) { showToast(data?.error || 'Could not load that invoice', 'error'); return; }
+    invoiceDraft = draftFromDocument(number, data.document);
+  } else {
+    invoiceDraft = blankDraft();
+    if (!invoiceDraft.bank_account_id) {
+      const fallback = invoiceOptions.bankAccounts.find((b) => b.is_default) || invoiceOptions.bankAccounts[0];
+      if (fallback) invoiceDraft.bank_account_id = fallback.id;
+    }
+  }
+  render('invoiceBuilder');
+}
+
+/* Turn a stored document back into something editable. The printed figures are
+   formatted strings, so the editable values come from the document's own `edit`
+   block — otherwise reopening an invoice would quietly drop its client, its
+   bank account and its discount. */
+function draftFromDocument(number, doc) {
+  const e = doc.edit || {};
+  return {
+    ...blankDraft(),
+    number,
+    document_title: doc.documentTitle,
+    header_color: doc.headerColor,
+    client_id: e.clientId || '',
+    po_ref: doc.poRef,
+    service_category: doc.serviceCategory,
+    location_mode: doc.locationMode,
+    delivery_period: doc.deliveryPeriod,
+    issued: doc.issued,
+    due_on: doc.due || '',
+    currency: e.currency || doc.currency,
+    vat_rate: e.vatRate ?? doc.totals.vatRate,
+    discount_type: e.discountType || 'percent',
+    discount_value: e.discountValue || 0,
+    advance_paid: (e.advancePaidCents || 0) / 100,
+    bank_account_id: e.bankAccountId || '',
+    notes: doc.notes,
+    // An invoice shown as overdue is still a due invoice underneath.
+    status: ['draft', 'sent', 'due', 'paid'].includes(e.status) ? e.status : 'due',
+    allow_card_payment: doc.allowCardPayment,
+    items: (e.items || []).length
+      ? e.items.map((it) => ({
+        description: it.description, details: it.details,
+        unit: it.unit, qty: it.qty, rate: (it.unit_cents / 100).toFixed(2)
+      }))
+      : blankDraft().items
+  };
+}
+
+function builderItemRow(item, index) {
+  return `<tr data-item-row="${index}">
+    <td>
+      <input type="text" data-item="description" data-index="${index}" value="${h(item.description)}" placeholder="What are you billing for?" />
+      <input type="text" data-item="details" data-index="${index}" value="${h(item.details)}" placeholder="Extra detail (optional)" style="margin-top:6px;font-size:13px" />
+    </td>
+    <td><select data-item="unit" data-index="${index}">
+      ${INVOICE_UNITS.map((u) => `<option value="${u}"${u === item.unit ? ' selected' : ''}>${u}</option>`).join('')}
+    </select></td>
+    <td><input type="number" min="1" step="1" data-item="qty" data-index="${index}" value="${h(item.qty)}" /></td>
+    <td><input type="number" min="0" step="0.01" data-item="rate" data-index="${index}" value="${h(item.rate)}" placeholder="0.00" /></td>
+    <td style="text-align:right;white-space:nowrap">${fmtPence(Math.max(1, Number(item.qty) || 1) * Math.round((Number(item.rate) || 0) * 100))}</td>
+    <td><button type="button" class="icon-button" data-drop-item="${index}" aria-label="Remove line"><span data-icon="trash"></span></button></td>
+  </tr>`;
+}
+
+function builderPreview(draft) {
+  const t = draftTotals(draft);
+  const client = invoiceOptions.clients.find((c) => c.id === draft.client_id);
+  const bank = invoiceOptions.bankAccounts.find((b) => b.id === draft.bank_account_id);
+  const business = invoiceOptions.business || {};
+  const row = (label, value, strong) =>
+    `<div style="display:flex;justify-content:space-between;padding:6px 0${strong ? ';border-top:2px solid var(--text);margin-top:6px;padding-top:10px;font-weight:700;font-size:16px' : ''}">
+       <span>${h(label)}</span><span>${value}</span></div>`;
+
+  return `
+    <div class="inv-preview-head" style="background:${h(draft.header_color)}">
+      <div>
+        <strong style="font-size:19px;letter-spacing:.4px">${h(String(draft.document_title || 'Invoice').toUpperCase())}</strong>
+        <div style="opacity:.85;font-size:13px;margin-top:3px">${h(draft.number || 'Number assigned on save')}</div>
+      </div>
+      <div style="text-align:right;font-size:12px;line-height:1.5;opacity:.95">
+        <strong>${h(business.name || 'HBBA Global')}</strong>
+        ${business.vatNo ? `<br />VAT: ${h(business.vatNo)}` : ''}
+      </div>
+    </div>
+    <div style="padding:16px 18px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:4px">Billed to</div>
+      <strong>${h(client ? client.name : 'No client selected')}</strong>
+      ${client && client.email ? `<br /><small class="muted">${h(client.email)}</small>` : ''}
+      <div style="display:flex;gap:18px;margin:14px 0;font-size:13px;flex-wrap:wrap">
+        <div><span class="muted">Issued</span><br />${h(draft.issued || '—')}</div>
+        <div><span class="muted">Due</span><br />${h(draft.due_on || '—')}</div>
+        ${draft.po_ref ? `<div><span class="muted">Reference</span><br />${h(draft.po_ref)}</div>` : ''}
+      </div>
+      <div style="font-size:14px">
+        ${row('Subtotal', fmtPence(t.subtotal))}
+        ${t.discount ? row(draft.discount_type === 'fixed' ? 'Discount' : `Discount (${Number(draft.discount_value) || 0}%)`, '−' + fmtPence(t.discount)) : ''}
+        ${t.tax ? row(`VAT (${Number(draft.vat_rate) || 0}%)`, fmtPence(t.tax)) : ''}
+        ${t.advance ? row('Already paid', '−' + fmtPence(t.advance)) : ''}
+        ${row(t.advance ? 'Balance due' : 'Total due', fmtPence(t.due), true)}
+      </div>
+      ${draft.split_installments ? `<p class="muted" style="font-size:13px;margin-top:12px">
+        Split into ${Math.max(2, Math.min(24, Number(draft.installment_count) || 2))} parts of about
+        ${fmtPence(Math.floor(t.due / Math.max(2, Math.min(24, Number(draft.installment_count) || 2))))} each.</p>` : ''}
+      ${draft.recurring_interval ? `<p class="muted" style="font-size:13px;margin-top:8px">Repeats ${h(draft.recurring_interval)}${draft.recurring_until ? ` until ${h(draft.recurring_until)}` : ''}.</p>` : ''}
+      ${bank ? `<p class="muted" style="font-size:13px;margin-top:12px">Payable to ${h(bank.account_name)} (${h(bank.label)}).</p>`
+    : '<p class="muted" style="font-size:13px;margin-top:12px">No bank account selected — add one under Settings › Business.</p>'}
+      ${draft.allow_card_payment ? '<p class="muted" style="font-size:13px">The client can also pay by card from the shared link.</p>' : ''}
+    </div>`;
+}
+
+function invoiceBuilderPage() {
+  const d = invoiceDraft || (invoiceDraft = blankDraft());
+  const select = (key, options, blank) => `
+    <select data-inv="${key}">
+      ${blank ? `<option value="">${blank}</option>` : ''}
+      ${options.map(([value, label]) => `<option value="${h(value)}"${String(value) === String(d[key]) ? ' selected' : ''}>${h(label)}</option>`).join('')}
+    </select>`;
+
+  return `
+    <div class="builder-grid" id="invoiceBuilder">
+      <div>
+        <section class="card">
+          <div class="card-title"><h2>Document</h2>
+            <button class="link-button" type="button" data-page-link="invoices">← Back to invoices</button></div>
+          <div class="form-row">
+            <label>Document title<input type="text" data-inv="document_title" value="${h(d.document_title)}" placeholder="Invoice" /></label>
+            <label>Reference / PO<input type="text" data-inv="po_ref" value="${h(d.po_ref)}" placeholder="PO-2026-114" /></label>
+            <label>Category${select('service_category', SERVICE_CATEGORIES.map((c) => [c, c]), 'Not set')}</label>
+            <label>Delivery${select('location_mode', LOCATION_MODES.map((c) => [c, c]), 'Not set')}</label>
+            <label>Period covered<input type="text" data-inv="delivery_period" value="${h(d.delivery_period)}" placeholder="Jan – Mar 2026" /></label>
+          </div>
+          <div class="label" style="margin:14px 0 6px">Header colour</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${HEADER_COLOURS.map((c) => `<button type="button" data-inv-colour="${c}" aria-label="${c}"
+              style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${c === d.header_color ? 'var(--text)' : 'transparent'}"></button>`).join('')}
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title"><h2>Client</h2><button class="link-button" type="button" data-new-client>+ New client</button></div>
+          <div class="form-row">
+            <label>Billed to${select('client_id', invoiceOptions.clients.map((c) => [c.id, c.name + (c.email ? ` · ${c.email}` : '')]), 'Choose a client')}</label>
+            <label>Issue date<input type="date" data-inv="issued" value="${h(d.issued)}" /></label>
+            <label>Due date<input type="date" data-inv="due_on" value="${h(d.due_on)}" /></label>
+            <label>Status${select('status', [['draft', 'Draft'], ['sent', 'Sent'], ['due', 'Due'], ['paid', 'Paid']])}</label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-title"><h2>Lines</h2><button class="link-button" type="button" data-add-line><span data-icon="plus"></span> Add line</button></div>
+          <table class="table builder-items">
+            <thead><tr><th>Item</th><th>Unit</th><th>Qty</th><th>Rate</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+            <tbody>${d.items.map(builderItemRow).join('')}</tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <div class="card-title"><h2>Money</h2></div>
+          <div class="form-row">
+            <label>VAT %<input type="number" min="0" max="100" step="0.5" data-inv="vat_rate" value="${h(d.vat_rate)}" /></label>
+            <label>Discount${select('discount_type', [['percent', 'Percentage'], ['fixed', 'Fixed amount']])}</label>
+            <label>Discount ${d.discount_type === 'fixed' ? 'amount (£)' : 'percent'}<input type="number" min="0" step="0.01" data-inv="discount_value" value="${h(d.discount_value)}" /></label>
+            <label>Already paid (£)<input type="number" min="0" step="0.01" data-inv="advance_paid" value="${h(d.advance_paid)}" /></label>
+            <label>Bank account${select('bank_account_id', invoiceOptions.bankAccounts.map((b) => [b.id, b.label + (b.is_default ? ' (default)' : '')]), 'Not shown on the invoice')}</label>
+          </div>
+          <label class="consent-row" style="margin-top:12px">
+            <input type="checkbox" data-inv-check="allow_card_payment"${d.allow_card_payment ? ' checked' : ''} />
+            Let the client pay by card from the shared link
+          </label>
+        </section>
+
+        <section class="card">
+          <div class="card-title"><h2>Repeat &amp; split</h2></div>
+          <div class="form-row">
+            <label>Repeats${select('recurring_interval', [['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['yearly', 'Yearly']], 'One-off')}</label>
+            <label>Repeat until<input type="date" data-inv="recurring_until" value="${h(d.recurring_until)}" ${d.recurring_interval ? '' : 'disabled'} /></label>
+            <label>Parts<input type="number" min="2" max="24" data-inv="installment_count" value="${h(d.installment_count)}" ${d.split_installments ? '' : 'disabled'} /></label>
+          </div>
+          <label class="consent-row" style="margin-top:12px">
+            <input type="checkbox" data-inv-check="split_installments"${d.split_installments ? ' checked' : ''} />
+            Split the balance into a payment schedule
+          </label>
+          ${d.number ? '<p class="muted" style="font-size:13px;margin-top:10px">A schedule is set when the invoice is first raised, so these two only apply to new invoices.</p>' : ''}
+        </section>
+
+        <section class="card">
+          <div class="card-title"><h2>Notes</h2></div>
+          <label><textarea data-inv="notes" rows="4" placeholder="Payment terms, thanks, anything the client should read.">${h(d.notes)}</textarea></label>
+        </section>
+      </div>
+
+      <aside>
+        <section class="card inv-preview-card">
+          <div class="card-title"><h2>Preview</h2></div>
+          <div class="inv-preview" id="invPreview">${builderPreview(d)}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+            <button class="primary-action" type="button" data-save-invoice>${d.number ? 'Save changes' : 'Create invoice'}</button>
+            <button class="control" type="button" data-page-link="invoices">Cancel</button>
+          </div>
+        </section>
+      </aside>
+    </div>`;
+}
+
+/* Read one changed control into the draft and repaint only the preview, so
+   nothing being typed loses focus. */
+function syncDraftFromInput(target) {
+  const d = invoiceDraft;
+  if (!d) return { repaint: false };
+
+  if (target.dataset.item !== undefined) {
+    const index = Number(target.dataset.index);
+    if (!d.items[index]) return { repaint: false };
+    d.items[index][target.dataset.item] = target.value;
+    const cell = target.closest('tr')?.children[4];
+    if (cell) {
+      const item = d.items[index];
+      cell.textContent = fmtPence(Math.max(1, Number(item.qty) || 1) * Math.round((Number(item.rate) || 0) * 100));
+    }
+    return { repaint: true };
+  }
+
+  if (target.dataset.invCheck) {
+    d[target.dataset.invCheck] = target.checked;
+    // These two gate a field each, so the form needs redrawing.
+    return { repaint: true, redraw: ['split_installments'].includes(target.dataset.invCheck) };
+  }
+
+  if (target.dataset.inv) {
+    d[target.dataset.inv] = target.value;
+    const redraw = ['discount_type', 'recurring_interval'].includes(target.dataset.inv);
+    return { repaint: true, redraw };
+  }
+  return { repaint: false };
+}
+
+function repaintPreview() {
+  const node = document.getElementById('invPreview');
+  if (node && invoiceDraft) node.innerHTML = builderPreview(invoiceDraft);
+}
+
+async function saveInvoiceDraft() {
+  const d = invoiceDraft;
+  const items = d.items
+    .map((it) => ({ description: String(it.description || '').trim(), details: it.details, unit: it.unit, qty: it.qty, rate: it.rate }))
+    .filter((it) => it.description);
+  if (!items.length) { showToast('Add at least one line with a description', 'error'); return; }
+  if (!items.some((it) => Number(it.rate) > 0)) { showToast('At least one line needs an amount', 'error'); return; }
+
+  const body = {
+    items,
+    document_title: d.document_title, header_color: d.header_color,
+    client_id: d.client_id || null, po_ref: d.po_ref,
+    service_category: d.service_category, location_mode: d.location_mode,
+    delivery_period: d.delivery_period, issued: d.issued, due_on: d.due_on || null,
+    currency: d.currency, vat_rate: d.vat_rate,
+    discount_type: d.discount_type, discount_value: d.discount_value,
+    advance_paid: d.advance_paid, bank_account_id: d.bank_account_id || null,
+    allow_card_payment: d.allow_card_payment === true,
+    status: d.status, notes: d.notes
+  };
+  if (!d.number) {
+    body.recurring_interval = d.recurring_interval || null;
+    body.recurring_until = d.recurring_until || null;
+    body.split_installments = d.split_installments === true;
+    body.installment_count = Number(d.installment_count) || 0;
+  }
+
+  const { ok, data } = await api(d.number ? `/api/admin/invoices/${d.number}` : '/api/admin/invoices',
+    { method: d.number ? 'PATCH' : 'POST', body });
+  if (!ok) { showToast(data?.error || 'Could not save the invoice', 'error'); return; }
+
+  showToast(d.number ? `Invoice ${d.number} updated` : `Invoice ${data.number} created`, 'success');
+  invoiceDraft = null;
+  await loadAdminData();
+  render('invoices');
+}
+
+/* --- Sharing, sending, duplicating --- */
+
+async function shareInvoice(number, rotate = false) {
+  const { ok, data } = await api(`/api/admin/invoices/${number}/share`, { method: 'POST', body: { rotate } });
+  if (!ok) { showToast(data?.error || 'Could not build a link', 'error'); return; }
+
+  openModal(`Share ${number}`,
+    `<p style="margin-top:0">Anyone with this link can view, accept and pay this invoice. They do not need an account.</p>
+     <label>Link<input type="text" id="shareLink" value="${h(data.url)}" readonly onclick="this.select()" /></label>
+     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+       <button class="control" type="button" data-copy-share>Copy link</button>
+       <button class="control" type="button" data-email-invoice="${number}"><span data-icon="send"></span>Email it to the client</button>
+     </div>
+     <p class="muted" style="font-size:13px;margin-top:14px">Rotating the link revokes the old one — the only way to take back a link you have already sent.</p>`,
+    `<button class="control" type="button" data-modal-close>Close</button>
+     <button class="control" type="button" data-rotate-share="${number}">Rotate link</button>`);
+}
+
+async function emailInvoice(number) {
+  const { ok, data } = await api(`/api/admin/invoices/${number}/send`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Could not send it', 'error'); return; }
+  showToast(`Invoice ${number} — ${data.delivery}`, data.ok ? 'success' : 'info');
+  closeModal();
+  await loadAdminData();
+  render('invoices');
+}
+
+/* Settling the last part settles the invoice, which the server decides. */
+async function settleInstallment(number, id) {
+  const { ok, data } = await api(`/api/admin/invoices/${number}/installments/${id}/paid`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Could not record that payment', 'error'); return; }
+  showToast(data.remaining ? `Recorded — ${data.remaining} part(s) still open` : 'Recorded — the invoice is now paid', 'success');
+  closeModal();
+  await loadAdminData();
+  render('invoices');
+}
+
+async function duplicateInvoice(number) {
+  const { ok, data } = await api(`/api/admin/invoices/${number}/duplicate`, { method: 'POST' });
+  if (!ok) { showToast(data?.error || 'Could not duplicate it', 'error'); return; }
+  showToast(`Copied to ${data.number} as a draft`, 'success');
+  await loadAdminData();
+  render('invoices');
+}

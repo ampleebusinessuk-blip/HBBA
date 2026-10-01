@@ -48,6 +48,14 @@ jobs:
       - name: Run tests
         run: npm test
 
+      # A button that looks like it works but does not is only caught in a
+      # browser, so the browser suite runs here too.
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:browser
+
       - name: Check the production config guards
         env:
           NODE_ENV: production

@@ -114,6 +114,26 @@ mail failure must not roll back the business action that triggered it.
 `sendBulk` walks recipients sequentially and returns counts;
 `deliverySummary()` turns those into the sentence shown in toasts.
 
+### `server/invoicing.js` (195 lines)
+The arithmetic an invoice depends on, kept away from HTTP so it can be checked
+on its own. `calculateTotals()` fixes the order of operations: line totals,
+then the discount, then VAT **on the discounted amount**, then anything already
+paid. Charging VAT on money the client is not being asked for would overstate
+the tax, so the order is the point of the function.
+
+`toCents()` rounds through integers rather than trusting a float (`19.99 * 100`
+is `1998.9999…` in binary). `splitInstallments()` gives the remainder to the
+first part, so the parts always add back to the whole.
+
+Dates are handled as calendar dates, never timestamps: `asDateOnly()` and
+`nextOccurrence()` work on three numbers. Stepping a `Date` by a month lands a
+day early whenever the step crosses a daylight-saving boundary — the clock moved
+but the calendar did not — and a 31st is pulled back to the last day of a
+shorter month rather than overflowing into the next one.
+
+`newPublicToken()` is 24 random bytes, base64url. It carries nothing about the
+invoice it opens.
+
 ### `server/payments.js` (44 lines)
 Stripe Checkout session creation over REST. `paymentsConfigured()` gates it.
 Line items are built from the invoice's own currency and amount.
@@ -216,11 +236,57 @@ queries, send), networking introductions, the notification feed, and the outbox.
 Audience segments are SQL, not stored lists — "Expiring soon" is
 `renews_on <= CURRENT_DATE + 30 days` evaluated at send time.
 
-### `server/routes/invoices.js` (273 lines)
-Line items, VAT, lifecycle (`draft → sent → due → overdue → paid`, plus `void`),
-a printable branded document, reminders that email the client, Stripe checkout,
-and the demo settlement path. `effectiveStatus()` derives *overdue* from the due
-date rather than storing it, so it is always current.
+### `server/routes/invoices.js` (789 lines)
+The whole billing surface. Lifecycle is `draft → sent → due → overdue → paid`,
+plus `void`; `effectiveStatus()` derives *overdue* from the due date rather than
+storing it, so it is always current.
+
+`invoiceDocument(row)` assembles everything the printed document needs in one
+place — who is billing (from the business profile), who is billed (the client
+record, or the user, or a typed name), the lines with their units and detail,
+the totals, the bank account, the payment schedule and the signature. It also
+returns an `edit` block carrying the **raw** values (client id, bank account id,
+discount type and value, pence): the printed figures are formatted strings, and
+without the raw ones reopening an invoice in the builder would silently drop its
+client, its bank account and its discount.
+
+`copyInvoice()` duplicates an invoice and its lines, and is used by both the
+Duplicate button and the recurring schedule, so a repeat is identical to a
+hand-made copy. A copy always gets a **new** share token and a zero advance — it
+is a fresh claim, not a second claim on money already collected.
+
+`runRecurringInvoices()` is driven by the daily cron. It selects every schedule
+whose date has arrived, including ones already past their end date: those are
+retired rather than left behind as a schedule that can never fire again.
+
+**`publicInvoiceRouter`** is exported separately and mounted *ahead* of every
+router that requires a session, because the person opening the link has no
+account. The token is the whole credential, so it is long, random, revocable by
+rotation, and dead the moment the invoice is voided. Acceptance
+(`POST /public/invoices/:token/sign`) records a name, a time and the address it
+came from, exactly once — a signature that could be overwritten would be worth
+nothing. Card payment from the link is refused unless it was switched on for
+that specific invoice.
+
+### `server/routes/clients.js` (113 lines)
+The companies you bill. Until this existed an invoice could only be addressed to
+a portal user, so a company that never logs in could not be billed at all.
+Guarded by `requirePermission('invoices.manage', 'crm.manage')`. A client is
+linked to a portal account only by an exact email match, and deleting one that
+has invoices is refused with a count rather than cascading.
+
+### `server/routes/profile.js` (140 lines)
+Self-service profiles for every role: name, picture, job title, phone, city,
+website, bio, and a password change that requires the current password so a
+borrowed session cannot lock the owner out. Role, status, permissions and email
+are deliberately not writable here — those belong to an administrator.
+
+The avatar is stored on the row as a data URL, not on disk: a container
+filesystem does not survive a redeploy, and a picture that vanishes on deploy is
+worse than none. The upload is re-encoded from the decoded bytes and checked
+against a declared image type, so only an actual JPEG, PNG or WebP can be
+stored. The browser crops to a centred square and resizes to 256px before
+sending, which keeps a phone photo well inside the request limit.
 
 ### `server/routes/support.js` (110 lines)
 Tickets and threaded messages. Admins see everything, members and sponsors see
@@ -232,23 +298,31 @@ HMAC-SHA256 over `timestamp.rawBody`, compares in constant time, and rejects
 timestamps older than five minutes (replay protection). `settleInvoice()` uses
 `WHERE status <> 'paid'`, so a duplicate delivery cannot pay an invoice twice.
 
-### `server/routes/ops.js` (33 lines)
+### `server/routes/ops.js`
 `POST /ops/migrate`. Exists because Vercel marks the production `DATABASE_URL`
 as sensitive — it cannot be pulled to a workstation, so the deployment migrates
 its own database. Gated on `MIGRATE_TOKEN`: **unset, the route returns 404 and
 does not exist.** The token is compared with `timingSafeEqual`.
 
+`GET /ops/campaigns/run` is the daily cron. One tick both delivers due
+campaigns and issues due recurring invoices, because Vercel's Hobby plan allows
+exactly one schedule.
+
 ---
 
-## 4. Data model (21 tables)
+## 4. Data model (24 tables)
 
 | Table | Holds | Notes |
 |---|---|---|
-| `users` | accounts | `role` admin/member/sponsor, `status` active/pending/suspended, `tier`, `renews_on`, `nudged_at`, `marketing_opt_in` (+ opted in/out timestamps) |
+| `users` | accounts | `role` admin/member/sponsor, `status` active/pending/suspended, `tier`, `renews_on`, `nudged_at`, `marketing_opt_in` (+ opted in/out timestamps), `permissions` jsonb, and the self-maintained profile: `avatar_data`, `job_title`, `phone`, `city`, `website`, `bio` |
+| `clients` | the companies you bill | no portal account required; `user_id` links one only when the email matches exactly |
 | `events` | events | `code` is the public id; `source` local or eventbrite; `status` includes `Cancelled` |
 | `event_bookings` | tickets | unique per (user, event); `checked_in` + `checked_in_at`; `status` carries `Refunded` |
-| `invoices` | billing | `subtotal_cents`, `tax_cents`, `vat_rate`, `due_on`, `reminder_count`, `paid_at`, `payment_ref` |
-| `invoice_items` | line items | ordered by `sort` |
+| `invoices` | billing | `subtotal_cents`, `tax_cents`, `vat_rate`, `due_on`, `reminder_count`, `paid_at`, `payment_ref`; the document (`client_id`, `document_title`, `header_color`, `po_ref`, `service_category`, `location_mode`, `delivery_period`, `bank_account_id`); money off and money in (`discount_type`/`discount_value`/`discount_cents`, `advance_paid_cents`); the shared link (`public_token`, unique where not null, `allow_card_payment`); acceptance (`signed_name`/`signed_at`/`signed_ip`); repeats (`recurring_interval`, `recurring_next_on`, `recurring_until`, `recurring_parent_id`) |
+| `invoice_items` | line items | ordered by `sort`; `unit` is the noun on the line ("Hour"), `unit_cents` its price, `details` an optional second line |
+| `invoice_installments` | payment schedule | `label`, `due_on`, `amount_cents`, `status` due/paid; settling the last one settles the invoice |
+| `app_settings` | workspace settings and encrypted credentials | secrets are AES-256-GCM; env vars always win |
+| `bank_accounts` | where invoices are paid | a partial unique index keeps exactly one default |
 | `sponsorships` | sponsor packages | `inclusions` jsonb, brand metrics |
 | `sponsor_leads`, `sponsored_events` | sponsor portal data | |
 | `contacts` | CRM | `status` Active/Warm/New/Cold, `last_activity_at`, `marketing_opt_in` (+ opted in/out timestamps) |
@@ -268,7 +342,7 @@ Money is always **integer pence** (`*_cents`). No floats touch currency.
 
 ---
 
-## 5. Frontend (`public/app.js`, 2,764 lines)
+## 5. Frontend (`public/app.js`, 3,902 lines; `public/invoice.html`, 278 lines)
 
 No framework. The whole UI is string templates plus one delegated event listener.
 
@@ -303,6 +377,28 @@ No framework. The whole UI is string templates plus one delegated event listener
 
 **Filtering** (`filterVisibleRows`) matches on a row clone with buttons removed —
 otherwise a "Mark paid" button makes every invoice match the search "paid".
+
+**Identity.** The header renders the person actually signed in — their own name,
+their own picture, and the job title they gave themselves. Somebody who has not
+uploaded a picture gets their initials (`personAvatar`), never a stock photo of
+a stranger. `h()` HTML-escapes everything a person typed about themselves, so a
+name containing a tag stays a name.
+
+**The invoice builder** (`invoiceBuilderPage`) is a page, not a modal: form on
+the left, the document's figures on the right. `draftTotals()` mirrors the
+server's order of operations exactly, so the preview is what will be stored — and
+it prints with `fmtPence()` rather than `fmtMoney()`, because a preview that
+rounds away the pence is a preview that lies.
+
+While typing, only the preview is repainted (`repaintPreview`), so no field
+loses focus; a control that reveals another field (the discount type, the repeat
+interval, the split toggle) redraws the form instead.
+
+**`public/invoice.html`** is a standalone page with no dependency on `app.js`.
+The token lives in the URL **fragment**, so it is never sent in a request line
+or a referrer header. It renders the document, offers print/save-as-PDF,
+acceptance by typed name, and card payment when the invoice allows it — and in
+demo mode it says in words that no card is charged before anything is recorded.
 
 ---
 
@@ -350,14 +446,25 @@ password that used to be published in the README. Rotate it.
 ## 7. Integrations
 
 Each is dormant until its keys exist, and Settings → Integrations shows live
-status for every one.
+status for every one. Every key here can also be set from the UI instead of the
+environment: `server/settings.js` encrypts credentials with AES-256-GCM under
+`SECRETS_KEY`, masks them on the way back out (`re_••••7890`), and lets an
+environment variable always win — which also locks the field in the UI, so the
+two can never disagree. `SECRETS_KEY` must stay paired with its database, or
+stored credentials become unreadable.
+
+`EMAIL_TRANSPORT` chooses between SMTP and Resend; left unset, whichever is
+configured is used, SMTP first. Settings → Integrations has a test-send that
+verifies the transport and then reports the mail server's own error verbatim
+rather than a generic failure.
 
 | Service | Env | Off behaviour |
 |---|---|---|
-| Resend (email) | `RESEND_API_KEY`, `EMAIL_FROM` | queued to the in-app outbox, never delivered |
+| Email — SMTP | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE` | queued to the in-app outbox, never delivered |
+| Email — Resend | `RESEND_API_KEY`, `EMAIL_FROM` | queued to the in-app outbox, never delivered |
 | Stripe | `STRIPE_SECRET_KEY` | demo settlement, labelled, `demo-` payment ref |
 | Stripe webhook | `STRIPE_WEBHOOK_SECRET` | endpoint returns 503 |
-| Campaign scheduler | `CRON_SECRET` | `/api/ops/campaigns/run` returns 404. Runs daily on Hobby; Vercel rejects sub-daily crons on that plan. |
+| Daily cron (campaigns + recurring invoices) | `CRON_SECRET` | `/api/ops/campaigns/run` returns 404, so nothing is delivered and no repeat is issued. Runs daily on Hobby; Vercel rejects sub-daily crons on that plan. |
 | Eventbrite | `EVENTBRITE_TOKEN`, `EVENTBRITE_ORG_ID` | sync returns a clear 400 |
 | Demo mode | `DEMO_MODE=0` disables | demo paths off entirely |
 
@@ -380,7 +487,7 @@ deploy, `POST /api/ops/migrate` with the token, remove the variable, redeploy.
 
 ---
 
-## 9. Tests (50, `npm test`)
+## 9. Tests (172 Node, 10 browser)
 
 `node:test`, no framework. Real HTTP against a real Express app and a real
 Postgres — no mocks of our own code.
@@ -400,17 +507,38 @@ Postgres — no mocks of our own code.
 | `campaign-public.test.js` | open/click idempotence, redirect safety, multi-record unsubscribe, token neutrality |
 | `campaign-api.test.js` | consent persistence, campaign CRUD, truthful send outcomes, cron auth and claiming |
 | `campaign-interface.test.js` | frontend contract: authoring hooks, consent controls, truthful reporting |
+| `permissions.test.js` | delegated capabilities: granting, revocation taking effect on the next request, suspension, invented keys, admin exemption |
+| `settings.test.js` | credentials usable but never readable, environment precedence and field locking, masking, bank-account default, SMTP vs Resend selection, test-send |
+| `invoicing.test.js` | the arithmetic, with no database: pence rounding, VAT after discount, advance capping, installment remainders, DST-safe month stepping, month-end clamping, validation messages |
+| `invoices-api.test.js` | billing a company with no account, the printed document, re-lining, the shared link (open, rotate, revoke, void), acceptance recorded once, card payment gated per invoice, schedules, repeats retiring themselves, copies, round-trip fidelity of an edit |
+| `profile.test.js` | every role has a profile, what is and is not writable from it, picture type/size validation, password change needing the current one |
 
 Test files run one at a time (`--test-concurrency=1`): they share a single
 database, and parallel files were changing each other's campaign audiences.
 
-`npm run test:browser` runs the Playwright suite in `e2e/` — it boots the real
-Express app on an ephemeral port and walks the campaign lifecycle, viewport
-overflow at 1440px and 390px, and unsubscribe. It lives outside `test/` because
-`node --test` treats every file in that directory as a Node test.
+`npm run test:browser` runs the Playwright suite in `e2e/`, which boots the real
+Express app on an ephemeral port and drives a real browser:
 
-CI (`.github/workflows/ci.yml`) runs migrations and the suite against a Postgres
-service on every push and PR.
+- `campaign-browser.spec.js` — the campaign lifecycle, viewport overflow at
+  1440px and 390px, and unsubscribe from the link in an email.
+- `invoicing-browser.spec.js` — the header showing the person signed in rather
+  than a stock photograph; changing one's own name and uploading a picture;
+  composing an invoice and watching the figures track what is typed; opening the
+  shared link in a **fresh browser context with no cookie at all** and accepting
+  it; a rotated link going dead for whoever held the old one; reopening an
+  invoice and finding everything still there; and a member granted
+  `invoices.manage` getting those pages and nothing else.
+
+Both specs assert that no console error or page error occurred, which is how a
+button that looks like it works but does not gets caught.
+
+They live outside `test/` because `node --test` treats every file in that
+directory as a Node test. The connection pool is closed once in
+`e2e/global-teardown.js`: Playwright runs every spec in one worker process, so a
+spec closing the pool in its own teardown breaks whichever spec runs next.
+
+CI (`.github/workflows/ci.yml`) runs migrations, the Node suite and the browser
+suite against a Postgres service on every push and PR.
 
 ---
 
@@ -426,3 +554,9 @@ waiting on real values:
    from each sponsorship row as you create it.
 4. **Events, members, sponsors, invoices** — all empty by design after the
    clear-out. Everything you add from here is real.
+5. **Your business details** — Settings → Business fills the "billed by" block
+   on every invoice: name, address, company number, VAT number, invoice prefix
+   and footer. Until it is filled, invoices print with the defaults.
+6. **A bank account** — Settings → Business → Bank accounts. An invoice with no
+   bank account tells the client so instead of printing a blank panel, but they
+   will have no way to pay by transfer.

@@ -2241,3 +2241,86 @@ body[data-theme="dark"] .skeleton, body[data-theme="dark"] .skel-block {
     min-height: 120px;
   }
 }
+
+/* ===================== IDENTITY ===================== */
+
+/* Somebody who has not uploaded a picture gets their initials, never a stock
+   photo of a stranger. */
+.avatar-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--purple);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+#profilePic {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* ===================== INVOICE BUILDER ===================== */
+
+/* Form on the left, the document's figures on the right, so the effect of an
+   edit is visible without leaving the page. */
+.builder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.builder-grid > div > .card {
+  margin-bottom: 18px;
+}
+
+.inv-preview-card {
+  position: sticky;
+  top: 18px;
+}
+
+.inv-preview {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.inv-preview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  color: #fff;
+}
+
+.table.builder-items th {
+  white-space: nowrap;
+}
+
+.table.builder-items td {
+  vertical-align: top;
+  padding: 10px 8px;
+}
+
+.table.builder-items input,
+.table.builder-items select {
+  width: 100%;
+  min-width: 0;
+}
+
+.table.builder-items td:nth-child(2) { width: 120px; }
+.table.builder-items td:nth-child(3) { width: 78px; }
+.table.builder-items td:nth-child(4) { width: 110px; }
+
+@media (max-width: 1060px) {
+  .builder-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inv-preview-card {
+    position: static;
+  }
+}

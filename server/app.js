@@ -5,7 +5,9 @@ import { dirname, join } from 'node:path';
 import { attachUser } from './auth.js';
 import { authRouter } from './routes/auth.js';
 import { dataRouter } from './routes/data.js';
-import { invoicesRouter } from './routes/invoices.js';
+import { invoicesRouter, publicInvoiceRouter } from './routes/invoices.js';
+import { clientsRouter } from './routes/clients.js';
+import { profileRouter } from './routes/profile.js';
 import { supportRouter } from './routes/support.js';
 import { crmRouter } from './routes/crm.js';
 import { stripeRouter } from './routes/stripe.js';
@@ -15,6 +17,12 @@ import { ensureSettingsLoaded } from './settings.js';
 import { settingsRouter } from './routes/settings.js';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+
+// How many requests one address may make per minute. The limiter counts by IP,
+// so a whole office behind a single NAT shares one budget — raise these if a
+// legitimate team starts seeing 429s.
+const API_RATE_LIMIT = Number(process.env.API_RATE_LIMIT) || 240;
+const AUTH_RATE_LIMIT = Number(process.env.AUTH_RATE_LIMIT) || 30;
 
 // Lightweight in-memory rate limiter (per instance). Good enough to blunt brute
 // force on auth; swap for a shared store if scaling across many instances.
@@ -63,21 +71,26 @@ export function createApp() {
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
   // Blanket limit for the API, with a tighter one on the auth surface.
-  app.use('/api', rateLimit({ windowMs: 60000, max: 240 }));
+  app.use('/api', rateLimit({ windowMs: 60000, max: API_RATE_LIMIT }));
   // Ops routes must sit ahead of the routers that require a session, or their
   // auth middleware answers first.
   // Campaign tracking and unsubscribe are opened from an email client, so they
   // sit ahead of every router that demands a session.
   app.use('/api', campaignsPublicRouter);
   app.use(unsubscribePageRouter);
+  // An invoice link is opened by a client who has no account at all, so it must
+  // also sit ahead of the routers that demand a session.
+  app.use('/api', publicInvoiceRouter);
 
   app.use('/api', opsRouter);
-  app.use('/api/auth', rateLimit({ windowMs: 60000, max: 30 }), authRouter);
+  app.use('/api/auth', rateLimit({ windowMs: 60000, max: AUTH_RATE_LIMIT }), authRouter);
   // Terminate the auth surface: without this, an unknown /api/auth/* path falls
   // through to a router that requires a session and answers 401, which reads as
   // "wrong credentials" when the route simply does not exist.
   app.use('/api/auth', (_req, res) => res.status(404).json({ error: 'Not found' }));
   app.use('/api', invoicesRouter);
+  app.use('/api', clientsRouter);
+  app.use('/api', profileRouter);
   app.use('/api', supportRouter);
   app.use('/api', settingsRouter);
   app.use('/api', crmRouter);

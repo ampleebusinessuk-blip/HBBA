@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createApp } from '../server/app.js';
-import { pool, query, closePool } from '../server/db.js';
+import { pool, query } from '../server/db.js';
 import { hashPassword } from '../server/auth.js';
 
 // The real Express app on an ephemeral port, against the test database. No
@@ -40,7 +40,6 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await wipe();
   await new Promise((r) => server.close(r));
-  await closePool();
 });
 
 async function loginAsAdmin(page) {
