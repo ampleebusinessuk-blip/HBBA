@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { logActivity } from '../activity.js';
+import { permissionsFor } from '../permissions.js';
 import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
 import { createResetLink, findLiveToken, consumeToken, RESET_TTL_MINUTES } from '../tokens.js';
 import {
@@ -83,7 +84,8 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
     const result = await query('SELECT * FROM users WHERE id = $1', [req.auth.sub]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    res.json({ user: publicUser(user) });
+    // The frontend renders from this; the server re-checks every request anyway.
+    res.json({ user: publicUser(user), permissions: await permissionsFor(req.auth) });
   } catch (err) {
     next(err);
   }

@@ -308,11 +308,32 @@ otherwise a "Mark paid" button makes every invoice match the search "paid".
 
 ## 6. Security model
 
+### Roles and delegated permissions
+
+A role answers "what kind of account is this"; a permission answers "what may
+this particular account do beyond its own portal". `server/permissions.js`
+defines eleven grantable capabilities — `crm.manage`, `events.manage`,
+`tickets.manage`, `memberships.manage`, `sponsors.manage`, `campaigns.manage`,
+`invoices.manage`, `support.manage`, `tasks.manage`, `networking.manage`,
+`reports.view`.
+
+An administrator holds all of them by role, so granting only ever concerns
+members and sponsors. `requirePermission()` re-reads the grant from the database
+on every request rather than trusting the token, so a revocation takes effect on
+the next call instead of when a cookie happens to expire — and a suspended
+account holds nothing regardless of what it was granted. Unknown capability
+names are discarded rather than stored.
+
+The frontend mirrors this for rendering only: `/api/auth/me` returns the held
+capabilities, the sidebar gains the matching admin pages, and the loader fetches
+only the endpoints that session may read. Every one of those endpoints still
+checks server-side.
+
 | Concern | Handling |
 |---|---|
 | Passwords | bcrypt, 10 rounds, never logged or returned |
 | Sessions | httpOnly JWT cookie, `sameSite=lax`, `secure` in production, 7-day TTL |
-| Authorisation | role in the signed token, re-checked per route by `requireRole` |
+| Authorisation | role in the signed token, re-checked per route by `requireRole`; delegated capabilities re-read from the database per request by `requirePermission` |
 | Account enumeration | identical responses for unknown vs wrong on login and forgot-password |
 | Reset tokens | hashed at rest, single-use, time-boxed |
 | Brute force | 30 requests/min on `/api/auth`, 240/min across `/api` |

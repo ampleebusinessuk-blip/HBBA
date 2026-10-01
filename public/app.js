@@ -815,11 +815,15 @@ function settingsBody(tab) {
       <div class="card-title"><h2>Team & members</h2><button class="primary-action" type="button" data-modal="new-user"><span data-icon="plus"></span>Invite user</button></div>
       ${adminUsers.length ? adminUsers.map((u) => `
         <div class="role-row">
-          <div style="display:flex;align-items:center;gap:10px"><span class="sponsor-mark">${(u.name || '?').charAt(0)}</span><div><strong>${u.name}</strong><br /><small class="muted">${u.email}</small></div></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="sponsor-mark">${(u.name || '?').charAt(0)}</span><div><strong>${u.name}</strong><br /><small class="muted">${u.email}</small><br /><small class="muted">${u.role === 'admin'
+            ? 'Administrator — every area'
+            : (Array.isArray(u.permissions) && u.permissions.length
+                ? `Also manages: ${u.permissions.map((k) => (grantablePermissions.find((g) => g.key === k)?.label || k)).join(', ')}`
+                : 'Own portal only')}</small></div></div>
           <span class="chip">${ROLES[u.role]?.label || cap(u.role)}</span>
           <span class="invoice-status ${u.status === 'active' ? 'paid' : 'due'}">${cap(u.status)}</span>
           <span class="chip" title="Marketing consent">${u.marketing_opt_in ? 'Marketing: on' : 'Marketing: off'}</span>
-          <span style="display:flex;gap:8px"><button class="link-button" data-reset-link="${u.email}">${u.status === 'pending' ? 'Set-up link' : 'Reset link'}</button>${u.email === currentUser?.email ? '<span class="muted" style="font-size:12px">You</span>' : `<button class="link-button" data-user-status="${u.email}|${u.status === 'suspended' ? 'active' : 'suspended'}">${u.status === 'suspended' ? 'Reactivate' : 'Suspend'}</button>${u.role === 'admin' ? '' : `<button class="link-button" data-remove-user="${u.email}" style="color:var(--red)">Remove</button>`}`}</span>
+          <span style="display:flex;gap:8px"><button class="link-button" data-reset-link="${u.email}">${u.status === 'pending' ? 'Set-up link' : 'Reset link'}</button>${u.email === currentUser?.email ? '<span class="muted" style="font-size:12px">You</span>' : `<button class="link-button" data-user-status="${u.email}|${u.status === 'suspended' ? 'active' : 'suspended'}">${u.status === 'suspended' ? 'Reactivate' : 'Suspend'}</button>${u.role === 'admin' ? '' : `<button class="link-button" data-permissions="${u.email}">Permissions</button><button class="link-button" data-remove-user="${u.email}" style="color:var(--red)">Remove</button>`}`}</span>
         </div>
       `).join('') : emptyState('No users yet', 'Invite your first user.')}
     </section>`;
@@ -979,6 +983,11 @@ function settingsBody(tab) {
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 let currentRole = 'admin';
 let currentUser = null;
+/* Capabilities this session holds. The server re-checks every request; this
+   only decides what is worth rendering. */
+let currentPermissions = [];
+let grantablePermissions = [];
+const can = (key) => currentRole === 'admin' || currentPermissions.includes(key);
 
 /* Thin API wrapper. Cookies are same-origin httpOnly; credentials:'include' keeps
    them flowing. Returns { ok, status, data }. */
@@ -1159,12 +1168,15 @@ function animateNumbers(root) {
 }
 
 async function loadAdminData() {
+  // A delegated user may hold one capability; asking for everything would just
+  // collect 403s. Fetch only what this session is allowed to see.
+  const allowed = async (permission, path) => (can(permission) ? api(path) : { ok: false });
   const rangeQS = statsRange.days ? `?range=${statsRange.days}` : '';
   const [st, mem, spo, inv, ev] = await Promise.all([
-    api(`/api/admin/stats${rangeQS}`),
-    api('/api/admin/members'),
-    api('/api/admin/sponsors'),
-    api('/api/admin/invoices'),
+    allowed('reports.view', `/api/admin/stats${rangeQS}`),
+    allowed('crm.manage', '/api/admin/members'),
+    allowed('sponsors.manage', '/api/admin/sponsors'),
+    allowed('invoices.manage', '/api/admin/invoices'),
     api('/api/events')
   ]);
   if (st.ok && st.data?.stats) {
@@ -1182,19 +1194,29 @@ async function loadAdminData() {
   if (inv.ok && inv.data?.invoices) invoices = inv.data.invoices;
   if (ev.ok && ev.data?.events) eventsCatalog = ev.data.events;
   const [ch, tk, dl, tix, us, intg] = await Promise.all([
-    api(`/api/admin/charts${rangeQS}`), api('/api/admin/tasks'), api('/api/admin/deals'),
-    api('/api/admin/tickets'), api('/api/admin/users'), api('/api/admin/integrations')
+    allowed('reports.view', `/api/admin/charts${rangeQS}`),
+    allowed('tasks.manage', '/api/admin/tasks'),
+    allowed('crm.manage', '/api/admin/deals'),
+    allowed('tickets.manage', '/api/admin/tickets'),
+    currentRole === 'admin' ? api('/api/admin/users') : { ok: false },
+    currentRole === 'admin' ? api('/api/admin/integrations') : { ok: false }
   ]);
   if (ch.ok && ch.data) adminCharts = ch.data;
   if (tk.ok && tk.data?.board) tasksData = tk.data.board;
   if (dl.ok && dl.data?.stages) dealStages = dl.data.stages;
   if (tix.ok && tix.data?.tickets) ticketRecords = tix.data.tickets;
-  if (us.ok && us.data?.users) adminUsers = us.data.users;
+  if (us.ok && us.data?.users) {
+    adminUsers = us.data.users;
+    grantablePermissions = us.data.available || grantablePermissions;
+  }
   if (intg.ok && intg.data) adminIntegrations = intg.data;
 
   const [ct, ms, cp, nw, act] = await Promise.all([
-    api('/api/admin/contacts'), api('/api/admin/memberships'), api('/api/admin/campaigns'),
-    api('/api/networking'), api('/api/admin/activity')
+    allowed('crm.manage', '/api/admin/contacts'),
+    allowed('memberships.manage', '/api/admin/memberships'),
+    allowed('campaigns.manage', '/api/admin/campaigns'),
+    api('/api/networking'),
+    allowed('reports.view', '/api/admin/activity')
   ]);
   if (ct.ok && ct.data?.contacts) { contacts = ct.data.contacts; crmStats = ct.data.stats; }
   if (ms.ok && ms.data?.tiers) {
@@ -1208,10 +1230,12 @@ async function loadAdminData() {
     campaignStats = cp.data.stats;
   }
   if (nw.ok && nw.data?.intros) { introRequests = nw.data.intros; networkPeople = nw.data.people; networkStats = nw.data.stats; }
-  const ob = await api('/api/admin/outbox');
+  const ob = await allowed('campaigns.manage', '/api/admin/outbox');
   if (ob.ok && ob.data?.messages) outbox = ob.data.messages;
-  const ws = await api('/api/admin/settings');
-  if (ws.ok && ws.data) workspaceSettings = ws.data;
+  if (currentRole === 'admin') {
+    const ws = await api('/api/admin/settings');
+    if (ws.ok && ws.data) workspaceSettings = ws.data;
+  }
   if (act.ok && act.data?.activity) activities = act.data.activity;
   await loadNotifications();
 }
@@ -1953,6 +1977,9 @@ const roleMeta = {
 function pageRendererFor(role, page) {
   if (roleRenderers[role] && roleRenderers[role][page]) return roleRenderers[role][page];
   if (role === 'admin' && pageRenderers[page]) return pageRenderers[page];
+  // A delegated page renders with the admin view, limited to what was granted.
+  const delegated = DELEGATED_NAV.find(([key]) => key === page);
+  if (delegated && currentPermissions.includes(delegated[3]) && pageRenderers[page]) return pageRenderers[page];
   return null;
 }
 function metaFor(role, page) {
@@ -2101,6 +2128,31 @@ const modalForms = {
      <label class="consent-row"><input type="checkbox" data-iu="marketing_opt_in" /> Marketing emails — they have agreed to receive campaigns</label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-invite-user>Send invite</button>`)
 };
+
+/** Grant or revoke delegated areas for one account. */
+function openPermissionsForm(email) {
+  const user = adminUsers.find((u) => u.email === email);
+  if (!user) return;
+  const held = Array.isArray(user.permissions) ? user.permissions : [];
+  openModal(`Permissions for ${user.name}`,
+    `<p class="muted" style="font-size:13px;margin:0 0 12px">Tick an area to let ${user.name.split(' ')[0]} manage it alongside their own portal. Everything stays checked on the server, so removing a tick takes effect immediately.</p>
+     ${grantablePermissions.map((p) => `
+       <label class="consent-row" style="margin-bottom:8px">
+         <input type="checkbox" data-perm="${p.key}" ${held.includes(p.key) ? 'checked' : ''} />
+         <span><strong>${p.label}</strong> — ${p.description}</span>
+       </label>`).join('')}`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-save-permissions="${email}">Save permissions</button>`);
+}
+
+async function savePermissions(email) {
+  const body = document.getElementById('modalBody');
+  const permissions = [...body.querySelectorAll('[data-perm]')].filter((el) => el.checked).map((el) => el.dataset.perm);
+  const { ok, data } = await api(`/api/admin/users/${encodeURIComponent(email)}/permissions`, { method: 'PATCH', body: { permissions } });
+  if (!ok) { showToast(data?.error || 'Could not save permissions', 'error'); return false; }
+  showToast(permissions.length ? `${data.user.name} can now manage ${permissions.length} area(s)` : `${data.user.name} is back to their own portal`, 'success');
+  await refreshAdmin('settings');
+  return true;
+}
 
 function openTierForm(name) {
   const tier = membershipTiers.find((t) => t.name === name);
@@ -2598,6 +2650,16 @@ function installDelegate() {
       return;
     }
 
+    const permsBtn = find('[data-permissions]');
+    if (permsBtn) { ev.stopPropagation(); openPermissionsForm(permsBtn.dataset.permissions); return; }
+
+    const savePermsBtn = find('[data-save-permissions]');
+    if (savePermsBtn) {
+      ev.stopPropagation();
+      savePermissions(savePermsBtn.dataset.savePermissions).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
     const tierBtn = find('[data-tier-manage]');
     if (tierBtn) { ev.stopPropagation(); openTierForm(tierBtn.dataset.tierManage); return; }
 
@@ -2822,9 +2884,10 @@ function installDelegate() {
 
 /* ===================== APP SHELL ===================== */
 /* Set the active session from a server user record (from /signup, /login, /me). */
-function setSession(user) {
+function setSession(user, permissions = []) {
   currentUser = user;
   currentRole = ROLES[user.role] ? user.role : 'member';
+  currentPermissions = Array.isArray(permissions) ? permissions : [];
 }
 
 function applyRoleIdentity(role) {
@@ -2837,9 +2900,32 @@ function applyRoleIdentity(role) {
   if (small) small.textContent = p.role;
 }
 
+/* Admin pages a non-admin may reach, each unlocked by one capability. */
+const DELEGATED_NAV = [
+  ['crm', 'users', 'CRM', 'crm.manage'],
+  ['memberships', 'crown', 'Memberships', 'memberships.manage'],
+  ['events', 'calendar', 'Events', 'events.manage'],
+  ['tickets', 'ticket', 'Tickets', 'tickets.manage'],
+  ['sponsors', 'star', 'Sponsors', 'sponsors.manage'],
+  ['tasks', 'check', 'Tasks & Activities', 'tasks.manage'],
+  ['email', 'mail', 'Email Marketing', 'campaigns.manage'],
+  ['invoices', 'file', 'Invoices & Payments', 'invoices.manage'],
+  ['reports', 'chart', 'Reports & Analytics', 'reports.view']
+];
+
+function navFor(role) {
+  const base = [...ROLES[role].nav];
+  if (role === 'admin') return base;
+  const owned = new Set(base.map(([page]) => page));
+  for (const [page, icon, label, permission] of DELEGATED_NAV) {
+    if (currentPermissions.includes(permission) && !owned.has(page)) base.push([page, icon, label]);
+  }
+  return base;
+}
+
 function renderSidebarNav(role) {
   const nav = document.getElementById('sidebarNav');
-  nav.innerHTML = ROLES[role].nav.map(([page, icon, label]) => `<button class="nav-item" data-page="${page}"><span data-icon="${icon}"></span>${label}</button>`).join('');
+  nav.innerHTML = navFor(role).map(([page, icon, label]) => `<button class="nav-item" data-page="${page}"><span data-icon="${icon}"></span>${label}</button>`).join('');
   initIcons(nav);
   nav.querySelectorAll('.nav-item').forEach((b) => b.addEventListener('click', () => {
     render(b.dataset.page);
@@ -2856,9 +2942,13 @@ async function showApp(page) {
   renderBottomNav(currentRole);
   showSkeleton();
   try {
-    if (currentRole === 'member') await loadMemberData();
-    else if (currentRole === 'sponsor') await loadSponsorData();
-    else if (currentRole === 'admin') await loadAdminData();
+    if (currentRole === 'admin') await loadAdminData();
+    else {
+      if (currentRole === 'member') await loadMemberData();
+      else if (currentRole === 'sponsor') await loadSponsorData();
+      // Delegated capabilities bring admin pages with them.
+      if (currentPermissions.length) await loadAdminData();
+    }
   } catch { showToast('Could not load your data', 'error'); }
   render(page || ROLES[currentRole].landing);
 }
@@ -2881,8 +2971,11 @@ function renderBottomNav(role = currentRole) {
 /* ===================== GLOBAL WIRING ===================== */
 document.querySelectorAll('[data-auth-tab]').forEach((b) => b.addEventListener('click', () => showAuth(b.dataset.authTab)));
 
-function enterApp(user, message) {
+async function enterApp(user, message) {
   setSession(user);
+  // Login returns the account; ask what it may do before drawing the nav.
+  const me = await api('/api/auth/me');
+  if (me.ok && me.data) setSession(me.data.user, me.data.permissions);
   showApp(ROLES[currentRole].landing);
   showToast(message, 'success');
 }
@@ -3060,7 +3153,7 @@ async function handlePaymentReturn() {
   }
 
   if (ok && data?.user) {
-    setSession(data.user);
+    setSession(data.user, data.permissions);
     await showApp(route && pageRendererFor(currentRole, route) ? route : ROLES[currentRole].landing);
     await handlePaymentReturn();
   } else {

@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { ebConfigured, listOrgEvents, eventAttendeeCount, createOrgEvent } from '../eventbrite.js';
 import { logActivity } from '../activity.js';
+import { requirePermission, PERMISSIONS, permissionsFor, setPermissions, sanitisePermissions } from '../permissions.js';
 import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
 import { createResetLink } from '../tokens.js';
 
@@ -274,7 +275,7 @@ function rangeDays(value) {
   return Number.isFinite(n) && n > 0 && n <= 3650 ? Math.round(n) : null;
 }
 
-dataRouter.get('/admin/stats', adminOnly, async (req, res, next) => {
+dataRouter.get('/admin/stats', requirePermission('reports.view'), async (req, res, next) => {
   try {
     const days = rangeDays(req.query.range);
     const since = days ? `now() - INTERVAL '${days} days'` : null;
@@ -290,7 +291,7 @@ dataRouter.get('/admin/stats', adminOnly, async (req, res, next) => {
 });
 
 // All members (real signed-up users) in the CRM contact shape.
-dataRouter.get('/admin/members', adminOnly, async (_req, res, next) => {
+dataRouter.get('/admin/members', requirePermission('crm.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query(`SELECT full_name, email, org, status, created_at FROM users WHERE role='member' ORDER BY created_at DESC`);
     res.json({ members: rows.map((u) => ({
@@ -302,7 +303,7 @@ dataRouter.get('/admin/members', adminOnly, async (_req, res, next) => {
 });
 
 // All sponsors (users + their sponsorship row).
-dataRouter.get('/admin/sponsors', adminOnly, async (_req, res, next) => {
+dataRouter.get('/admin/sponsors', requirePermission('sponsors.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query(`
       SELECT u.full_name, u.org, s.tier, s.value_cents, s.renews
@@ -334,7 +335,7 @@ dataRouter.patch('/admin/users/:email/status', adminOnly, async (req, res, next)
 });
 
 // Real aggregates for admin charts.
-dataRouter.get('/admin/charts', adminOnly, async (req, res, next) => {
+dataRouter.get('/admin/charts', requirePermission('reports.view'), async (req, res, next) => {
   try {
     const days = rangeDays(req.query.range);
     const win = (col) => (days ? ` AND ${col} >= now() - INTERVAL '${days} days'` : '');
@@ -363,11 +364,15 @@ dataRouter.get('/admin/charts', adminOnly, async (req, res, next) => {
 // All users (admin) for the team/roles settings tabs.
 dataRouter.get('/admin/users', adminOnly, async (_req, res, next) => {
   try {
-    const { rows } = await query('SELECT full_name, email, role, status, marketing_opt_in, created_at FROM users ORDER BY created_at');
-    res.json({ users: rows.map((u) => ({
-      name: u.full_name, email: u.email, role: u.role, status: u.status,
-      marketing_opt_in: u.marketing_opt_in === true
-    })) });
+    const { rows } = await query('SELECT full_name, email, role, status, marketing_opt_in, permissions, created_at FROM users ORDER BY created_at');
+    res.json({
+      users: rows.map((u) => ({
+        name: u.full_name, email: u.email, role: u.role, status: u.status,
+        marketing_opt_in: u.marketing_opt_in === true,
+        permissions: u.role === 'admin' ? 'all' : sanitisePermissions(u.permissions)
+      })),
+      available: PERMISSIONS
+    });
   } catch (err) { next(err); }
 });
 
@@ -413,6 +418,23 @@ dataRouter.post('/admin/users', adminOnly, async (req, res, next) => {
     await logActivity({ kind: 'user', title: 'User invited', body: `${name} · ${role} — ${delivery}`, tone: 'blue' });
     res.status(201).json({ ok: true, delivery, emailConnected: emailConfigured(), invite_link: emailConfigured() ? undefined : link });
   } catch (err) { next(err); }
+});
+
+// Grant or revoke delegated admin capabilities. Administrators are untouchable
+// here: they hold everything by role, and a grant list would only mislead.
+dataRouter.patch('/admin/users/:email/permissions', adminOnly, async (req, res, next) => {
+  try {
+    const updated = await setPermissions(req.params.email, req.body?.permissions);
+    await logActivity({
+      kind: 'user', title: 'Permissions updated',
+      body: `${updated.full_name}: ${updated.permissions.length ? updated.permissions.join(', ') : 'none'}`,
+      tone: 'orange'
+    });
+    res.json({ user: { email: updated.email, name: updated.full_name, role: updated.role, permissions: updated.permissions } });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    next(err);
+  }
 });
 
 // Remove a user account (never an admin; use suspend for reversible changes).
@@ -493,7 +515,7 @@ dataRouter.get('/admin/integrations', adminOnly, async (_req, res) => {
 });
 
 // Ticket desk (admin): every event booking with check-in state.
-dataRouter.get('/admin/tickets', adminOnly, async (_req, res, next) => {
+dataRouter.get('/admin/tickets', requirePermission('tickets.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT b.id, e.title AS event, u.full_name AS buyer, b.tier, b.status, b.checked_in
@@ -506,7 +528,7 @@ dataRouter.get('/admin/tickets', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-dataRouter.patch('/admin/tickets/:id/checkin', adminOnly, async (req, res, next) => {
+dataRouter.patch('/admin/tickets/:id/checkin', requirePermission('tickets.manage'), async (req, res, next) => {
   try {
     const checked = req.body?.checked_in !== false;
     const { rowCount } = await query(
@@ -520,7 +542,7 @@ dataRouter.patch('/admin/tickets/:id/checkin', adminOnly, async (req, res, next)
 
 // CRM deals pipeline (admin), grouped into stage columns.
 const DEAL_STAGES = [['lead', 'Lead'], ['qualified', 'Qualified'], ['proposal', 'Proposal'], ['won', 'Won']];
-dataRouter.get('/admin/deals', adminOnly, async (_req, res, next) => {
+dataRouter.get('/admin/deals', requirePermission('crm.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query('SELECT id, title, value_cents, owner, tier, stage FROM deals ORDER BY created_at');
     const stages = DEAL_STAGES.map(([key, name]) => {
@@ -535,7 +557,7 @@ dataRouter.get('/admin/deals', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-dataRouter.post('/admin/deals', adminOnly, async (req, res, next) => {
+dataRouter.post('/admin/deals', requirePermission('crm.manage'), async (req, res, next) => {
   try {
     const { title, value, owner, tier, stage } = req.body || {};
     if (!title || !String(title).trim()) return res.status(400).json({ error: 'Deal title required' });
@@ -548,7 +570,7 @@ dataRouter.post('/admin/deals', adminOnly, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-dataRouter.patch('/admin/deals/:id', adminOnly, async (req, res, next) => {
+dataRouter.patch('/admin/deals/:id', requirePermission('crm.manage'), async (req, res, next) => {
   try {
     const stage = ['lead', 'qualified', 'proposal', 'won', 'lost'].includes(req.body?.stage) ? req.body.stage : null;
     if (!stage) return res.status(400).json({ error: 'Valid stage required' });
@@ -562,7 +584,7 @@ dataRouter.patch('/admin/deals/:id', adminOnly, async (req, res, next) => {
 });
 
 // Tasks board (admin) — grouped by column.
-dataRouter.get('/admin/tasks', adminOnly, async (_req, res, next) => {
+dataRouter.get('/admin/tasks', requirePermission('tasks.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query('SELECT id, title, assignee, priority, status, due FROM tasks ORDER BY created_at');
     const board = { todo: [], doing: [], done: [] };
@@ -571,7 +593,7 @@ dataRouter.get('/admin/tasks', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-dataRouter.post('/admin/tasks', adminOnly, async (req, res, next) => {
+dataRouter.post('/admin/tasks', requirePermission('tasks.manage'), async (req, res, next) => {
   try {
     const { title, assignee, priority, due } = req.body || {};
     if (!title || !String(title).trim()) return res.status(400).json({ error: 'Task title required' });
@@ -585,7 +607,7 @@ dataRouter.post('/admin/tasks', adminOnly, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-dataRouter.patch('/admin/tasks/:id', adminOnly, async (req, res, next) => {
+dataRouter.patch('/admin/tasks/:id', requirePermission('tasks.manage'), async (req, res, next) => {
   try {
     const status = ['todo', 'doing', 'done'].includes(req.body?.status) ? req.body.status : null;
     if (!status) return res.status(400).json({ error: 'Valid status required' });
@@ -596,7 +618,7 @@ dataRouter.patch('/admin/tasks/:id', adminOnly, async (req, res, next) => {
 });
 
 // Create an event.
-dataRouter.post('/admin/events', adminOnly, async (req, res, next) => {
+dataRouter.post('/admin/events', requirePermission('events.manage'), async (req, res, next) => {
   try {
     const { title, date_label, time_label, city, capacity } = req.body || {};
     if (!title || !String(title).trim()) return res.status(400).json({ error: 'Title required' });
@@ -628,12 +650,12 @@ dataRouter.post('/admin/events', adminOnly, async (req, res, next) => {
 });
 
 // Eventbrite connection status.
-dataRouter.get('/admin/eventbrite/status', adminOnly, (_req, res) => {
+dataRouter.get('/admin/eventbrite/status', requirePermission('events.manage'), (_req, res) => {
   res.json({ configured: ebConfigured() });
 });
 
 // Pull org events from Eventbrite and upsert them (+ refresh attendee counts).
-dataRouter.post('/admin/eventbrite/sync', adminOnly, async (_req, res, next) => {
+dataRouter.post('/admin/eventbrite/sync', requirePermission('events.manage'), async (_req, res, next) => {
   try {
     if (!ebConfigured()) return res.status(400).json({ error: 'Eventbrite not connected. Add EVENTBRITE_TOKEN and EVENTBRITE_ORG_ID.' });
     const events = await listOrgEvents();
@@ -658,7 +680,7 @@ dataRouter.post('/admin/eventbrite/sync', adminOnly, async (_req, res, next) => 
 });
 
 // Issue a ticket on a member's behalf (admin ticket desk).
-dataRouter.post('/admin/tickets', adminOnly, async (req, res, next) => {
+dataRouter.post('/admin/tickets', requirePermission('tickets.manage'), async (req, res, next) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const code = String(req.body?.event || '').trim();
@@ -685,7 +707,7 @@ dataRouter.post('/admin/tickets', adminOnly, async (req, res, next) => {
 });
 
 // Refund a ticket: the booking stays on file, marked refunded, and frees capacity.
-dataRouter.post('/admin/tickets/:id/refund', adminOnly, async (req, res, next) => {
+dataRouter.post('/admin/tickets/:id/refund', requirePermission('tickets.manage'), async (req, res, next) => {
   try {
     const { rows } = await query(
       `UPDATE event_bookings b SET status = 'Refunded', checked_in = false
@@ -703,7 +725,7 @@ dataRouter.post('/admin/tickets/:id/refund', adminOnly, async (req, res, next) =
 });
 
 // Update an event (status changes, including cancellation).
-dataRouter.patch('/admin/events/:code', adminOnly, async (req, res, next) => {
+dataRouter.patch('/admin/events/:code', requirePermission('events.manage'), async (req, res, next) => {
   try {
     const allowed = ['Confirmed', 'Selling', 'Draft', 'Cancelled'];
     const fields = [];
@@ -740,7 +762,7 @@ dataRouter.patch('/admin/events/:code', adminOnly, async (req, res, next) => {
 });
 
 // Create a sponsor contract: the sponsor account plus its sponsorship package.
-dataRouter.post('/admin/sponsors', adminOnly, async (req, res, next) => {
+dataRouter.post('/admin/sponsors', requirePermission('sponsors.manage'), async (req, res, next) => {
   try {
     const name = String(req.body?.name || '').trim();
     const email = String(req.body?.email || '').trim().toLowerCase();

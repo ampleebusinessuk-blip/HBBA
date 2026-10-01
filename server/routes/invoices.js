@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { logActivity } from '../activity.js';
+import { requirePermission } from '../permissions.js';
 import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
 import { paymentsConfigured, createInvoiceCheckout } from '../payments.js';
 import { demoPayments } from '../demo.js';
@@ -78,7 +79,7 @@ function invoiceDTO(row, { full = false } = {}) {
 }
 
 // --- Admin list ---
-invoicesRouter.get('/admin/invoices', adminOnly, async (_req, res, next) => {
+invoicesRouter.get('/admin/invoices', requirePermission('invoices.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query(`
       SELECT i.*, u.full_name AS client_name
@@ -100,7 +101,7 @@ invoicesRouter.get('/invoices/:number', async (req, res, next) => {
 });
 
 // --- Create (admin) ---
-invoicesRouter.post('/admin/invoices', adminOnly, async (req, res, next) => {
+invoicesRouter.post('/admin/invoices', requirePermission('invoices.manage'), async (req, res, next) => {
   try {
     const items = parseItems(req.body);
     if (!items.length) return res.status(400).json({ error: 'Add at least one line item' });
@@ -138,7 +139,7 @@ invoicesRouter.post('/admin/invoices', adminOnly, async (req, res, next) => {
 });
 
 // --- Edit / status / void (admin) ---
-invoicesRouter.patch('/admin/invoices/:number', adminOnly, async (req, res, next) => {
+invoicesRouter.patch('/admin/invoices/:number', requirePermission('invoices.manage'), async (req, res, next) => {
   try {
     const row = await fetchInvoice(req.params.number);
     if (!row) return res.status(404).json({ error: 'Invoice not found' });
@@ -172,7 +173,7 @@ invoicesRouter.patch('/admin/invoices/:number', adminOnly, async (req, res, next
   } catch (err) { next(err); }
 });
 
-invoicesRouter.delete('/admin/invoices/:number', adminOnly, async (req, res, next) => {
+invoicesRouter.delete('/admin/invoices/:number', requirePermission('invoices.manage'), async (req, res, next) => {
   try {
     const { rowCount } = await query(`UPDATE invoices SET status = 'void' WHERE number = $1`, [req.params.number]);
     if (!rowCount) return res.status(404).json({ error: 'Invoice not found' });
@@ -181,7 +182,7 @@ invoicesRouter.delete('/admin/invoices/:number', adminOnly, async (req, res, nex
 });
 
 // Chase an unpaid invoice: bump the reminder count and email the client.
-invoicesRouter.post('/admin/invoices/:number/remind', adminOnly, async (req, res, next) => {
+invoicesRouter.post('/admin/invoices/:number/remind', requirePermission('invoices.manage'), async (req, res, next) => {
   try {
     const { rows } = await query(
       `UPDATE invoices SET reminder_count = reminder_count + 1, reminded_at = now(),

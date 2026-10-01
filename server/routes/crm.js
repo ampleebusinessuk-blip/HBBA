@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { logActivity, feedFor, markFeedRead } from '../activity.js';
+import { requirePermission } from '../permissions.js';
 import { sendEmail, sendBulk, layout, deliverySummary, emailConfigured, appUrl } from '../email.js';
 import {
   validateCampaignInput, audienceOptions, campaignSummary, deliverCampaign
@@ -62,7 +63,7 @@ function contactDTO(row) {
 
 /* ===================== CONTACTS ===================== */
 
-crmRouter.get('/admin/contacts', adminOnly, async (_req, res, next) => {
+crmRouter.get('/admin/contacts', requirePermission('crm.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT c.*, (SELECT count(*) FROM deals d WHERE d.owner = c.name AND d.stage <> 'lost') AS deals
@@ -79,7 +80,7 @@ crmRouter.get('/admin/contacts', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-crmRouter.post('/admin/contacts', adminOnly, async (req, res, next) => {
+crmRouter.post('/admin/contacts', requirePermission('crm.manage'), async (req, res, next) => {
   try {
     const name = String(req.body?.name || '').trim();
     const email = String(req.body?.email || '').trim().toLowerCase();
@@ -109,7 +110,7 @@ crmRouter.post('/admin/contacts', adminOnly, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-crmRouter.patch('/admin/contacts/:id', adminOnly, async (req, res, next) => {
+crmRouter.patch('/admin/contacts/:id', requirePermission('crm.manage'), async (req, res, next) => {
   try {
     const fields = [];
     const values = [];
@@ -127,7 +128,7 @@ crmRouter.patch('/admin/contacts/:id', adminOnly, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-crmRouter.delete('/admin/contacts/:id', adminOnly, async (req, res, next) => {
+crmRouter.delete('/admin/contacts/:id', requirePermission('crm.manage'), async (req, res, next) => {
   try {
     const { rows } = await query('DELETE FROM contacts WHERE id = $1 RETURNING name', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Contact not found' });
@@ -137,7 +138,7 @@ crmRouter.delete('/admin/contacts/:id', adminOnly, async (req, res, next) => {
 });
 
 // Log an interaction (email/call/meeting) against a contact — real, and it moves "last activity".
-crmRouter.post('/admin/contacts/:id/log', adminOnly, async (req, res, next) => {
+crmRouter.post('/admin/contacts/:id/log', requirePermission('crm.manage'), async (req, res, next) => {
   try {
     const kind = ['email', 'call', 'meeting'].includes(req.body?.kind) ? req.body.kind : 'email';
     const { rows } = await query(
@@ -151,7 +152,7 @@ crmRouter.post('/admin/contacts/:id/log', adminOnly, async (req, res, next) => {
 
 /* ===================== MEMBERSHIPS ===================== */
 
-crmRouter.get('/admin/memberships', adminOnly, async (_req, res, next) => {
+crmRouter.get('/admin/memberships', requirePermission('memberships.manage'), async (_req, res, next) => {
   try {
     const [tiers, members, renewals, pending] = await Promise.all([
       query('SELECT * FROM membership_tiers ORDER BY sort'),
@@ -183,7 +184,7 @@ crmRouter.get('/admin/memberships', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-crmRouter.patch('/admin/tiers/:name', adminOnly, async (req, res, next) => {
+crmRouter.patch('/admin/tiers/:name', requirePermission('memberships.manage'), async (req, res, next) => {
   try {
     const price = req.body?.price_cents !== undefined ? Math.max(0, Math.round(Number(req.body.price_cents))) : null;
     const perks = Array.isArray(req.body?.perks) ? JSON.stringify(req.body.perks) : null;
@@ -202,7 +203,7 @@ crmRouter.patch('/admin/tiers/:name', adminOnly, async (req, res, next) => {
 });
 
 // Nudge one member, or everyone whose membership lapses within 30 days.
-crmRouter.post('/admin/renewals/remind', adminOnly, async (req, res, next) => {
+crmRouter.post('/admin/renewals/remind', requirePermission('memberships.manage'), async (req, res, next) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const { rows } = email
@@ -270,7 +271,7 @@ async function audienceCount(segment) {
   return rows[0].n;
 }
 
-crmRouter.get('/admin/campaigns', adminOnly, async (_req, res, next) => {
+crmRouter.get('/admin/campaigns', requirePermission('campaigns.manage'), async (_req, res, next) => {
   try {
     // Delivery figures come from recipient rows, never from audience size.
     const { rows } = await query(`
@@ -326,7 +327,7 @@ crmRouter.get('/admin/campaigns', adminOnly, async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-crmRouter.post('/admin/campaigns', adminOnly, async (req, res, next) => {
+crmRouter.post('/admin/campaigns', requirePermission('campaigns.manage'), async (req, res, next) => {
   try {
     let input;
     try {
@@ -392,10 +393,10 @@ async function runCampaign(req, res, next) {
   } catch (err) { next(err); }
 }
 
-crmRouter.post('/admin/campaigns/:id/send', adminOnly, runCampaign);
-crmRouter.post('/admin/campaigns/:id/retry', adminOnly, runCampaign);
+crmRouter.post('/admin/campaigns/:id/send', requirePermission('campaigns.manage'), runCampaign);
+crmRouter.post('/admin/campaigns/:id/retry', requirePermission('campaigns.manage'), runCampaign);
 
-crmRouter.get('/admin/campaigns/:id', adminOnly, async (req, res, next) => {
+crmRouter.get('/admin/campaigns/:id', requirePermission('campaigns.manage'), async (req, res, next) => {
   try {
     const { rows } = await query('SELECT * FROM campaigns WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Campaign not found' });
@@ -446,7 +447,7 @@ crmRouter.post('/networking/intros', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-crmRouter.patch('/admin/intros/:id', adminOnly, async (req, res, next) => {
+crmRouter.patch('/admin/intros/:id', requirePermission('networking.manage'), async (req, res, next) => {
   try {
     const status = ['matched', 'declined', 'pending'].includes(req.body?.status) ? req.body.status : null;
     if (!status) return res.status(400).json({ error: 'status must be matched, declined or pending' });
@@ -492,7 +493,7 @@ crmRouter.post('/notifications/read', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-crmRouter.get('/admin/activity', adminOnly, async (req, res, next) => {
+crmRouter.get('/admin/activity', requirePermission('reports.view'), async (req, res, next) => {
   try {
     const rows = await feedFor(req.auth.sub, 'admin', 8);
     res.json({ activity: rows.map((r) => ({ title: r.title, body: r.body || '', time: ago(r.created_at), tone: r.tone })) });
@@ -503,7 +504,7 @@ crmRouter.get('/admin/activity', adminOnly, async (req, res, next) => {
 
 // Everything the app has tried to email, so the demo can show exactly what
 // would have gone out (and a live deployment can audit what did).
-crmRouter.get('/admin/outbox', adminOnly, async (_req, res, next) => {
+crmRouter.get('/admin/outbox', requirePermission('campaigns.manage'), async (_req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT to_email, subject, kind, status, error, created_at
