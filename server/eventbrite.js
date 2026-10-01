@@ -4,10 +4,12 @@ const BASE = 'https://www.eventbriteapi.com/v3';
 
 export function ebConfig() {
   return {
-    token: process.env.EVENTBRITE_TOKEN || '',
-    orgId: process.env.EVENTBRITE_ORG_ID || ''
+    token: resolve('EVENTBRITE_TOKEN') || '',
+    orgId: resolve('EVENTBRITE_ORG_ID') || ''
   };
 }
+
+import { resolve } from './settings.js';
 
 export function ebConfigured() {
   const { token, orgId } = ebConfig();

@@ -3,19 +3,20 @@
 // email_log with status 'skipped', so the UI can tell the truth about it.
 import { query } from './db.js';
 import { demoEmail } from './demo.js';
+import { resolve } from './settings.js';
 
 const RESEND_API = 'https://api.resend.com/emails';
 
 export function emailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY);
+  return Boolean(resolve('RESEND_API_KEY'));
 }
 
 export function emailFrom() {
-  return process.env.EMAIL_FROM || 'HBBA Global <onboarding@resend.dev>';
+  return resolve('EMAIL_FROM') || 'HBBA Global <onboarding@resend.dev>';
 }
 
 export function appUrl() {
-  return (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  return (process.env.APP_URL || resolve('APP_URL') || 'http://localhost:3000').replace(/\/$/, '');
 }
 
 /** Escape user-authored text before it reaches an HTML template. */
@@ -62,7 +63,7 @@ export async function sendEmail({ to, subject, html, text, kind = 'general' }) {
     const res = await fetch(RESEND_API, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        Authorization: `Bearer ${resolve('RESEND_API_KEY')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

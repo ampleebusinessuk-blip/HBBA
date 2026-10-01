@@ -6,13 +6,14 @@ import express from 'express';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { query } from '../db.js';
 import { logActivity } from '../activity.js';
+import { resolve, ensureSettingsLoaded } from '../settings.js';
 
 export const stripeRouter = Router();
 
 const TOLERANCE_SECONDS = 300;
 
 export function webhookConfigured() {
-  return Boolean(process.env.STRIPE_WEBHOOK_SECRET);
+  return Boolean(resolve('STRIPE_WEBHOOK_SECRET'));
 }
 
 /** Verify Stripe's `Stripe-Signature` header against the raw payload. */
@@ -46,9 +47,13 @@ export async function settleInvoice(number, paymentRef) {
 
 stripeRouter.post('/stripe/webhook', express.raw({ type: 'application/json', limit: '1mb' }), async (req, res, next) => {
   try {
+    // This router is mounted ahead of the settings-warming middleware so it can
+    // see the raw body, so load settings here or a cold instance would reject a
+    // perfectly valid signature.
+    await ensureSettingsLoaded().catch(() => {});
     if (!webhookConfigured()) return res.status(503).json({ error: 'Stripe webhook is not configured' });
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from(String(req.body || ''));
-    if (!verifySignature(raw, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET)) {
+    if (!verifySignature(raw, req.headers['stripe-signature'], resolve('STRIPE_WEBHOOK_SECRET'))) {
       return res.status(400).json({ error: 'Invalid signature' });
     }
 

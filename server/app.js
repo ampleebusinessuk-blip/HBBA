@@ -11,6 +11,8 @@ import { crmRouter } from './routes/crm.js';
 import { stripeRouter } from './routes/stripe.js';
 import { opsRouter } from './routes/ops.js';
 import { campaignsPublicRouter, unsubscribePageRouter } from './routes/campaigns-public.js';
+import { ensureSettingsLoaded } from './settings.js';
+import { settingsRouter } from './routes/settings.js';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -51,6 +53,13 @@ export function createApp() {
 
   app.use(attachUser);
 
+  // Settings are cached in-process; refresh when stale so a credential saved on
+  // one instance reaches the others. Never blocks a request if the lookup fails.
+  app.use(async (_req, _res, next) => {
+    try { await ensureSettingsLoaded(); } catch { /* fall back to environment */ }
+    next();
+  });
+
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
   // Blanket limit for the API, with a tighter one on the auth surface.
@@ -70,6 +79,7 @@ export function createApp() {
   app.use('/api/auth', (_req, res) => res.status(404).json({ error: 'Not found' }));
   app.use('/api', invoicesRouter);
   app.use('/api', supportRouter);
+  app.use('/api', settingsRouter);
   app.use('/api', crmRouter);
   app.use('/api', dataRouter);
 

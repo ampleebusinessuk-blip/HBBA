@@ -90,6 +90,7 @@ let membershipStats = { members: 0, renewalsDue: 0, applications: 0 };
 let campaignStats = { campaigns: 0, openRate: '—', clicks: 0 };
 let campaignAudiences = [];
 let outbox = [];
+let workspaceSettings = { integrations: [], business: {}, bankAccounts: [], secretsConfigured: false };
 let networkStats = { introductions: 0, meetings: 0, matchRate: '—' };
 let networkPeople = [];
 let memberDirectory = [];
@@ -786,7 +787,7 @@ function reportsPage() {
 /* --- Settings (tabs) --- */
 let settingsTab = 'profile';
 function settingsPage() {
-  const tabs = ['profile', 'team', 'roles', 'billing', 'integrations'];
+  const tabs = ['profile', 'business', 'team', 'roles', 'billing', 'integrations'];
   return `
     <div class="tabs">
       ${tabs.map((t) => `<button type="button" data-settings-tab="${t}" class="${t === settingsTab ? 'is-active' : ''}">${t.charAt(0).toUpperCase() + t.slice(1)}</button>`).join('')}
@@ -849,21 +850,76 @@ function settingsBody(tab) {
       </section>
     </div>`;
   }
-  // integrations — live connection status
-  const apps = [
-    { key: 'eventbrite', name: 'Eventbrite', desc: 'Sync events and ticketing', env: 'EVENTBRITE_TOKEN + EVENTBRITE_ORG_ID' },
-    { key: 'stripe', name: 'Stripe', desc: 'Card payments for invoices', env: 'STRIPE_SECRET_KEY' },
-    { key: 'stripeWebhook', name: 'Stripe webhook', desc: 'Marks invoices paid when checkout completes', env: 'STRIPE_WEBHOOK_SECRET' },
-    { key: 'email', name: 'Email (Resend)', desc: 'Invites, password resets, reminders, campaigns', env: 'RESEND_API_KEY + EMAIL_FROM' },
-  ];
+  if (tab === 'business') {
+    const b = workspaceSettings.business || {};
+    const value = (key) => (b[key] || '').replace(/"/g, '&quot;');
+    const accounts = workspaceSettings.bankAccounts || [];
+    return `<div class="settings-grid">
+      <section class="card full">
+        <div class="card-title"><h2>Business details</h2><button class="primary-action" type="button" data-save-business>Save details</button></div>
+        <p class="muted" style="font-size:13px;margin:0 0 12px">These appear on every invoice you issue.</p>
+        <div class="form-row">
+          <label>Business name<input type="text" data-bs="business.name" value="${value('business.name')}" placeholder="HBBA Global Ltd" /></label>
+          <label>Email<input type="email" data-bs="business.email" value="${value('business.email')}" placeholder="accounts@hbba.uk" /></label>
+          <label>Phone<input type="text" data-bs="business.phone" value="${value('business.phone')}" /></label>
+        </div>
+        <label>Address<textarea data-bs="business.address" rows="3" placeholder="Street&#10;City&#10;Postcode">${b['business.address'] || ''}</textarea></label>
+        <div class="form-row">
+          <label>Registration no.<input type="text" data-bs="business.registration_no" value="${value('business.registration_no')}" /></label>
+          <label>VAT no.<input type="text" data-bs="business.vat_no" value="${value('business.vat_no')}" /></label>
+          <label>Invoice prefix<input type="text" data-bs="business.invoice_prefix" value="${value('business.invoice_prefix')}" placeholder="INV" /></label>
+        </div>
+        <label>Invoice footer<textarea data-bs="business.invoice_footer" rows="2" placeholder="Thank you for your trust and continued partnership.">${b['business.invoice_footer'] || ''}</textarea></label>
+      </section>
+
+      <section class="card full">
+        <div class="card-title"><h2>Bank accounts</h2><button class="primary-action" type="button" data-modal="new-bank"><span data-icon="plus"></span>Add account</button></div>
+        <p class="muted" style="font-size:13px;margin:0 0 12px">The default account is printed on invoices as the payment destination.</p>
+        ${accounts.length ? accounts.map((a) => `
+          <div class="role-row">
+            <div><strong>${a.label}</strong>${a.is_default ? ' <span class="chip">Default</span>' : ''}<br />
+              <small class="muted">${a.account_name}${a.bank_name ? ` · ${a.bank_name}` : ''}${a.sort_code ? ` · ${a.sort_code}` : ''}${a.account_number ? ` · ${a.account_number}` : ''}</small></div>
+            <span style="display:flex;gap:8px">
+              ${a.is_default ? '' : `<button class="link-button" data-default-bank="${a.id}">Make default</button>`}
+              <button class="link-button" data-delete-bank="${a.id}" style="color:var(--red)">Remove</button>
+            </span>
+          </div>`).join('') : emptyState('No bank account yet', 'Add one so invoices can tell clients where to pay.')}
+      </section>
+    </div>`;
+  }
+
+  // integrations — connect and disconnect without a developer
+  const copy = {
+    RESEND_API_KEY: { name: 'Email (Resend)', desc: 'Invites, password resets, reminders and campaigns', placeholder: 're_...' },
+    EMAIL_FROM: { name: 'Email sender', desc: 'The From address campaigns are sent as', placeholder: 'HBBA Global <noreply@hbba.uk>' },
+    STRIPE_SECRET_KEY: { name: 'Stripe', desc: 'Card payments for invoices', placeholder: 'sk_live_...' },
+    STRIPE_WEBHOOK_SECRET: { name: 'Stripe webhook', desc: 'Marks invoices paid when checkout completes', placeholder: 'whsec_...' },
+    EVENTBRITE_TOKEN: { name: 'Eventbrite', desc: 'Sync events and ticketing', placeholder: 'Private token' },
+    EVENTBRITE_ORG_ID: { name: 'Eventbrite organisation', desc: 'Which organisation to sync', placeholder: 'Organisation ID' },
+    CRON_SECRET: { name: 'Scheduled campaigns', desc: 'Lets the scheduler run due campaigns', placeholder: 'A long random string' }
+  };
   const demo = adminIntegrations.demo || {};
-  const demoFor = { stripe: demo.payments, email: demo.email };
-  return `<div class="settings-grid">${apps.map((a) => {
-    const on = !!adminIntegrations[a.key];
-    const inDemo = !on && demoFor[a.key];
-    const label = on ? 'Connected' : inDemo ? 'Demo mode' : 'Not connected';
-    return `<section class="card"><div class="card-title"><h2>${a.name}</h2><span class="invoice-status ${on ? 'paid' : inDemo ? 'due' : 'draft'}">${label}</span></div><p class="muted" style="font-size:13px">${a.desc}</p><p class="muted" style="font-size:12px;margin-top:6px">${inDemo ? `Running in demo mode: ${a.key === 'stripe' ? 'invoices can be marked paid without a card' : 'messages are queued to the outbox, never delivered'}. Set <code>${a.env}</code> to go live.` : `Set <code>${a.env}</code> in your Vercel env to connect.`}</p></section>`;
-  }).join('')}</div>`;
+
+  return `<div class="settings-grid">
+    ${workspaceSettings.secretsConfigured ? '' : '<section class="card full"><p class="muted" style="margin:0">Credentials cannot be saved here yet: this deployment has no <code>SECRETS_KEY</code>, so there is nothing to encrypt them with. Ask your developer to set one, or keep using environment variables.</p></section>'}
+    ${(workspaceSettings.integrations || []).map((item) => {
+      const c = copy[item.key] || { name: item.key, desc: '', placeholder: '' };
+      const inDemo = !item.configured && ((item.key === 'STRIPE_SECRET_KEY' && demo.payments) || (item.key === 'RESEND_API_KEY' && demo.email));
+      const label = item.configured ? 'Connected' : inDemo ? 'Demo mode' : 'Not connected';
+      return `<section class="card">
+        <div class="card-title"><h2>${c.name}</h2><span class="invoice-status ${item.configured ? 'paid' : inDemo ? 'due' : 'draft'}">${label}</span></div>
+        <p class="muted" style="font-size:13px">${c.desc}</p>
+        ${item.editable
+          ? `<label style="margin-top:10px">${item.configured ? 'Replace value' : 'Value'}<input type="${item.hint ? 'password' : 'text'}" data-int="${item.key}" placeholder="${item.hint || c.placeholder}" value="${item.value || ''}" autocomplete="off" /></label>
+             <div class="campaign-actions" style="margin-top:10px;justify-content:flex-start">
+               <button class="primary-action" type="button" data-save-integration="${item.key}">${item.configured ? 'Update' : 'Connect'}</button>
+               ${item.configured ? `<button class="control" type="button" data-clear-integration="${item.key}">Disconnect</button>` : ''}
+             </div>
+             ${item.hint ? `<p class="muted" style="font-size:12px;margin-top:8px">Currently <code>${item.hint}</code>. The stored value is encrypted and never shown again.</p>` : ''}`
+          : `<p class="muted" style="font-size:12px;margin-top:10px">Set by this deployment's environment as <code>${item.key}</code>, which takes precedence over anything entered here.</p>`}
+      </section>`;
+    }).join('')}
+  </div>`;
 }
 
 /* ===================== ROUTING ===================== */
@@ -1103,6 +1159,8 @@ async function loadAdminData() {
   if (nw.ok && nw.data?.intros) { introRequests = nw.data.intros; networkPeople = nw.data.people; networkStats = nw.data.stats; }
   const ob = await api('/api/admin/outbox');
   if (ob.ok && ob.data?.messages) outbox = ob.data.messages;
+  const ws = await api('/api/admin/settings');
+  if (ws.ok && ws.data) workspaceSettings = ws.data;
   if (act.ok && act.data?.activity) activities = act.data.activity;
   await loadNotifications();
 }
@@ -1381,6 +1439,46 @@ async function deleteContact(id) {
   closeDrawer();
   showToast('Contact deleted', 'info');
   await refreshAdmin('crm');
+}
+
+/* ---------- Workspace settings ---------- */
+async function saveBusinessDetails() {
+  const root = document.getElementById('settingsBody');
+  const body = {};
+  root.querySelectorAll('[data-bs]').forEach((el) => { body[el.dataset.bs] = el.value; });
+  const { ok, data } = await api('/api/admin/settings/business', { method: 'PATCH', body });
+  if (!ok) { showToast(data?.error || 'Could not save details', 'error'); return; }
+  showToast('Business details saved', 'success');
+  await refreshAdmin('settings');
+}
+
+async function saveIntegration(key, value) {
+  const { ok, data } = await api(`/api/admin/settings/integrations/${key}`, { method: 'PUT', body: { value } });
+  if (!ok) { showToast(data?.error || 'Could not save', 'error'); return; }
+  showToast(data.configured ? `${key} connected` : `${key} disconnected`, data.configured ? 'success' : 'info');
+  await refreshAdmin('settings');
+}
+
+async function createBankAccount(fields) {
+  const { ok, data } = await api('/api/admin/bank-accounts', { method: 'POST', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not add account', 'error'); return false; }
+  showToast(`${data.account.label} added`, 'success');
+  await refreshAdmin('settings');
+  return true;
+}
+
+async function updateBankAccount(id, fields) {
+  const { ok, data } = await api(`/api/admin/bank-accounts/${id}`, { method: 'PATCH', body: fields });
+  if (!ok) { showToast(data?.error || 'Could not update account', 'error'); return; }
+  showToast('Bank account updated', 'success');
+  await refreshAdmin('settings');
+}
+
+async function deleteBankAccountById(id) {
+  const { ok, data } = await api(`/api/admin/bank-accounts/${id}`, { method: 'DELETE' });
+  if (!ok) { showToast(data?.error || 'Could not remove account', 'error'); return; }
+  showToast('Bank account removed', 'info');
+  await refreshAdmin('settings');
 }
 
 /* ---------- Memberships ---------- */
@@ -1897,6 +1995,23 @@ const modalForms = {
   'new-intro': () => openModal('Request an introduction',
     `<label>Who would you like to meet?<input type="text" data-in="to" list="networkPeople" placeholder="Name or company" /><datalist id="networkPeople">${networkPeople.map((n) => `<option value="${n.name}"></option>`).join('')}</datalist></label><label>Why<textarea data-in="reason" placeholder="What you would like to explore together…"></textarea></label>`,
     `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-intro>Request intro</button>`),
+  'new-bank': () => openModal('Add bank account',
+    `<div class="form-row">
+       <label>Label<input type="text" data-bk="label" placeholder="Current account" /></label>
+       <label>Account name<input type="text" data-bk="account_name" placeholder="HBBA Global Ltd" /></label>
+       <label>Bank<input type="text" data-bk="bank_name" placeholder="Tide Bank" /></label>
+     </div>
+     <div class="form-row">
+       <label>Sort code<input type="text" data-bk="sort_code" placeholder="04-06-05" /></label>
+       <label>Account number<input type="text" data-bk="account_number" placeholder="31925315" /></label>
+       <label>Account type<input type="text" data-bk="account_type" placeholder="Business Account" /></label>
+     </div>
+     <div class="form-row">
+       <label>IBAN (optional)<input type="text" data-bk="iban" /></label>
+       <label>SWIFT/BIC (optional)<input type="text" data-bk="swift" /></label>
+     </div>
+     <label class="consent-row"><input type="checkbox" data-bk-default /> Print this account on invoices by default</label>`,
+    `<button class="control" type="button" data-modal-close>Cancel</button><button class="primary-action" type="button" data-create-bank>Add account</button>`),
   'new-invoice': () => openInvoiceForm(),
   'new-deal': () => openModal('New deal',
     `<label>Deal title<input type="text" data-df="title" placeholder="Acme sponsorship" /></label><div class="form-row"><label>Value (£)<input type="number" data-df="value" placeholder="10000" /></label><label>Owner<input type="text" data-df="owner" placeholder="Sarah Johnson" /></label><label>Tier<select data-df="tier"><option>Gold</option><option>Silver</option><option>Bronze</option></select></label><label>Stage<select data-df="stage"><option value="lead">Lead</option><option value="qualified">Qualified</option><option value="proposal">Proposal</option><option value="won">Won</option></select></label></div>`,
@@ -2351,6 +2466,53 @@ function installDelegate() {
         title: get('title'), date_label: get('date_label'), time_label: get('time_label'),
         city: get('city'), capacity: Number(get('capacity')) || 0, status: get('status')
       }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    if (find('[data-save-business]')) { ev.stopPropagation(); saveBusinessDetails(); return; }
+
+    const saveIntegrationBtn = find('[data-save-integration]');
+    if (saveIntegrationBtn) {
+      ev.stopPropagation();
+      const key = saveIntegrationBtn.dataset.saveIntegration;
+      const field = document.querySelector(`[data-int="${key}"]`);
+      const value = field?.value?.trim();
+      if (!value) { showToast('Paste the value first', 'error'); return; }
+      saveIntegration(key, value);
+      return;
+    }
+
+    const clearIntegrationBtn = find('[data-clear-integration]');
+    if (clearIntegrationBtn) {
+      ev.stopPropagation();
+      const key = clearIntegrationBtn.dataset.clearIntegration;
+      openConfirm('Disconnect this integration?',
+        'The stored credential is deleted. Anything that depends on it stops working until you reconnect.',
+        () => saveIntegration(key, ''));
+      return;
+    }
+
+    if (find('[data-create-bank]')) {
+      ev.stopPropagation();
+      const m = document.getElementById('modalBody');
+      const get = (f) => m.querySelector(`[data-bk="${f}"]`)?.value?.trim() || '';
+      createBankAccount({
+        label: get('label'), account_name: get('account_name'), bank_name: get('bank_name'),
+        sort_code: get('sort_code'), account_number: get('account_number'), account_type: get('account_type'),
+        iban: get('iban'), swift: get('swift'),
+        is_default: m.querySelector('[data-bk-default]')?.checked === true
+      }).then((ok) => { if (ok) closeModal(); });
+      return;
+    }
+
+    const defaultBankBtn = find('[data-default-bank]');
+    if (defaultBankBtn) { ev.stopPropagation(); updateBankAccount(defaultBankBtn.dataset.defaultBank, { is_default: true }); return; }
+
+    const deleteBankBtn = find('[data-delete-bank]');
+    if (deleteBankBtn) {
+      ev.stopPropagation();
+      openConfirm('Remove this bank account?', 'It stops appearing on new invoices. Invoices already issued are unchanged.',
+        () => deleteBankAccountById(deleteBankBtn.dataset.deleteBank));
       return;
     }
 

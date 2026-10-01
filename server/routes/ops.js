@@ -9,6 +9,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { runMigrations } from '../../migrations/run.js';
 import { dueCampaigns, deliverCampaign } from '../campaigns.js';
 import { query } from '../db.js';
+import { resolve } from '../settings.js';
 
 export const opsRouter = Router();
 
@@ -50,7 +51,7 @@ opsRouter.post('/ops/migrate', async (req, res, next) => {
  */
 opsRouter.get('/ops/campaigns/run', async (req, res, next) => {
   try {
-    const expected = process.env.CRON_SECRET;
+    const expected = resolve('CRON_SECRET');
     if (!expected) return res.status(404).json({ error: 'Not found' });
 
     const header = String(req.headers.authorization || '');

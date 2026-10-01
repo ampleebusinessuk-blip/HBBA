@@ -1,9 +1,11 @@
 // Stripe payments via REST (no SDK dependency). Dormant unless STRIPE_SECRET_KEY is set.
 // Verify against real test keys before relying on it (Phase 5).
+import { resolve } from './settings.js';
+
 const STRIPE_API = 'https://api.stripe.com/v1';
 
 export function paymentsConfigured() {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+  return Boolean(resolve('STRIPE_SECRET_KEY'));
 }
 
 function appUrl() {
@@ -17,7 +19,7 @@ async function stripe(path, params) {
   const res = await fetch(`${STRIPE_API}${path}`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+      Authorization: `Bearer ${resolve('STRIPE_SECRET_KEY')}`,
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     body
