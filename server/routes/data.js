@@ -7,7 +7,6 @@ import { requirePermission, PERMISSIONS, permissionsFor, setPermissions, sanitis
 import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
 import { createResetLink } from '../tokens.js';
 
-const STOCK_AVATAR = 'https://i.pravatar.cc/96?img=12';
 
 export const dataRouter = Router();
 
@@ -280,11 +279,17 @@ dataRouter.get('/admin/stats', requirePermission('reports.view'), async (req, re
 // All members (real signed-up users) in the CRM contact shape.
 dataRouter.get('/admin/members', requirePermission('crm.manage'), async (_req, res, next) => {
   try {
-    const { rows } = await query(`SELECT full_name, email, org, status, created_at FROM users WHERE role='member' ORDER BY created_at DESC`);
+    const { rows } = await query(
+      `SELECT full_name, email, org, status, created_at, avatar_data, phone, city
+         FROM users WHERE role='member' ORDER BY created_at DESC`);
+    // Whatever each member filled in about themselves, and nothing invented
+    // where they did not.
     res.json({ members: rows.map((u) => ({
-      name: u.full_name, email: u.email, company: u.org || '—', city: '—',
-      status: u.status === 'active' ? 'Active' : 'New', tier: 'Member', avatar: STOCK_AVATAR,
-      presence: 'online', phone: '—', deals: 0, last: new Date(u.created_at).toLocaleDateString('en-GB')
+      name: u.full_name, email: u.email, company: u.org || '—', city: u.city || '—',
+      status: u.status === 'active' ? 'Active' : 'New', tier: 'Member',
+      avatar: u.avatar_data || null,
+      presence: u.status === 'active' ? 'online' : 'offline',
+      phone: u.phone || '—', deals: 0, last: new Date(u.created_at).toLocaleDateString('en-GB')
     })) });
   } catch (err) { next(err); }
 });

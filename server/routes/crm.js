@@ -14,7 +14,6 @@ crmRouter.use(requireAuth);
 const adminOnly = requireRole('admin');
 const money = (cents) => '£' + (Number(cents || 0) / 100).toLocaleString('en-GB');
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const AVATAR = (seed) => `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`;
 const SEGMENTS = ['All members', 'Gold tier', 'Expiring soon', 'Sponsors', 'Contacts'];
 
 function ago(ts) {
@@ -53,7 +52,10 @@ function contactDTO(row) {
     status: row.status,
     owner: row.owner || '',
     notes: row.notes || '',
-    avatar: row.avatar || AVATAR(row.email),
+    // A real picture if one was set, otherwise nothing — the interface draws
+    // their initials. A stock photograph of a stranger is worse than no photo,
+    // and generating one offsite would hand a third party every contact's email.
+    avatar: row.avatar || null,
     presence: row.status === 'Active' ? 'online' : row.status === 'Warm' ? 'away' : row.status === 'Cold' ? 'offline' : 'busy',
     deals: Number(row.deals) || 0,
     marketing_opt_in: row.marketing_opt_in === true,
@@ -97,7 +99,8 @@ crmRouter.post('/admin/contacts', requirePermission('crm.manage'), async (req, r
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, CASE WHEN $10 THEN now() ELSE NULL END) RETURNING *`,
         [name, email, String(req.body?.company || '').trim() || null, String(req.body?.city || '').trim() || null,
           String(req.body?.phone || '').trim() || null, tier, status,
-          String(req.body?.owner || '').trim() || null, AVATAR(email), optIn]));
+          // No picture unless somebody supplies one; the interface draws initials.
+          String(req.body?.owner || '').trim() || null, String(req.body?.avatar || '').trim() || null, optIn]));
     } catch (err) {
       if (err.code === '23505') return res.status(409).json({ error: 'A contact with that email already exists' });
       throw err;
@@ -411,16 +414,22 @@ crmRouter.get('/networking', async (req, res, next) => {
   try {
     const isAdmin = req.auth.role === 'admin';
     const { rows } = isAdmin
-      ? await query('SELECT * FROM intro_requests ORDER BY created_at DESC LIMIT 50')
-      : await query('SELECT * FROM intro_requests WHERE requester_id = $1 ORDER BY created_at DESC LIMIT 50', [req.auth.sub]);
+      ? await query(
+        `SELECT i.*, u.avatar_data AS requester_avatar
+           FROM intro_requests i LEFT JOIN users u ON u.id = i.requester_id
+          ORDER BY i.created_at DESC LIMIT 50`)
+      : await query(
+        `SELECT i.*, u.avatar_data AS requester_avatar
+           FROM intro_requests i LEFT JOIN users u ON u.id = i.requester_id
+          WHERE i.requester_id = $1 ORDER BY i.created_at DESC LIMIT 50`, [req.auth.sub]);
     const [people, meetings] = await Promise.all([
-      query(`SELECT full_name AS name, role FROM users WHERE status = 'active' ORDER BY created_at LIMIT 7`),
+      query(`SELECT full_name AS name, role, avatar_data AS avatar FROM users WHERE status = 'active' ORDER BY created_at LIMIT 7`),
       query(`SELECT count(*)::int AS n FROM intro_requests WHERE status = 'matched'`)
     ]);
     res.json({
       intros: rows.map((r) => ({
         id: r.id, from: r.from_name, to: r.to_name, reason: r.reason || '',
-        status: r.status, avatar: AVATAR(r.from_name), when: ago(r.created_at)
+        status: r.status, avatar: r.requester_avatar || null, when: ago(r.created_at)
       })),
       people: people.rows,
       stats: {

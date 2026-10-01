@@ -150,14 +150,6 @@ function personAvatar(person, size = 36) {
   return `<span class="avatar avatar-initials" style="width:${size}px;height:${size}px;font-size:${Math.round(size / 2.6)}px" aria-hidden="true">${h(initials(name))}</span>`;
 }
 
-function avatar(src, presence) {
-  const cls = presence ? `presence ${presence}` : '';
-  return `<span class="${cls}"><img class="avatar" src="${src}" alt="" /></span>`;
-}
-
-function avatarGroup(srcs, more) {
-  return `<div class="avatar-group">${srcs.slice(0, 4).map((s) => `<img class="avatar" src="${s}" alt="" />`).join('')}${more ? `<span class="more">+${more}</span>` : ''}</div>`;
-}
 
 function metricCards() {
   return `<div class="metric-grid">${metrics.map(([label, value, page, icon, color]) => `
@@ -340,7 +332,7 @@ function crmPage() {
       <div class="card-title"><h2>Contacts</h2><button class="primary-action" type="button" data-modal="new-contact"><span data-icon="plus"></span>Add Contact</button></div>
       ${shown.length ? shown.map((c, i) => `
         <div class="contact-row" data-contact="${contacts.indexOf(c)}">
-          <span class="presence ${c.presence}"><img class="avatar" src="${c.avatar}" alt="" /></span>
+          <span class="presence ${c.presence}">${personAvatar(c, 36)}</span>
           <div><h4>${c.name}</h4><small>${c.email}</small></div>
           <div><strong style="font-size:13px">${c.company || '—'}</strong><small style="display:block;color:var(--muted)">${c.city || '—'}</small></div>
           <span class="chip">${c.tier}</span>
@@ -521,7 +513,7 @@ function networkingPage() {
         <div class="card-title"><h2>Intro requests</h2><span class="chip">${pending.length} pending</span></div>
         ${introRequests.length ? introRequests.map((r) => `
           <div class="intro-item">
-            <img class="avatar" src="${r.avatar}" alt="" />
+            ${personAvatar({ name: r.from, avatar: r.avatar }, 36)}
             <div><strong>${r.from}</strong> → ${r.to}<p>${r.reason || 'No note added.'}</p></div>
             <div class="intro-actions">
               ${r.status === 'pending'
@@ -2213,7 +2205,7 @@ function contactDrawer(i) {
   const c = contacts[i];
   if (!c) return;
   return openDrawer(c.name, `
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><span class="presence ${c.presence}"><img class="avatar" src="${c.avatar}" style="width:62px;height:62px;border-radius:50%" alt="" /></span>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px"><span class="presence ${c.presence}">${personAvatar(c, 62)}</span>
     <div><h2 style="margin:0">${c.name}</h2><small class="muted">${c.company || '—'} · ${c.city || '—'}</small></div></div>
     <div class="drawer-section"><h3>Contact</h3><dl class="drawer-kv"><dt>Email</dt><dd>${c.email}</dd><dt>Phone</dt><dd>${c.phone || '—'}</dd><dt>Tier</dt><dd>${c.tier}</dd><dt>Status</dt><dd>${statusPill(c.status)}</dd><dt>Owner</dt><dd>${c.owner || 'Unassigned'}</dd><dt>Open deals</dt><dd>${c.deals}</dd><dt>Last activity</dt><dd>${c.last}</dd><dt>Marketing emails</dt><dd>${c.marketing_opt_in ? '<span class="invoice-status paid">Opted in</span>' : '<span class="invoice-status draft">Opted out</span>'}</dd></dl></div>
     <div class="drawer-section"><label class="consent-row"><input type="checkbox" data-contact-consent="${c.id}" ${c.marketing_opt_in ? 'checked' : ''} /> Send marketing emails to this contact</label></div>

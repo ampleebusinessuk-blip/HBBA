@@ -379,10 +379,17 @@ No framework. The whole UI is string templates plus one delegated event listener
 otherwise a "Mark paid" button makes every invoice match the search "paid".
 
 **Identity.** The header renders the person actually signed in — their own name,
-their own picture, and the job title they gave themselves. Somebody who has not
-uploaded a picture gets their initials (`personAvatar`), never a stock photo of
-a stranger. `h()` HTML-escapes everything a person typed about themselves, so a
-name containing a tag stays a name.
+their own picture, and the job title they gave themselves. `h()` HTML-escapes
+everything a person typed about themselves, so a name containing a tag stays a
+name.
+
+Nobody is given a stock photograph of a stranger. `personAvatar()` renders an
+uploaded picture if there is one and the person's initials otherwise, and it is
+the only thing that renders a face. Contacts, intro requests and the member
+directory used to be given a generated `i.pravatar.cc` URL keyed on the
+person's email, which both showed the wrong face and sent that email's hash to a
+third party on every page view; `migrations/019` clears the generated URLs
+already stored, leaving any picture somebody actually supplied alone.
 
 **The invoice builder** (`invoiceBuilderPage`) is a page, not a modal: form on
 the left, the document's figures on the right. `draftTotals()` mirrors the
@@ -513,6 +520,9 @@ Postgres — no mocks of our own code.
 | `invoices-api.test.js` | billing a company with no account, the printed document, re-lining, the shared link (open, rotate, revoke, void), acceptance recorded once, card payment gated per invoice, schedules, repeats retiring themselves, copies, round-trip fidelity of an edit |
 | `profile.test.js` | every role has a profile, what is and is not writable from it, picture type/size validation, password change needing the current one |
 
+Browser-only checks worth naming: a person with no picture shows their initials,
+and no request leaves for a stock-photo service or for `/null`.
+
 Test files run one at a time (`--test-concurrency=1`): they share a single
 database, and parallel files were changing each other's campaign audiences.
 
@@ -554,9 +564,11 @@ waiting on real values:
    from each sponsorship row as you create it.
 4. **Events, members, sponsors, invoices** — all empty by design after the
    clear-out. Everything you add from here is real.
-5. **Your business details** — Settings → Business fills the "billed by" block
+5. **Pictures** — nobody has one until they upload it from their own profile
+   page; until then the interface shows their initials.
+6. **Your business details** — Settings → Business fills the "billed by" block
    on every invoice: name, address, company number, VAT number, invoice prefix
    and footer. Until it is filled, invoices print with the defaults.
-6. **A bank account** — Settings → Business → Bank accounts. An invoice with no
+7. **A bank account** — Settings → Business → Bank accounts. An invoice with no
    bank account tells the client so instead of printing a blank panel, but they
    will have no way to pay by transfer.

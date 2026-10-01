@@ -19,6 +19,7 @@ async function wipe() {
   await query(`DELETE FROM invoices WHERE client_id IN (SELECT id FROM clients WHERE name LIKE 'Browser Client%')
                OR user_id IN (SELECT id FROM users WHERE lower(email) LIKE '%.browser.%@example.test')`);
   await query("DELETE FROM clients WHERE name LIKE 'Browser Client%'");
+  await query("DELETE FROM contacts WHERE lower(email) LIKE '%.browser.contact@example.test'");
   await query("DELETE FROM bank_accounts WHERE label = 'Browser test account'");
   await query("DELETE FROM users WHERE lower(email) LIKE '%.browser.%@example.test'");
 }
@@ -360,4 +361,45 @@ test('a client can be edited and removed again', async ({ page }) => {
 
   // The 409 above is the refusal this test asked for; anything else is not.
   expect(problems.filter((p) => !p.includes('409'))).toEqual([]);
+});
+
+test('people without a picture show initials, and nothing is fetched offsite', async ({ page }) => {
+  const problems = watch(page);
+  // Faces used to be fetched from a stock-photo service, keyed on the person's
+  // email — a picture of a stranger, and a request to a third party per contact.
+  // Event artwork may legitimately be a URL somebody pasted, so this watches for
+  // the generator that was removed and for the `src="null"` that an absent
+  // picture used to produce.
+  const strays = [];
+  page.on('request', (request) => {
+    const url = request.url();
+    if (/pravatar|gravatar/.test(url)) strays.push(url);
+    if (/\/(null|undefined)(\?|$)/.test(url)) strays.push(url);
+  });
+
+  await login(page, ADMIN);
+
+  // A contact with no picture of their own.
+  await page.locator('.nav-item', { hasText: 'CRM' }).click();
+  await page.locator('[data-modal="new-contact"]').click();
+  await page.locator('[data-ct="name"]').fill('Priya Raman');
+  await page.locator('[data-ct="email"]').fill('priya.browser.contact@example.test');
+  await page.locator('[data-ct="company"]').fill('Raman Foods');
+  await page.locator('[data-create-contact]').click();
+  await expect(page.locator('.toast', { hasText: 'added to the CRM' })).toBeVisible();
+  // The form must get out of the way before the row behind it can be opened.
+  await expect(page.locator('#modalOverlay')).toBeHidden();
+  await expect(page.locator('.contact-row', { hasText: 'Priya Raman' })).toBeVisible();
+  await expect(page.locator('.contact-row', { hasText: 'Priya Raman' }).locator('.avatar-initials')).toHaveText('PR');
+
+  // And in the drawer.
+  await page.locator('.contact-row', { hasText: 'Priya Raman' }).click();
+  await expect(page.locator('.drawer .avatar-initials, [class*="drawer"] .avatar-initials').first()).toHaveText('PR');
+  await page.keyboard.press('Escape');
+
+  await page.locator('.nav-item', { hasText: 'Networking' }).click();
+  await expect(page.locator('#pageRoot')).toBeVisible();
+
+  expect(strays).toEqual([]);
+  expect(problems).toEqual([]);
 });
