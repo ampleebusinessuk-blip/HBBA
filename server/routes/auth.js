@@ -1,9 +1,7 @@
 import { Router } from 'express';
-import { randomBytes } from 'node:crypto';
 import { query } from '../db.js';
 import { logActivity } from '../activity.js';
 import { sendEmail, layout, appUrl, emailConfigured } from '../email.js';
-import { googleConfigured, googleAuthUrl, exchangeGoogleCode } from '../google.js';
 import { createResetLink, findLiveToken, consumeToken, RESET_TTL_MINUTES } from '../tokens.js';
 import {
   hashPassword, verifyPassword, signToken,
@@ -154,44 +152,10 @@ authRouter.post('/reset', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-/* ===================== SIGN IN WITH GOOGLE ===================== */
+/* ===================== SIGN-IN OPTIONS ===================== */
 
-// Which optional sign-in paths this deployment actually supports.
+// What this deployment supports. Email delivery decides whether the
+// forgot-password flow can actually reach anyone.
 authRouter.get('/providers', (_req, res) => {
-  res.json({ google: googleConfigured(), email: emailConfigured() });
-});
-
-authRouter.get('/google', (req, res) => {
-  if (!googleConfigured()) return res.status(503).json({ error: 'Google sign-in is not configured' });
-  const state = randomBytes(16).toString('hex');
-  res.cookie('hbba_oauth_state', state, { httpOnly: true, sameSite: 'lax', maxAge: 10 * 60 * 1000, path: '/' });
-  res.redirect(googleAuthUrl(state));
-});
-
-authRouter.get('/google/callback', async (req, res, next) => {
-  try {
-    if (!googleConfigured()) return res.status(503).json({ error: 'Google sign-in is not configured' });
-    if (req.query.error) return res.redirect('/#login?error=google');
-    const state = String(req.query.state || '');
-    if (!state || state !== req.cookies?.hbba_oauth_state) return res.redirect('/#login?error=state');
-    res.clearCookie('hbba_oauth_state', { path: '/' });
-
-    const profile = await exchangeGoogleCode(String(req.query.code || ''));
-    if (!profile?.email) return res.redirect('/#login?error=google');
-    const email = profile.email.toLowerCase();
-
-    let { rows } = await query('SELECT * FROM users WHERE email = $1', [email]);
-    if (!rows[0]) {
-      const placeholder = await hashPassword(randomBytes(24).toString('hex'));
-      ({ rows } = await query(
-        `INSERT INTO users (email, password_hash, role, full_name, status)
-         VALUES ($1, $2, 'member', $3, 'active') RETURNING *`,
-        [email, placeholder, profile.name || email.split('@')[0]]));
-      await logActivity({ kind: 'signup', title: 'New member registered', body: `${rows[0].full_name} — via Google`, tone: 'green' });
-    }
-    if (rows[0].status === 'suspended') return res.redirect('/#login?error=suspended');
-
-    setAuthCookie(res, signToken(rows[0]));
-    res.redirect('/');
-  } catch (err) { next(err); }
+  res.json({ email: emailConfigured() });
 });

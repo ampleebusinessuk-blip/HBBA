@@ -64,6 +64,10 @@ export function createApp() {
 
   app.use('/api', opsRouter);
   app.use('/api/auth', rateLimit({ windowMs: 60000, max: 30 }), authRouter);
+  // Terminate the auth surface: without this, an unknown /api/auth/* path falls
+  // through to a router that requires a session and answers 401, which reads as
+  // "wrong credentials" when the route simply does not exist.
+  app.use('/api/auth', (_req, res) => res.status(404).json({ error: 'Not found' }));
   app.use('/api', invoicesRouter);
   app.use('/api', supportRouter);
   app.use('/api', crmRouter);

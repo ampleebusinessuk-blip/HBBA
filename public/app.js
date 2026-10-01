@@ -855,7 +855,6 @@ function settingsBody(tab) {
     { key: 'stripe', name: 'Stripe', desc: 'Card payments for invoices', env: 'STRIPE_SECRET_KEY' },
     { key: 'stripeWebhook', name: 'Stripe webhook', desc: 'Marks invoices paid when checkout completes', env: 'STRIPE_WEBHOOK_SECRET' },
     { key: 'email', name: 'Email (Resend)', desc: 'Invites, password resets, reminders, campaigns', env: 'RESEND_API_KEY + EMAIL_FROM' },
-    { key: 'google', name: 'Sign in with Google', desc: 'Optional social login', env: 'GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET' }
   ];
   const demo = adminIntegrations.demo || {};
   const demoFor = { stripe: demo.payments, email: demo.email };
@@ -2794,13 +2793,6 @@ document.getElementById('resetForm').addEventListener('submit', async (e) => {
   enterApp(data.user, 'Password set — you are signed in');
 });
 
-/* Only offer Google when this deployment has it configured. */
-async function showAvailableProviders() {
-  const { ok, data } = await api('/api/auth/providers');
-  const btn = document.getElementById('googleSignIn');
-  if (btn) btn.hidden = !(ok && data?.google);
-}
-
 /* Coming back from Stripe checkout: #invoices?paid=INV-123 */
 async function handlePaymentReturn() {
   const paid = readHashParam('paid');
@@ -2820,7 +2812,6 @@ async function handlePaymentReturn() {
   if (route === 'reset' && token) {
     resetToken = token;
     showAuth('reset');
-    showAvailableProviders();
     return;
   }
 
@@ -2830,8 +2821,7 @@ async function handlePaymentReturn() {
     await handlePaymentReturn();
   } else {
     showAuth(route === 'signup' ? 'signup' : 'login');
-    showAvailableProviders();
     const err = readHashParam('error');
-    if (err) showToast(err === 'suspended' ? 'That account is suspended' : 'Google sign-in did not complete', 'error');
+    if (err === 'suspended') showToast('That account is suspended', 'error');
   }
 })();

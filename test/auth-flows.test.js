@@ -5,7 +5,6 @@ import { createApp } from '../server/app.js';
 import { pool, closePool } from '../server/db.js';
 import { hashPassword } from '../server/auth.js';
 import { verifySignature, settleInvoice } from '../server/routes/stripe.js';
-import { googleAuthUrl, googleConfigured } from '../server/google.js';
 import { emailConfigured, deliverySummary } from '../server/email.js';
 
 let server;
@@ -125,28 +124,14 @@ test('providers endpoint reports what this deployment supports', async () => {
   const res = await req('/api/auth/providers');
   assert.equal(res.status, 200);
   const data = await res.json();
-  assert.equal(data.google, googleConfigured());
   assert.equal(data.email, emailConfigured());
+  assert.equal('google' in data, false, 'social sign-in is gone, not merely hidden');
 });
 
-test('google sign-in is refused while unconfigured, and builds a valid consent URL when set', async () => {
-  const res = await req('/api/auth/google');
-  assert.equal(res.status, googleConfigured() ? 302 : 503);
-
-  process.env.GOOGLE_CLIENT_ID = 'test-client';
-  process.env.GOOGLE_CLIENT_SECRET = 'test-secret';
-  process.env.GOOGLE_REDIRECT_URI = 'https://example.test/api/auth/google/callback';
-  try {
-    const url = new URL(googleAuthUrl('state-123'));
-    assert.equal(url.origin + url.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
-    assert.equal(url.searchParams.get('client_id'), 'test-client');
-    assert.equal(url.searchParams.get('state'), 'state-123');
-    assert.equal(url.searchParams.get('redirect_uri'), 'https://example.test/api/auth/google/callback');
-    assert.equal(url.searchParams.get('response_type'), 'code');
-  } finally {
-    delete process.env.GOOGLE_CLIENT_ID;
-    delete process.env.GOOGLE_CLIENT_SECRET;
-    delete process.env.GOOGLE_REDIRECT_URI;
+test('the Google sign-in endpoints no longer exist', async () => {
+  for (const path of ['/api/auth/google', '/api/auth/google/callback']) {
+    const res = await req(path);
+    assert.equal(res.status, 404, `${path} is gone`);
   }
 });
 

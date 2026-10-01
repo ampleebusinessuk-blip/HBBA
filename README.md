@@ -147,8 +147,6 @@ the live status of every row:
   when checkout completes. Point the Stripe endpoint at
   `https://<your-domain>/api/stripe/webhook` and subscribe to
   `checkout.session.completed`.
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: shows the "Continue with Google"
-  button. Redirect URI defaults to `<APP_URL>/api/auth/google/callback`.
 - `EVENTBRITE_TOKEN` / `EVENTBRITE_ORG_ID`: two-way event sync.
 - `APP_URL`: the public URL used in email links and the OAuth redirect.
 

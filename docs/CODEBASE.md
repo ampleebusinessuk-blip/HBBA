@@ -114,11 +114,6 @@ mail failure must not roll back the business action that triggered it.
 `sendBulk` walks recipients sequentially and returns counts;
 `deliverySummary()` turns those into the sentence shown in toasts.
 
-### `server/google.js` (54 lines)
-OAuth 2.0 authorization-code flow, no SDK. Dormant until `GOOGLE_CLIENT_ID` and
-`GOOGLE_CLIENT_SECRET` are set — and the UI hides the button by asking
-`/api/auth/providers` first, so a button never appears that cannot work.
-
 ### `server/payments.js` (44 lines)
 Stripe Checkout session creation over REST. `paymentsConfigured()` gates it.
 Line items are built from the invoice's own currency and amount.
@@ -341,7 +336,6 @@ status for every one.
 | Resend (email) | `RESEND_API_KEY`, `EMAIL_FROM` | queued to the in-app outbox, never delivered |
 | Stripe | `STRIPE_SECRET_KEY` | demo settlement, labelled, `demo-` payment ref |
 | Stripe webhook | `STRIPE_WEBHOOK_SECRET` | endpoint returns 503 |
-| Google sign-in | `GOOGLE_CLIENT_ID/SECRET` | button hidden |
 | Campaign scheduler | `CRON_SECRET` | `/api/ops/campaigns/run` returns 404. Runs daily on Hobby; Vercel rejects sub-daily crons on that plan. |
 | Eventbrite | `EVENTBRITE_TOKEN`, `EVENTBRITE_ORG_ID` | sync returns a clear 400 |
 | Demo mode | `DEMO_MODE=0` disables | demo paths off entirely |
