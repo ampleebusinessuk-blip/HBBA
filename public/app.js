@@ -900,9 +900,60 @@ function settingsBody(tab) {
   };
   const demo = adminIntegrations.demo || {};
 
+  const setting = (key) => (workspaceSettings.integrations || []).find((i) => i.key === key) || {};
+  const settingValue = (key) => (setting(key).value || '').replace(/"/g, '&quot;');
+  const transport = (setting('EMAIL_TRANSPORT').value || '').toLowerCase();
+  const smtpReady = setting('SMTP_HOST').configured && setting('SMTP_USER').configured && setting('SMTP_PASSWORD').configured;
+  const emailLive = smtpReady || setting('RESEND_API_KEY').configured;
+  const emailLocked = !setting('SMTP_HOST').editable;
+
+  // Email gets its own panel: it is the one integration with a real choice to
+  // make, and the one that needs proving before anything depends on it.
+  const emailCard = `<section class="card full">
+    <div class="card-title"><h2>Email</h2><span class="invoice-status ${emailLive ? 'paid' : 'draft'}">${emailLive ? `Connected over ${smtpReady && transport !== 'resend' ? 'SMTP' : 'Resend'}` : 'Not connected'}</span></div>
+    <p class="muted" style="font-size:13px">Invites, password resets, invoice reminders and campaigns all send through this. Use SMTP if you already have a mailbox; use Resend if you would rather send over an API.</p>
+
+    <div class="form-row" style="margin-top:12px">
+      <label>Send using<select data-int="EMAIL_TRANSPORT">
+        <option value=""${transport ? '' : ' selected'}>Whichever is configured</option>
+        <option value="smtp"${transport === 'smtp' ? ' selected' : ''}>SMTP mailbox</option>
+        <option value="resend"${transport === 'resend' ? ' selected' : ''}>Resend API</option>
+      </select></label>
+      <label>From address<input type="text" data-int="EMAIL_FROM" value="${settingValue('EMAIL_FROM')}" placeholder="HBBA Global &lt;noreply@hbba.uk&gt;" /></label>
+    </div>
+
+    <div class="card-title" style="margin-top:14px"><h2 style="font-size:15px">SMTP mailbox</h2></div>
+    <div class="form-row">
+      <label>Server<input type="text" data-int="SMTP_HOST" value="${settingValue('SMTP_HOST')}" placeholder="smtp.hostinger.com" /></label>
+      <label>Port<input type="text" data-int="SMTP_PORT" value="${settingValue('SMTP_PORT')}" placeholder="587" /></label>
+      <label>Encryption<select data-int="SMTP_SECURE">
+        <option value="false"${settingValue('SMTP_SECURE') === 'true' ? '' : ' selected'}>STARTTLS (587)</option>
+        <option value="true"${settingValue('SMTP_SECURE') === 'true' ? ' selected' : ''}>SSL/TLS (465)</option>
+      </select></label>
+    </div>
+    <div class="form-row">
+      <label>Username<input type="text" data-int="SMTP_USER" value="${settingValue('SMTP_USER')}" placeholder="noreply@hbba.uk" autocomplete="off" /></label>
+      <label>Password<input type="password" data-int="SMTP_PASSWORD" placeholder="${setting('SMTP_PASSWORD').hint || 'Mailbox password'}" autocomplete="new-password" /></label>
+    </div>
+
+    <div class="card-title" style="margin-top:14px"><h2 style="font-size:15px">Resend API</h2></div>
+    <label>API key<input type="password" data-int="RESEND_API_KEY" placeholder="${setting('RESEND_API_KEY').hint || 're_...'}" autocomplete="off" /></label>
+
+    ${emailLocked ? '<p class="muted" style="font-size:12px;margin-top:10px">Some of these are set by this deployment\'s environment and cannot be changed here.</p>' : ''}
+    <div class="campaign-actions" style="margin-top:14px;justify-content:flex-start">
+      <button class="primary-action" type="button" data-save-email>Save email settings</button>
+      <input type="email" id="emailTestTo" placeholder="you@example.com" style="max-width:260px" />
+      <button class="control" type="button" data-test-email>Send test email</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:8px">The test reports exactly what the mail server said, so a wrong password or a blocked port is obvious.</p>
+  </section>`;
+
+  const emailKeys = new Set(['EMAIL_TRANSPORT', 'EMAIL_FROM', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_SECURE', 'RESEND_API_KEY']);
+
   return `<div class="settings-grid">
     ${workspaceSettings.secretsConfigured ? '' : '<section class="card full"><p class="muted" style="margin:0">Credentials cannot be saved here yet: this deployment has no <code>SECRETS_KEY</code>, so there is nothing to encrypt them with. Ask your developer to set one, or keep using environment variables.</p></section>'}
-    ${(workspaceSettings.integrations || []).map((item) => {
+    ${emailCard}
+    ${(workspaceSettings.integrations || []).filter((i) => !emailKeys.has(i.key)).map((item) => {
       const c = copy[item.key] || { name: item.key, desc: '', placeholder: '' };
       const inDemo = !item.configured && ((item.key === 'STRIPE_SECRET_KEY' && demo.payments) || (item.key === 'RESEND_API_KEY' && demo.email));
       const label = item.configured ? 'Connected' : inDemo ? 'Demo mode' : 'Not connected';
@@ -1479,6 +1530,35 @@ async function deleteBankAccountById(id) {
   if (!ok) { showToast(data?.error || 'Could not remove account', 'error'); return; }
   showToast('Bank account removed', 'info');
   await refreshAdmin('settings');
+}
+
+/** Email settings save as a group: the transport only makes sense as a set. */
+async function saveEmailSettings() {
+  const root = document.getElementById('settingsBody');
+  const keys = ['EMAIL_TRANSPORT', 'EMAIL_FROM', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASSWORD', 'RESEND_API_KEY'];
+  let saved = 0;
+  let failed = null;
+  for (const key of keys) {
+    const field = root.querySelector(`[data-int="${key}"]`);
+    if (!field) continue;
+    const value = field.value.trim();
+    // A blank password field means "leave the stored one alone", not "clear it".
+    if (!value && (key === 'SMTP_PASSWORD' || key === 'RESEND_API_KEY')) continue;
+    const { ok, data } = await api(`/api/admin/settings/integrations/${key}`, { method: 'PUT', body: { value } });
+    if (ok) saved++;
+    else if (data?.error && !/environment/.test(data.error)) failed = data.error;
+  }
+  showToast(failed || `Email settings saved (${saved} field(s))`, failed ? 'error' : 'success');
+  await refreshAdmin('settings');
+}
+
+async function sendTestEmail() {
+  const to = document.getElementById('emailTestTo')?.value?.trim();
+  if (!to) { showToast('Enter an address to send the test to', 'error'); return; }
+  showToast('Sending test email…', 'info');
+  const { ok, data } = await api('/api/admin/settings/email/test', { method: 'POST', body: { to } });
+  if (!ok) { showToast(data?.error || 'The test failed', 'error'); return; }
+  showToast(`Test email sent to ${data.to} over ${data.transport.toUpperCase()}`, 'success');
 }
 
 /* ---------- Memberships ---------- */
@@ -2470,6 +2550,8 @@ function installDelegate() {
     }
 
     if (find('[data-save-business]')) { ev.stopPropagation(); saveBusinessDetails(); return; }
+    if (find('[data-save-email]')) { ev.stopPropagation(); saveEmailSettings(); return; }
+    if (find('[data-test-email]')) { ev.stopPropagation(); sendTestEmail(); return; }
 
     const saveIntegrationBtn = find('[data-save-integration]');
     if (saveIntegrationBtn) {

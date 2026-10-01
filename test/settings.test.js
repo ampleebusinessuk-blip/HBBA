@@ -4,7 +4,7 @@ import { createApp } from '../server/app.js';
 import { pool, query, closePool } from '../server/db.js';
 import { hashPassword } from '../server/auth.js';
 import { maskSecret, resolve, refreshSettings } from '../server/settings.js';
-import { emailConfigured } from '../server/email.js';
+import { emailConfigured, emailTransport, smtpConfigured, resendConfigured } from '../server/email.js';
 
 let server;
 let base;
@@ -22,7 +22,7 @@ const adminReq = (path, options = {}) => req(path, { ...options, cookie: adminCo
 const cookieOf = (res) => (res.headers.getSetCookie?.()[0] || res.headers.get('set-cookie') || '').split(';')[0];
 
 async function wipe() {
-  await query("DELETE FROM app_settings WHERE key LIKE 'business.%' OR key IN ('RESEND_API_KEY','EMAIL_FROM','STRIPE_SECRET_KEY')");
+  await query("DELETE FROM app_settings WHERE key LIKE 'business.%' OR key LIKE 'SMTP_%' OR key IN ('RESEND_API_KEY','EMAIL_FROM','STRIPE_SECRET_KEY','EMAIL_TRANSPORT')");
   await query("DELETE FROM bank_accounts WHERE label LIKE 'Test %'");
   await refreshSettings();
 }
@@ -195,4 +195,63 @@ test('masking never leaks a short secret', () => {
   assert.equal(maskSecret('short'), '••••');
   assert.equal(maskSecret(''), null);
   assert.equal(maskSecret('re_1234567890'), 're_••••7890');
+});
+
+test('SMTP details configure email without an API key', async () => {
+  for (const [key, value] of [
+    ['SMTP_HOST', 'smtp.example.test'], ['SMTP_PORT', '587'],
+    ['SMTP_USER', 'noreply@example.test'], ['SMTP_PASSWORD', 'mailbox-password']
+  ]) {
+    const res = await adminReq(`/api/admin/settings/integrations/${key}`, { method: 'PUT', body: { value } });
+    assert.equal(res.status, 200, `${key} saved`);
+  }
+
+  assert.equal(smtpConfigured(), true);
+  assert.equal(emailConfigured(), true, 'email is live over SMTP with no Resend key');
+  assert.equal(emailTransport(), 'smtp');
+
+  // The password is encrypted like any other credential; host and user are not.
+  const { rows } = await query("SELECT key, is_secret, value FROM app_settings WHERE key LIKE 'SMTP_%'");
+  const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
+  assert.equal(byKey.SMTP_PASSWORD.is_secret, true);
+  assert.ok(byKey.SMTP_PASSWORD.value.startsWith('v1.'));
+  assert.ok(!byKey.SMTP_PASSWORD.value.includes('mailbox-password'));
+  assert.equal(byKey.SMTP_HOST.is_secret, false, 'a hostname is configuration, not a credential');
+
+  const overview = await (await adminReq('/api/admin/settings')).json();
+  const host = overview.integrations.find((i) => i.key === 'SMTP_HOST');
+  assert.equal(host.value, 'smtp.example.test', 'non-secret settings read back in full');
+  assert.ok(!JSON.stringify(overview).includes('mailbox-password'));
+});
+
+test('an explicit transport choice is honoured, and falls back when it cannot be met', async () => {
+  await adminReq('/api/admin/settings/integrations/RESEND_API_KEY', { method: 'PUT', body: { value: 're_live_choice_test' } });
+  assert.equal(resendConfigured(), true);
+
+  await adminReq('/api/admin/settings/integrations/EMAIL_TRANSPORT', { method: 'PUT', body: { value: 'resend' } });
+  assert.equal(emailTransport(), 'resend', 'the choice wins over SMTP being present');
+
+  await adminReq('/api/admin/settings/integrations/EMAIL_TRANSPORT', { method: 'PUT', body: { value: 'smtp' } });
+  assert.equal(emailTransport(), 'smtp');
+
+  // Asking for a transport that is not configured reports nothing, rather than
+  // silently sending through the other one.
+  await adminReq('/api/admin/settings/integrations/SMTP_HOST', { method: 'PUT', body: { value: '' } });
+  assert.equal(emailTransport(), null);
+  assert.equal(emailConfigured(), false);
+
+  await adminReq('/api/admin/settings/integrations/EMAIL_TRANSPORT', { method: 'PUT', body: { value: '' } });
+  assert.equal(emailTransport(), 'resend', 'with no preference, whichever is configured is used');
+});
+
+test('the test-send refuses clearly when nothing is configured', async () => {
+  for (const key of ['RESEND_API_KEY', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD', 'EMAIL_TRANSPORT']) {
+    await adminReq(`/api/admin/settings/integrations/${key}`, { method: 'PUT', body: { value: '' } });
+  }
+  const res = await adminReq('/api/admin/settings/email/test', { method: 'POST', body: { to: 'someone@example.test' } });
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /no email transport/i);
+
+  const bad = await adminReq('/api/admin/settings/email/test', { method: 'POST', body: { to: 'not-an-address' } });
+  assert.equal(bad.status, 400);
 });

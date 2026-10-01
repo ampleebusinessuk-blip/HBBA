@@ -11,3 +11,6 @@ node_modules/
 # Playwright
 test-results/
 playwright-report/
+
+# Scratch directories and captures from local tooling
+.tmp-*

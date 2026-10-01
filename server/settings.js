@@ -15,6 +15,12 @@ import { query } from './db.js';
 
 /** Integration credentials an admin may manage from Settings. */
 export const MANAGED_SECRETS = [
+  'EMAIL_TRANSPORT',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASSWORD',
+  'SMTP_SECURE',
   'RESEND_API_KEY',
   'EMAIL_FROM',
   'STRIPE_SECRET_KEY',
@@ -38,7 +44,12 @@ export const BUSINESS_KEYS = [
 ];
 
 // EMAIL_FROM is not really a secret, but it belongs with the email credential.
-const NON_SECRET_MANAGED = new Set(['EMAIL_FROM', 'EVENTBRITE_ORG_ID']);
+// Hostnames, ports and usernames are configuration, not credentials; only the
+// password and API keys are encrypted.
+const NON_SECRET_MANAGED = new Set([
+  'EMAIL_FROM', 'EVENTBRITE_ORG_ID', 'EMAIL_TRANSPORT',
+  'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_SECURE'
+]);
 
 let cache = { at: 0, values: new Map() };
 const CACHE_MS = 30_000;

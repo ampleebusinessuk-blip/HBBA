@@ -1,14 +1,41 @@
-// Transactional email through Resend's REST API (no SDK dependency).
-// Dormant unless RESEND_API_KEY is set: every send is still recorded in
-// email_log with status 'skipped', so the UI can tell the truth about it.
+// Transactional email through either SMTP or Resend's REST API.
+//
+// Which one is used is decided per deployment in Settings: SMTP suits an
+// existing mailbox, Resend suits a domain with no mail server. Dormant unless
+// one of them is configured, and every attempt is recorded in email_log --
+// including the ones that were skipped -- so the UI can tell the truth.
 import { query } from './db.js';
 import { demoEmail } from './demo.js';
 import { resolve } from './settings.js';
+import nodemailer from 'nodemailer';
 
 const RESEND_API = 'https://api.resend.com/emails';
 
-export function emailConfigured() {
+/** SMTP needs a host and credentials before it can be used. */
+export function smtpConfigured() {
+  return Boolean(resolve('SMTP_HOST') && resolve('SMTP_USER') && resolve('SMTP_PASSWORD'));
+}
+
+export function resendConfigured() {
   return Boolean(resolve('RESEND_API_KEY'));
+}
+
+/**
+ * Which transport a send will use. An explicit EMAIL_TRANSPORT wins; otherwise
+ * whichever is configured, preferring SMTP because a deployment that bothered
+ * to configure a mailbox means to use it.
+ */
+export function emailTransport() {
+  const choice = String(resolve('EMAIL_TRANSPORT') || '').toLowerCase();
+  if (choice === 'smtp') return smtpConfigured() ? 'smtp' : null;
+  if (choice === 'resend') return resendConfigured() ? 'resend' : null;
+  if (smtpConfigured()) return 'smtp';
+  if (resendConfigured()) return 'resend';
+  return null;
+}
+
+export function emailConfigured() {
+  return Boolean(emailTransport());
 }
 
 export function emailFrom() {
@@ -49,16 +76,70 @@ async function record({ to, subject, kind, status, providerId = null, error = nu
   }
 }
 
+/** A transporter per configuration, rebuilt when the settings change. */
+let cachedTransport = null;
+
+function smtpTransport() {
+  const signature = [resolve('SMTP_HOST'), resolve('SMTP_PORT'), resolve('SMTP_USER'),
+    resolve('SMTP_PASSWORD'), resolve('SMTP_SECURE')].join('|');
+  if (cachedTransport?.signature === signature) return cachedTransport.transport;
+
+  const port = Number(resolve('SMTP_PORT')) || 587;
+  // Port 465 is implicit TLS; 587 and 25 start plain and upgrade with STARTTLS.
+  const secure = String(resolve('SMTP_SECURE') ?? '').toLowerCase() === 'true' || port === 465;
+  const transport = nodemailer.createTransport({
+    host: resolve('SMTP_HOST'),
+    port,
+    secure,
+    auth: { user: resolve('SMTP_USER'), pass: resolve('SMTP_PASSWORD') },
+    connectionTimeout: 15_000,
+    greetingTimeout: 10_000
+  });
+  cachedTransport = { signature, transport };
+  return transport;
+}
+
+/** Prove the configured transport actually works, without sending business mail. */
+export async function verifyEmailTransport() {
+  const transport = emailTransport();
+  if (!transport) return { ok: false, error: 'No email transport is configured' };
+  if (transport === 'resend') {
+    // Resend has no verify step; a send is the only real check.
+    return { ok: true, transport, note: 'Resend accepts the key at send time' };
+  }
+  try {
+    await smtpTransport().verify();
+    return { ok: true, transport };
+  } catch (err) {
+    return { ok: false, transport, error: err.message };
+  }
+}
+
 /**
  * Send one email. Returns { sent, skipped, error } — never throws, so a mail
  * failure cannot roll back the business action that triggered it.
  */
 export async function sendEmail({ to, subject, html, text, kind = 'general' }) {
   if (!to || !subject) return { sent: false, skipped: true, error: 'Missing recipient or subject' };
-  if (!emailConfigured()) {
+  const transport = emailTransport();
+  if (!transport) {
     await record({ to, subject, kind, status: 'skipped' });
     return { sent: false, skipped: true };
   }
+
+  if (transport === 'smtp') {
+    try {
+      const info = await smtpTransport().sendMail({
+        from: emailFrom(), to, subject, html: html || undefined, text: text || undefined
+      });
+      await record({ to, subject, kind, status: 'sent', providerId: info.messageId || null });
+      return { sent: true, skipped: false, id: info.messageId || null };
+    } catch (err) {
+      await record({ to, subject, kind, status: 'failed', error: err.message });
+      return { sent: false, skipped: false, error: err.message };
+    }
+  }
+
   try {
     const res = await fetch(RESEND_API, {
       method: 'POST',

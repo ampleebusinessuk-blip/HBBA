@@ -137,9 +137,17 @@ Order matters:
 Each one is dormant until its keys are set, and Settings -> Integrations shows
 the live status of every row:
 
-- `RESEND_API_KEY` (+ `EMAIL_FROM`): delivers invites, password resets, invoice
-  reminders and campaigns. Without it those actions are still recorded in
-  `email_log` with status `skipped`, and the UI says so.
+- **Email** is configured in Settings -> Integrations, not here. Two transports
+  are supported and you pick one:
+  - **SMTP** — server, port, encryption, username and password. Suits a mailbox
+    you already have (Hostinger, Microsoft 365, Google Workspace).
+  - **Resend** — an API key. Suits a domain with no mail server, and needs the
+    domain verified in Resend first.
+  Use **Send test email** to prove it: the result repeats exactly what the mail
+  server said, so a wrong password or a blocked port is obvious. Without either,
+  sends are recorded in `email_log` as `skipped` and the UI says so.
+  `RESEND_API_KEY`, `EMAIL_FROM` and the `SMTP_*` names still work as
+  environment variables, and an environment value always wins over Settings.
 - `CRON_SECRET`: enables `GET /api/ops/campaigns/run`, the scheduled-campaign
   worker Vercel Cron calls on the schedule in `vercel.json`. Unset, that route returns 404.
 - `STRIPE_SECRET_KEY`: enables the hosted checkout on an invoice.
